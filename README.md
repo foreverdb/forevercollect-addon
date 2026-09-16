@@ -1,6 +1,6 @@
 # ForeverCollect
 
-ForeverCollect katalogisiert beobachtete Daten aus World of Warcraft Classic Era. Die Daten werden in der SavedVariable `ForeverCollectDB` gespeichert.
+ForeverCollect katalogisiert beobachtete Daten aus World of Warcraft Classic Era. Die Daten werden in der SavedVariable `ForeverCollectDB` gespeichert. Die vollständige Feldreferenz des aktuellen Schemas (Version 9) steht in [SCHEMA.md](SCHEMA.md).
 
 ## Verwendung
 
