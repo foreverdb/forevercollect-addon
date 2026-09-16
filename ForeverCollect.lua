@@ -3,13 +3,10 @@ local addonName, addon = ...
 addon.name = addonName
 
 local printMessage = addon.PrintMessage
-local formatTimestamp = addon.FormatTimestamp
 local getLatestCatalog = addon.GetLatestCatalog
-local getCharacterKey = addon.GetCharacterKey
 
 local function scanAll(silent)
     addon.ScanTalentCatalog()
-    addon.ScanSkillLines(silent)
     addon.ScanAbilityCatalog(silent)
 end
 
@@ -38,7 +35,7 @@ end, "Diese Hilfe anzeigen")
 
 addon:RegisterCommand("scan", function()
     scanAll(false)
-end, "Talente, Fertigkeitslinien, Zauber und Runen scannen")
+end, "Talente und Runen scannen")
 
 addon:RegisterCommand("status", function()
     local catalog = getLatestCatalog()
@@ -68,24 +65,9 @@ addon:RegisterCommand("status", function()
         catalog.factionName or catalog.factionFile or "Unknown"
     ))
 
-    local skillSnapshot = catalog.skillSnapshots
-        and catalog.skillSnapshots[getCharacterKey()]
-    if skillSnapshot then
-        local skillCount = addon.CountSkillLines(skillSnapshot)
-        printMessage(string.format(
-            "Skills: %d lines, captured at %s.",
-            skillCount,
-            formatTimestamp(skillSnapshot.scannedAt)
-        ))
-    end
-
     local abilitySnapshot = addon.GetAbilitySnapshot()
     if abilitySnapshot then
-        printMessage(string.format(
-            "Abilities: %d spellbook entries, %d runes.",
-            #abilitySnapshot.spells,
-            #abilitySnapshot.runes
-        ))
+        printMessage(string.format("Runes: %d.", #abilitySnapshot.runes))
     end
 end, "Katalogkontext und Scanstatus anzeigen")
 

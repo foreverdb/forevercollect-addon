@@ -11,7 +11,7 @@ Core/Database.lua
 Core/Registry.lua
 Modules/NPCs.lua
 Modules/Talents.lua
-Modules/Skills.lua
+Modules/Trainers.lua
 Modules/Abilities.lua
 Modules/Quests.lua
 ForeverCollect.lua

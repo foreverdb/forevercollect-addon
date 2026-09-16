@@ -5,11 +5,9 @@ ForeverCollect katalogisiert beobachtete Daten aus World of Warcraft Classic Era
 ## Verwendung
 
 ```text
-/fc scan      Talente, Fertigkeitslinien, Zauber und Runen scannen
+/fc scan      Talente und Runen scannen
 /fc talents   Talentdaten des aktuellen Katalogs anzeigen
-/fc skills    Skill-Snapshot des aktuellen Charakters anzeigen
 /fc trainer   Trainerdienste scannen und Anzahl erfasster Daten anzeigen
-/fc spells    Zauberbuch-Snapshot anzeigen
 /fc runes     Runen-Snapshot anzeigen
 /fc quests    Anzahl erfasster Quests und Beobachtungen anzeigen
 /fc status    Katalogkontext und Scanstatus anzeigen
@@ -31,8 +29,8 @@ Core/Database.lua       ForeverCollectDB, Client-/Charakterkontext, Katalogverwa
 Core/Registry.lua       Event-Frame und Dispatcher für Events und Slash-Commands
 Modules/NPCs.lua        NPC-Erfassung und -Zusammenführung (Händler, Trainer, Bank, Flugmeister)
 Modules/Talents.lua     Talentbäume (/fc talents)
-Modules/Skills.lua      Fertigkeitslinien (/fc skills)
-Modules/Abilities.lua   Zauberbuch und Runen (/fc spells, /fc runes)
+Modules/Trainers.lua    Trainerdienste (/fc trainer)
+Modules/Abilities.lua   Runen (/fc runes)
 Modules/Quests.lua      Questdialoge und Abgaben (/fc quests)
 ForeverCollect.lua      Einstieg: Laden, Login-Scan, /fc help, /fc scan, /fc status
 ```
@@ -100,7 +98,6 @@ catalog = {
     seasonName = "SeasonOfDiscovery",
     scannedAt = 0,
     specializations = {},
-    skillSnapshots = {},
     abilitySnapshots = {},
     trainerSnapshots = {},
     quests = {},
@@ -108,7 +105,7 @@ catalog = {
 }
 ```
 
-`scannedAt`, `questScanUpdatedAt`, `skillsScannedAt` und `trainerScanUpdatedAt` enthalten Unix-Zeitstempel.
+`scannedAt`, `questScanUpdatedAt`, `abilitiesScannedAt` und `trainerScanUpdatedAt` enthalten Unix-Zeitstempel.
 
 ## Talente
 
@@ -156,58 +153,11 @@ specializations = {
 
 Die Talentdaten beschreiben den verfügbaren Baum. Der aktuelle Charakterkontext wird durch den Katalogschlüssel festgelegt.
 
-## Fertigkeitslinien
-
-`skillSnapshots` enthält den zuletzt erfassten Stand pro Charakter. Der Schlüssel ist normalerweise die Charakter-GUID:
-
-```lua
-skillSnapshots = {
-    ["Player-1234-..."] = {
-        scannedAt = 0,
-        character = {
-            name = "Character",
-            realm = "Realm",
-            level = 25,
-            className = "Priest",
-            classFile = "PRIEST",
-            classID = 8,
-            raceName = "Dwarf",
-            raceFile = "Dwarf",
-            raceID = 3,
-            factionName = "Alliance",
-            factionFile = "Alliance",
-            sex = 2,
-        },
-        skillLines = {},
-    },
-}
-```
-
-`skillLines` enthält sowohl Kategorien/Header als auch einzelne Fertigkeitslinien:
-
-| Feld | Beschreibung |
-| --- | --- |
-| `index` | Position in `GetNumSkillLines()`/`GetSkillLineInfo()`. |
-| `name` | Lokalisierter Name der Kategorie oder Fertigkeit. |
-| `category` | Zugehöriger Kategorie-Header. |
-| `isHeader` | `true` bei einer Kategorie. |
-| `isExpanded` | Zustand des Headers während des Scans. |
-| `rank` | Aktueller Rang. |
-| `temporaryPoints` | Temporäre Punkte. |
-| `modifier` | Bonus oder Malus auf den Rang. |
-| `maxRank` | Maximaler Rang; `1` kennzeichnet typischerweise eine Proficiency. |
-| `isAbandonable` | Ob die Fertigkeit verlernt werden kann. |
-| `isLearnable` | Ob die Fertigkeit erlernt werden kann. |
-| `isTrainable` | Ob die Fertigkeit trainiert werden kann. |
-| `minLevel` | Erforderliches Level. |
-| `costType` | Clientinterner Kostentyp. |
-| `description` | Lokalisierte Beschreibung. |
-
-Beim Scannen werden Kategorien vorübergehend vollständig aufgeklappt. Der vorherige UI-Zustand wird danach wiederhergestellt.
-
 ## Trainer-Skills
 
-`trainerSnapshots` wird automatisch aktualisiert, sobald ein Trainer geöffnet wird. Der Schlüssel ist die NPC-GUID; falls diese nicht verfügbar ist, wird die NPC-ID zusammen mit dem Namen verwendet.
+`trainerSnapshots` wird automatisch aktualisiert, sobald ein Trainer geöffnet wird (`TRAINER_SHOW`) oder sich die Trainerliste ändert (`TRAINER_UPDATE`, z. B. nach dem Erlernen). Der Schlüssel ist die NPC-GUID; falls diese nicht verfügbar ist, wird die NPC-ID zusammen mit dem Namen verwendet.
+
+Beim Scannen werden vorübergehend alle Filter (`available`, `unavailable`, `used`) aktiviert und alle Kategorien aufgeklappt, sodass auch bereits gelernte und noch nicht verfügbare Dienste erfasst werden. Der vorherige UI-Zustand wird danach wiederhergestellt.
 
 ```lua
 trainerSnapshots = {
@@ -215,16 +165,41 @@ trainerSnapshots = {
         capturedAt = 0,
         character = {},
         trainerNPC = {},
+        greeting = "Greetings, friend.",
+        isTradeskillTrainer = false,
         services = {
             {
                 index = 1,
+                name = "Alchemy",
+                category = "header",
+                isHeader = true,
+                isExpanded = true,
+                isAvailable = false,
+                isKnown = false,
+                skillLine = "Alchemy",
+            },
+            {
+                index = 2,
                 name = "Example Spell",
                 rank = "Rank 1",
                 category = "available",
+                isHeader = false,
                 isExpanded = false,
                 isAvailable = true,
+                isKnown = false,
                 skillLine = "Alchemy",
+                link = "|cff71d5ff|Hspell:1234|h[Example Spell]|h|r",
+                spellID = 1234,
                 icon = 123456,
+                description = "...",
+                moneyCost = 100,
+                talentCost = 0,
+                professionCost = 0,
+                requirements = {
+                    level = 10,
+                    skill = { name = "Alchemy", rank = 50, isMet = true },
+                    abilities = { { name = "Other Spell", isMet = false } },
+                },
                 tooltipLines = {},
             },
         },
@@ -232,33 +207,17 @@ trainerSnapshots = {
 }
 ```
 
-Die Einträge in `services` entsprechen den aktuell vom Trainer angezeigten Diensten. Enthalten sind unter anderem Name, Rang, Kategorie, Verfügbarkeit, zugehörige Fertigkeitslinie, Icon und lokalisierte Tooltip-Zeilen. Ein erneutes Öffnen desselben Trainers ersetzt den bisherigen Snapshot.
+`category` ist `header`, `available`, `unavailable` oder `used` (bereits gelernt). `skillLine` ist der Name der zuletzt gelesenen Kategorie-Überschrift. `spellID` wird aus `link` gelesen (`spell:` oder `enchant:`). `requirements.skill` und `requirements.level` fehlen, wenn der Dienst keine entsprechende Voraussetzung hat. Ein erneutes Öffnen desselben Trainers ersetzt den bisherigen Snapshot.
 
-## Zauber und Runen
+## Runen
 
-`abilitySnapshots` enthält den aktuellen Fähigkeitenstand pro Charakter:
+`abilitySnapshots` enthält die entdeckten SoD-Runen pro Charakter. Gelernte Zauber werden nicht mehr aus dem Zauberbuch gelesen; sie sind über `trainerSnapshots` mit `category = "used"` abgebildet.
 
 ```lua
 abilitySnapshots = {
     ["Player-GUID"] = {
         scannedAt = 0,
         character = {},
-        spells = {
-            {
-                slot = 1,
-                tabIndex = 1,
-                tabName = "General",
-                type = "SPELL",
-                spellID = 12345,
-                name = "Balefire Bolt",
-                subtext = "",
-                icon = 123456,
-                link = "spell:12345",
-                isPassive = false,
-                isHidden = false,
-                tooltipLines = {},
-            },
-        },
         runes = {
             {
                 category = 16,
@@ -285,9 +244,9 @@ abilitySnapshots = {
 }
 ```
 
-`spells` wird aus allen Einträgen des Spieler-Zauberbuchs aufgebaut. `runes` enthält alle entdeckten SoD-Runen, nicht nur aktuell ausgerüstete Runen. `isEquipped` kennzeichnet den momentanen Ausrüstungszustand. Dadurch bleibt beispielsweise `Balefire Bolt` auch nach dem Wechsel auf eine andere Rune im Katalog erhalten.
+`runes` enthält alle entdeckten SoD-Runen, nicht nur aktuell ausgerüstete Runen. `isEquipped` kennzeichnet den momentanen Ausrüstungszustand. Dadurch bleibt beispielsweise `Balefire Bolt` auch nach dem Wechsel auf eine andere Rune im Katalog erhalten.
 
-Zauber-Tooltips werden als `tooltipLines` mit `leftText` und `rightText` gespeichert. Runen enthalten ihre `learnedAbilitySpellIDs` und unter `abilities` zusätzlich die aufgelösten Namen, Icons und Beschreibungen der gewährten Fähigkeiten.
+Runen enthalten ihre `learnedAbilitySpellIDs` und unter `abilities` zusätzlich die aufgelösten Namen, Icons und Beschreibungen der gewährten Fähigkeiten.
 
 ## Quests
 

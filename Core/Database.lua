@@ -96,8 +96,8 @@ function addon.GetOrCreateCatalog(client)
             specializations = {},
             quests = {},
             npcs = {},
-            skillSnapshots = {},
             abilitySnapshots = {},
+            trainerSnapshots = {},
         }
         ForeverCollectDB.catalogs[key] = catalog
     else
@@ -113,8 +113,8 @@ function addon.GetOrCreateCatalog(client)
         catalog.quests = catalog.quests or {}
         catalog.npcs = catalog.npcs or {}
         catalog.specializations = catalog.specializations or {}
-        catalog.skillSnapshots = catalog.skillSnapshots or {}
         catalog.abilitySnapshots = catalog.abilitySnapshots or {}
+        catalog.trainerSnapshots = catalog.trainerSnapshots or {}
     end
 
     ForeverCollectDB.latestCatalogKey = key

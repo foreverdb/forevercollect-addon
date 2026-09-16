@@ -148,16 +148,14 @@ local function captureNPCInteraction(interactionType, role)
     if not npc.guid and not npc.npcID and not npc.name then
         return
     end
-    mergeNPC(catalog, npc)
+    local merged = mergeNPC(catalog, npc)
     catalog.npcScanUpdatedAt = time()
+    return merged
 end
 addon.CaptureNPCInteraction = captureNPCInteraction
 
 addon:RegisterEvent("MERCHANT_SHOW", function()
     captureNPCInteraction("merchant")
-end)
-addon:RegisterEvent("TRAINER_SHOW", function()
-    captureNPCInteraction("trainer")
 end)
 addon:RegisterEvent("BANKFRAME_OPENED", function()
     captureNPCInteraction("banker")
