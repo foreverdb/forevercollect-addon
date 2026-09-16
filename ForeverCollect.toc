@@ -6,4 +6,12 @@
 ## DefaultState: enabled
 ## SavedVariables: ForeverCollectDB
 
+Core/Util.lua
+Core/Database.lua
+Core/Registry.lua
+Modules/NPCs.lua
+Modules/Talents.lua
+Modules/Skills.lua
+Modules/Abilities.lua
+Modules/Quests.lua
 ForeverCollect.lua

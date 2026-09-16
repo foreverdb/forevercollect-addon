@@ -21,6 +21,22 @@ WoW schreibt die Daten nach `/reload`, Logout oder Beenden in:
 WTF/Account/<ACCOUNT>/SavedVariables/ForeverCollect.lua
 ```
 
+## Projektstruktur
+
+Die Dateien werden in der Reihenfolge aus `ForeverCollect.toc` geladen und teilen sich die Addon-Tabelle (`local _, addon = ...`). Module hängen nur das an `addon`, was andere Dateien brauchen, und registrieren ihre Events und Slash-Subcommands selbst über `addon:RegisterEvent(event, handler)` bzw. `addon:RegisterCommand(name, handler, help)`.
+
+```text
+Core/Util.lua           Chat-Ausgabe, Tooltip-Scanner, kleine Helfer
+Core/Database.lua       ForeverCollectDB, Client-/Charakterkontext, Katalogverwaltung
+Core/Registry.lua       Event-Frame und Dispatcher für Events und Slash-Commands
+Modules/NPCs.lua        NPC-Erfassung und -Zusammenführung (Händler, Trainer, Bank, Flugmeister)
+Modules/Talents.lua     Talentbäume (/fc talents)
+Modules/Skills.lua      Fertigkeitslinien (/fc skills)
+Modules/Abilities.lua   Zauberbuch und Runen (/fc spells, /fc runes)
+Modules/Quests.lua      Questdialoge und Abgaben (/fc quests)
+ForeverCollect.lua      Einstieg: Laden, Login-Scan, /fc help, /fc scan, /fc status
+```
+
 ## Chat-Feedback
 
 Wenn neue Daten erfolgreich erfasst wurden, erscheint eine Meldung mit dem Präfix `New data captured` im Chat. Wiederholte automatische Aktualisierungen ohne neue Einträge bleiben still, um Chatspam zu vermeiden. Manuelle Scans zeigen weiterhin ihre zusammenfassende Scanmeldung.
