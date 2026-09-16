@@ -24,6 +24,38 @@ function addon.AddUniqueValue(values, value)
     values[#values + 1] = value
 end
 
+-- Appends `location` to `locations` unless a location on the same map within
+-- ~0.1% of the same coordinates is already listed. Returns true when added.
+function addon.AddUniqueLocation(locations, location, cap)
+    if not location or not location.uiMapID or not location.x or not location.y then
+        return false
+    end
+    local key = string.format(
+        "%d:%d:%d",
+        location.uiMapID,
+        math.floor(location.x * 1000 + 0.5),
+        math.floor(location.y * 1000 + 0.5)
+    )
+    for _, existing in ipairs(locations) do
+        if existing.uiMapID and existing.x and existing.y then
+            local existingKey = string.format(
+                "%d:%d:%d",
+                existing.uiMapID,
+                math.floor(existing.x * 1000 + 0.5),
+                math.floor(existing.y * 1000 + 0.5)
+            )
+            if existingKey == key then
+                return false
+            end
+        end
+    end
+    if cap and #locations >= cap then
+        return false
+    end
+    locations[#locations + 1] = location
+    return true
+end
+
 function addon.GetItemIDFromLink(link)
     if not link then
         return nil

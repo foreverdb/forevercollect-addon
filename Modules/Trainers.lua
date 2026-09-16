@@ -8,19 +8,13 @@ local getOrCreateCatalog = addon.GetOrCreateCatalog
 local getLatestCatalog = addon.GetLatestCatalog
 local getCharacterContext = addon.GetCharacterContext
 local captureNPCInteraction = addon.CaptureNPCInteraction
+local getNPCKey = addon.GetNPCKey
 
 local SERVICE_FILTERS = { "available", "unavailable", "used" }
 
 local isScanningTrainer
 local lastListSignature
 local hasAnnouncedTrainer
-
-local function getTrainerKey(npc)
-    if npc.guid then
-        return npc.guid
-    end
-    return string.format("%s:%s", tostring(npc.npcID or "Unknown"), npc.name or "Unknown")
-end
 
 local function getServiceSpellID(link)
     if not link then
@@ -202,7 +196,7 @@ local function scanTrainerServices(silent)
 
     local catalog = getOrCreateCatalog(getClientInfo())
     catalog.trainerSnapshots = catalog.trainerSnapshots or {}
-    catalog.trainerSnapshots[getTrainerKey(npc)] = snapshot
+    catalog.trainerSnapshots[getNPCKey(npc)] = snapshot
     catalog.trainerScanUpdatedAt = snapshot.capturedAt
 
     if not silent or not hasAnnouncedTrainer then

@@ -8,6 +8,7 @@ local getLatestCatalog = addon.GetLatestCatalog
 local getCharacterContext = addon.GetCharacterContext
 local getNPC = addon.GetNPC
 local mergeNPC = addon.MergeNPC
+local recordItem = addon.RecordItem
 
 local activeQuestPhase
 
@@ -15,11 +16,14 @@ local function getQuestNPC(role)
     return getNPC("questnpc", "questGiver", role)
 end
 
-local function scanQuestItems(itemType, count)
+local function scanQuestItems(itemType, count, source)
     local items = {}
     for index = 1, count or 0 do
         local name, texture, quantity, quality, isUsable = GetQuestItemInfo(itemType, index)
         local link = GetQuestItemLink(itemType, index)
+        if link and source then
+            recordItem(link, source)
+        end
         items[#items + 1] = {
             index = index,
             itemID = getItemIDFromLink(link),
@@ -62,10 +66,19 @@ local function scanQuestSpells(questID)
     return spells
 end
 
-local function scanQuestRewards(questID)
+local function getQuestItemSource(questID, observation)
+    return {
+        type = "quest",
+        questID = questID,
+        location = observation and observation.questNPC and observation.questNPC.location or nil,
+    }
+end
+
+local function scanQuestRewards(questID, observation)
+    local source = getQuestItemSource(questID, observation)
     local rewards = {
-        items = scanQuestItems("reward", GetNumQuestRewards()),
-        choices = scanQuestItems("choice", GetNumQuestChoices()),
+        items = scanQuestItems("reward", GetNumQuestRewards(), source),
+        choices = scanQuestItems("choice", GetNumQuestChoices(), source),
         spells = scanQuestSpells(questID),
         money = GetRewardMoney and GetRewardMoney() or nil,
         xp = GetRewardXP and GetRewardXP() or nil,
@@ -73,9 +86,13 @@ local function scanQuestRewards(questID)
     return rewards
 end
 
-local function scanQuestProgress()
+local function scanQuestProgress(questID, observation)
     return {
-        requiredItems = scanQuestItems("required", GetNumQuestItems()),
+        requiredItems = scanQuestItems(
+            "required",
+            GetNumQuestItems(),
+            getQuestItemSource(questID, observation)
+        ),
         requiredMoney = GetQuestMoneyToGet and GetQuestMoneyToGet() or nil,
     }
 end
@@ -119,18 +136,18 @@ local function captureQuest(event)
     if event == "QUEST_DETAIL" then
         observation.description = GetQuestText and GetQuestText() or nil
         observation.objectives = GetObjectiveText and GetObjectiveText() or nil
-        observation.rewards = scanQuestRewards(questID)
+        observation.rewards = scanQuestRewards(questID, observation)
     elseif event == "QUEST_PROGRESS" then
         observation.text = GetProgressText and GetProgressText() or nil
-        observation.progress = scanQuestProgress()
+        observation.progress = scanQuestProgress(questID, observation)
     elseif event == "QUEST_COMPLETE" then
         observation.text = GetRewardText and GetRewardText() or nil
-        observation.rewards = scanQuestRewards(questID)
+        observation.rewards = scanQuestRewards(questID, observation)
     elseif event == "QUEST_ITEM_UPDATE" then
         if activeQuestPhase == "QUEST_DETAIL" or activeQuestPhase == "QUEST_COMPLETE" then
-            observation.rewards = scanQuestRewards(questID)
+            observation.rewards = scanQuestRewards(questID, observation)
         elseif activeQuestPhase == "QUEST_PROGRESS" then
-            observation.progress = scanQuestProgress()
+            observation.progress = scanQuestProgress(questID, observation)
         end
     end
 

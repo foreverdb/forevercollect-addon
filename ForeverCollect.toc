@@ -10,6 +10,10 @@ Core/Util.lua
 Core/Database.lua
 Core/Registry.lua
 Modules/NPCs.lua
+Modules/Items.lua
+Modules/Merchants.lua
+Modules/Loot.lua
+Modules/TradeSkills.lua
 Modules/Talents.lua
 Modules/Trainers.lua
 Modules/Abilities.lua

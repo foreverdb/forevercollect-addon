@@ -1,6 +1,6 @@
 local _, addon = ...
 
-local DATABASE_SCHEMA_VERSION = 8
+local DATABASE_SCHEMA_VERSION = 9
 
 local SEASON_NAMES = {
     [0] = "NoSeason",
@@ -98,6 +98,10 @@ function addon.GetOrCreateCatalog(client)
             npcs = {},
             abilitySnapshots = {},
             trainerSnapshots = {},
+            items = {},
+            merchantSnapshots = {},
+            lootSources = {},
+            tradeSkills = {},
         }
         ForeverCollectDB.catalogs[key] = catalog
     else
@@ -115,6 +119,10 @@ function addon.GetOrCreateCatalog(client)
         catalog.specializations = catalog.specializations or {}
         catalog.abilitySnapshots = catalog.abilitySnapshots or {}
         catalog.trainerSnapshots = catalog.trainerSnapshots or {}
+        catalog.items = catalog.items or {}
+        catalog.merchantSnapshots = catalog.merchantSnapshots or {}
+        catalog.lootSources = catalog.lootSources or {}
+        catalog.tradeSkills = catalog.tradeSkills or {}
     end
 
     ForeverCollectDB.latestCatalogKey = key

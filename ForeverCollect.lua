@@ -69,6 +69,24 @@ addon:RegisterCommand("status", function()
     if abilitySnapshot then
         printMessage(string.format("Runes: %d.", #abilitySnapshot.runes))
     end
+
+    local itemCount, loadedItemCount = addon.CountItems(catalog)
+    local merchantCount = 0
+    for _ in pairs(catalog.merchantSnapshots or {}) do
+        merchantCount = merchantCount + 1
+    end
+    local lootSourceCount, lootItemCount = addon.CountLoot(catalog)
+    local skillCount, recipeCount = addon.CountRecipes(catalog)
+    printMessage(string.format(
+        "Items: %d (%d with details), merchants: %d, loot sources: %d (%d items), professions: %d (%d recipes).",
+        itemCount,
+        loadedItemCount,
+        merchantCount,
+        lootSourceCount,
+        lootItemCount,
+        skillCount,
+        recipeCount
+    ))
 end, "Katalogkontext und Scanstatus anzeigen")
 
 SLASH_FOREVERCOLLECT1 = "/forevercollect"

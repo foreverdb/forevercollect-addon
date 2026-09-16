@@ -8,6 +8,10 @@ ForeverCollect katalogisiert beobachtete Daten aus World of Warcraft Classic Era
 /fc scan      Talente und Runen scannen
 /fc talents   Talentdaten des aktuellen Katalogs anzeigen
 /fc trainer   Trainerdienste scannen und Anzahl erfasster Daten anzeigen
+/fc items     Anzahl erfasster Items anzeigen
+/fc merchants Händler-Sortimente anzeigen
+/fc loot      Loot-Quellen und -Items anzeigen
+/fc recipes   Berufe und Rezepte anzeigen
 /fc runes     Runen-Snapshot anzeigen
 /fc quests    Anzahl erfasster Quests und Beobachtungen anzeigen
 /fc status    Katalogkontext und Scanstatus anzeigen
@@ -28,6 +32,10 @@ Core/Util.lua           Chat-Ausgabe, Tooltip-Scanner, kleine Helfer
 Core/Database.lua       ForeverCollectDB, Client-/Charakterkontext, Katalogverwaltung
 Core/Registry.lua       Event-Frame und Dispatcher für Events und Slash-Commands
 Modules/NPCs.lua        NPC-Erfassung und -Zusammenführung (Händler, Trainer, Bank, Flugmeister)
+Modules/Items.lua       Item-Katalog mit Quellen und Koordinaten (/fc items)
+Modules/Merchants.lua   Händler-Sortimente (/fc merchants)
+Modules/Loot.lua        Loot-Quellen und Drop-Orte (/fc loot)
+Modules/TradeSkills.lua Berufsrezepte aus Berufs- und Craft-Fenster (/fc recipes)
 Modules/Talents.lua     Talentbäume (/fc talents)
 Modules/Trainers.lua    Trainerdienste (/fc trainer)
 Modules/Abilities.lua   Runen (/fc runes)
@@ -100,12 +108,16 @@ catalog = {
     specializations = {},
     abilitySnapshots = {},
     trainerSnapshots = {},
+    items = {},
+    merchantSnapshots = {},
+    lootSources = {},
+    tradeSkills = {},
     quests = {},
     npcs = {},
 }
 ```
 
-`scannedAt`, `questScanUpdatedAt`, `abilitiesScannedAt` und `trainerScanUpdatedAt` enthalten Unix-Zeitstempel.
+`scannedAt`, `questScanUpdatedAt`, `abilitiesScannedAt`, `trainerScanUpdatedAt`, `itemsUpdatedAt`, `merchantScanUpdatedAt`, `lootUpdatedAt` und `tradeSkillsUpdatedAt` enthalten Unix-Zeitstempel.
 
 ## Talente
 
@@ -208,6 +220,168 @@ trainerSnapshots = {
 ```
 
 `category` ist `header`, `available`, `unavailable` oder `used` (bereits gelernt). `skillLine` ist der Name der zuletzt gelesenen Kategorie-Überschrift. `spellID` wird aus `link` gelesen (`spell:` oder `enchant:`). `requirements.skill` und `requirements.level` fehlen, wenn der Dienst keine entsprechende Voraussetzung hat. Ein erneutes Öffnen desselben Trainers ersetzt den bisherigen Snapshot.
+
+## Items
+
+`items` ist ein deduplizierter Katalog aller beobachteten Items, Schlüssel ist die `itemID`. Er wird ausschließlich über Quellen befüllt (Händler, Quests, Loot, Rezepte); Taschen- oder Ausrüstungsinhalte werden nicht erfasst.
+
+```lua
+items = {
+    [12345] = {
+        itemID = 12345,
+        name = "Example Item",
+        link = "|cffffffff|Hitem:12345:...|h[Example Item]|h|r",
+        quality = 1,
+        itemLevel = 10,
+        requiredLevel = 5,
+        itemType = "Armor",
+        itemSubType = "Cloth",
+        classID = 4,
+        subclassID = 1,
+        stackCount = 1,
+        equipLoc = "INVTYPE_CHEST",
+        texture = 123456,
+        sellPrice = 25,
+        bindType = 1,
+        expansionID = 0,
+        setID = 0,
+        isCraftingReagent = false,
+        spell = { name = "...", spellID = 1234 },
+        stats = { ITEM_MOD_STAMINA_SHORT = 3 },
+        tooltipLines = {},
+        firstSeenAt = 0,
+        lastSeenAt = 0,
+        updatedAt = 0,
+        detailsLoaded = true,
+        sources = {
+            ["merchant:6018"] = {
+                type = "merchant", npcID = 6018, name = "Vendor",
+                location = {}, timesSeen = 2, firstSeenAt = 0, lastSeenAt = 0,
+            },
+            ["quest:123"] = { type = "quest", questID = 123, location = {}, timesSeen = 1 },
+            ["loot:Creature:456"] = {
+                type = "loot", sourceType = "Creature", sourceID = 456, name = "Mob",
+                locations = { {}, {} }, timesSeen = 5,
+            },
+            ["recipe:Alchemy"] = { type = "recipe", skillName = "Alchemy", timesSeen = 1 },
+        },
+    },
+}
+```
+
+Die Item-Details stammen aus `GetItemInfo`, `GetItemSpell`, `GetItemStats` und dem Tooltip. Ist ein Item beim ersten Sehen nicht im Client-Cache, werden die Details asynchron nachgeladen (`detailsLoaded = false`, bis sie vorliegen). Bereits geladene Items werden nicht erneut gelesen.
+
+`sources` verknüpft jedes Item mit seinen Fundorten. Händler- und Quest-Quellen tragen die `location` des NPCs (Format wie unter „Quest-NPC und Ort“), Loot-Quellen eine Liste `locations` mit den Spielerpositionen beim Plündern (dedupliziert auf ca. 0,1 % Kartenauflösung, maximal 20 Einträge). Rezept-Quellen haben keine Weltkoordinate.
+
+## Händler
+
+`merchantSnapshots` wird beim Öffnen eines Händlers (`MERCHANT_SHOW`) und bei Änderungen des Sortiments (`MERCHANT_UPDATE`) aktualisiert. Der Schlüssel ist die NPC-GUID, sonst `npcID:name`. Ein erneutes Öffnen ersetzt den Snapshot.
+
+```lua
+merchantSnapshots = {
+    ["Creature-0-..."] = {
+        capturedAt = 0,
+        character = {},
+        merchantNPC = {},          -- NPC-Objekt inkl. location
+        canRepair = false,
+        items = {
+            {
+                index = 1,
+                itemID = 12345,
+                name = "Example Item",
+                link = "...",
+                texture = 123456,
+                price = 250,          -- Kupfer
+                stackCount = 1,
+                maxStack = 5,
+                numAvailable = -1,    -- -1 = unbegrenzt
+                isPurchasable = true,
+                isUsable = true,
+                hasExtendedCost = false,
+                extendedCost = {      -- nur bei hasExtendedCost
+                    { itemID = 1, name = "Token", link = "...", texture = 1, count = 3 },
+                },
+            },
+        },
+    },
+}
+```
+
+## Loot
+
+`lootSources` aggregiert Loot-Beobachtungen pro Quelle (`LOOT_OPENED`). Der Schlüssel ist `<sourceType>:<sourceID>` aus der Quell-GUID (`Creature`, `GameObject`), `Fishing` beim Angeln. Derselbe Loot-Container zählt pro Sitzung nur einmal.
+
+```lua
+lootSources = {
+    ["Creature:456"] = {
+        sourceType = "Creature",
+        sourceID = 456,
+        name = "Mob",              -- falls die Quelle das aktuelle Ziel war
+        lootCount = 3,             -- geöffnete Loot-Fenster
+        firstSeenAt = 0,
+        lastSeenAt = 0,
+        locations = { {} },        -- Spielerposition je Loot-Vorgang, max. 100
+        items = {
+            [12345] = {
+                itemID = 12345,
+                name = "Example Item",
+                link = "...",
+                quality = 1,
+                isQuestItem = false,
+                questID = nil,
+                timesSeen = 2,
+                quantityTotal = 3,
+                lastSeenAt = 0,
+                locations = { {} },  -- Drop-Orte dieses Items, max. 20
+            },
+        },
+        money = { timesSeen = 3, total = 1234 },  -- Kupfer
+    },
+}
+```
+
+## Berufe
+
+`tradeSkills` enthält die beobachteten Rezepte pro Beruf. Erfasst werden das Berufsfenster (`TRADE_SKILL_SHOW`, z. B. Alchemie) und das Craft-Fenster (`CRAFT_SHOW`, Verzauberung und Tierausbildung). Rezepte werden über Charaktere hinweg zusammengeführt; Schlüssel ist die Spell-ID aus dem Rezept-Link, ersatzweise der Name. Beim Scannen werden Filter („Hat Materialien“, Unterklasse, Ausrüstungsplatz, Namenssuche) vorübergehend aufgehoben und alle Kategorien aufgeklappt; der vorherige Zustand wird danach wiederhergestellt.
+
+```lua
+tradeSkills = {
+    ["Alchemy"] = {
+        skillName = "Alchemy",
+        window = "tradeSkill",     -- oder "craft"
+        rank = 150,
+        maxRank = 225,
+        character = {},
+        updatedAt = 0,
+        recipes = {
+            [2330] = {
+                spellID = 2330,
+                name = "Minor Healing Potion",
+                subSpellName = nil,          -- Craft-Fenster
+                recipeLink = "...",
+                difficulty = "trivial",      -- trivial, easy, medium, optimal, difficult
+                numAvailable = 4,
+                header = "Potion",
+                resultItemID = 118,
+                resultLink = "...",
+                numMadeMin = 1,
+                numMadeMax = 1,
+                reagents = {
+                    { itemID = 2447, name = "Peacebloom", link = "...", texture = 1, count = 1 },
+                },
+                tools = {},
+                cooldown = nil,
+                description = nil,
+                requiredLevel = nil,         -- Craft-Fenster
+                trainingPointCost = nil,     -- Tierausbildung
+                spellFocus = nil,            -- Craft-Fenster
+                firstSeenAt = 0,
+                capturedAt = 0,
+            },
+        },
+    },
+}
+```
 
 ## Runen
 
@@ -337,7 +511,7 @@ questNPC = {
 
 ### NPC-Katalog
 
-`npcs` enthält alle erkannten NPCs aus Questdialogen sowie aus Händler-, Trainer-, Bank-, Flugmeister- und Gastwirt-Interaktionen. Ein NPC kann mehrere `interactionTypes` haben. Unterstützte Werte sind `questGiver`, `merchant`, `trainer`, `banker`, `flightMaster` und `innkeeper`.
+`npcs` enthält alle erkannten NPCs aus Questdialogen sowie aus Händler-, Trainer-, Bank-, Flugmeister- und Gastwirt-Interaktionen. Das Sortiment eines Händlers liegt in `merchantSnapshots`, die Dienste eines Trainers in `trainerSnapshots`. Ein NPC kann mehrere `interactionTypes` haben. Unterstützte Werte sind `questGiver`, `merchant`, `trainer`, `banker`, `flightMaster` und `innkeeper`.
 
 ```lua
 npcs = {
@@ -373,7 +547,7 @@ rewards = {
 }
 ```
 
-Item-Einträge enthalten unter anderem `itemID`, `name`, `link`, `texture`, `quantity`, `quality` und `isUsable`. Zauber-Einträge enthalten `spellID`, `name`, `texture`, `isTradeskill` und `isSpellLearned`.
+Item-Einträge enthalten unter anderem `itemID`, `name`, `link`, `texture`, `quantity`, `quality` und `isUsable`; die Items werden zusätzlich im Item-Katalog `items` mit der Quelle `quest:<questID>` und dem Standort des Quest-NPCs eingetragen. Zauber-Einträge enthalten `spellID`, `name`, `texture`, `isTradeskill` und `isSpellLearned`.
 
 ## Kontext und Varianten
 

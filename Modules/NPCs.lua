@@ -5,11 +5,9 @@ local getClientInfo = addon.GetClientInfo
 local getOrCreateCatalog = addon.GetOrCreateCatalog
 local initializeDatabase = addon.InitializeDatabase
 
-local function getNPC(unitToken, interactionType, role)
-    local guid = UnitGUID and UnitGUID(unitToken) or nil
-    local name = UnitName and UnitName(unitToken) or nil
-    local creatureID = UnitCreatureID and UnitCreatureID(unitToken) or nil
-    local objectType = guid and string.match(guid, "^([^-]+)") or nil
+-- Returns the player's current position; used as an approximation of the
+-- position of whatever the player is interacting with.
+local function getPlayerLocation()
     local location = {
         source = "playerAtInteraction",
         zone = GetZoneText and GetZoneText() or nil,
@@ -44,6 +42,37 @@ local function getNPC(unitToken, interactionType, role)
             end
         end
     end
+
+    return location
+end
+addon.GetPlayerLocation = getPlayerLocation
+
+-- Splits a unit GUID like "Creature-0-1234-0-5-6018-0000ABCDEF" into its
+-- object type and object ID.
+function addon.ParseGUID(guid)
+    if not guid then
+        return nil, nil
+    end
+    local objectType, objectID = string.match(guid, "^(%a+)%-0%-%d+%-%d+%-%d+%-(%d+)%-")
+    if not objectType then
+        objectType = string.match(guid, "^([^-]+)")
+    end
+    return objectType, tonumber(objectID)
+end
+
+function addon.GetNPCKey(npc)
+    if npc.guid then
+        return npc.guid
+    end
+    return string.format("%s:%s", tostring(npc.npcID or "Unknown"), npc.name or "Unknown")
+end
+
+local function getNPC(unitToken, interactionType, role)
+    local guid = UnitGUID and UnitGUID(unitToken) or nil
+    local name = UnitName and UnitName(unitToken) or nil
+    local creatureID = UnitCreatureID and UnitCreatureID(unitToken) or nil
+    local objectType = guid and string.match(guid, "^([^-]+)") or nil
+    local location = getPlayerLocation()
 
     local npc = {
         role = role,
@@ -154,9 +183,6 @@ local function captureNPCInteraction(interactionType, role)
 end
 addon.CaptureNPCInteraction = captureNPCInteraction
 
-addon:RegisterEvent("MERCHANT_SHOW", function()
-    captureNPCInteraction("merchant")
-end)
 addon:RegisterEvent("BANKFRAME_OPENED", function()
     captureNPCInteraction("banker")
 end)
