@@ -1,6 +1,6 @@
 # ForeverCollect
 
-ForeverCollect katalogisiert beobachtete Daten aus World of Warcraft Classic Era. Die Daten werden in der SavedVariable `ForeverCollectDB` gespeichert. Die vollständige Feldreferenz des aktuellen Schemas (Version 9) steht in [SCHEMA.md](SCHEMA.md).
+ForeverCollect katalogisiert beobachtete Daten aus World of Warcraft Classic Era und Forever (1.60+). Die Daten werden in der SavedVariable `ForeverCollectDB` gespeichert. Die vollständige Feldreferenz des aktuellen Schemas (Version 9) steht in [SCHEMA.md](SCHEMA.md).
 
 ## Verwendung
 
@@ -20,6 +20,17 @@ WoW schreibt die Daten nach `/reload`, Logout oder Beenden in:
 ```text
 WTF/Account/<ACCOUNT>/SavedVariables/ForeverCollect.lua
 ```
+
+## Skripte
+
+```sh
+./deploy.sh           # kopiert das Addon in _classic_era_ und _classic_beta_ (Forever)
+./upload.sh           # lädt die Forever-SavedVariables zum Ingress hoch (POST /imports/forevercollect)
+./upload.sh era       # dasselbe für Classic Era
+./upload.sh forever <pfad>   # expliziter Dateipfad
+```
+
+`upload.sh` ermittelt das Account-Verzeichnis des Clients selbst und löscht die Datei nach erfolgreichem Upload nur, wenn der jeweilige Client (`WowB.exe` bzw. `WowClassic.exe`) nicht läuft. `WOW_DIR` und `TARGET_URL` lassen sich per Umgebungsvariable überschreiben.
 
 ## Projektstruktur
 
@@ -115,7 +126,7 @@ catalog = {
 
 ## Talente
 
-`specializations` ist ein Array der Talentbäume des aktuellen Classic-Clients:
+`specializations` ist ein Array der Talentbäume des aktuellen Classic-Clients. Forever (1.60+) baut seine Talente auf dem Trait-System (`C_Traits`) auf; dort bleibt `specializations` leer, die Baumstruktur kommt aus dem statischen Katalog des Servers.
 
 ```lua
 specializations = {
@@ -164,6 +175,8 @@ Die Talentdaten beschreiben den verfügbaren Baum. Der aktuelle Charakterkontext
 `trainerSnapshots` wird automatisch aktualisiert, sobald ein Trainer geöffnet wird (`TRAINER_SHOW`) oder sich die Trainerliste ändert (`TRAINER_UPDATE`, z. B. nach dem Erlernen). Der Schlüssel ist die NPC-GUID; falls diese nicht verfügbar ist, wird die NPC-ID zusammen mit dem Namen verwendet.
 
 Beim Scannen werden vorübergehend alle Filter (`available`, `unavailable`, `used`) aktiviert und alle Kategorien aufgeklappt, sodass auch bereits gelernte und noch nicht verfügbare Dienste erfasst werden. Der vorherige UI-Zustand wird danach wiederhergestellt.
+
+Das Modul unterstützt beide API-Generationen: die Classic-Liste mit Header-Zeilen (`ExpandTrainerSkillLine`) und die flache Mainline-Liste von Forever 1.60+ (`GetTrainerServiceInfo` liefert dort `name, serviceType, texture, reqLevel, subText, category`).
 
 ```lua
 trainerSnapshots = {
@@ -246,6 +259,8 @@ Das Addon erfasst nur, **wo** ein Item gesehen wurde. Statische Item-Daten (Name
 `sources` verknüpft jedes Item mit seinen Fundorten. Händler- und Quest-Quellen tragen die `location` des NPCs (Format wie unter „Quest-NPC und Ort“), Loot-Quellen eine Liste `locations` mit den Spielerpositionen beim Plündern (dedupliziert auf ca. 0,1 % Kartenauflösung, maximal 20 Einträge). Rezept-Quellen haben keine Weltkoordinate.
 
 ## Händler
+
+Händlerdaten werden über `GetMerchantItemInfo` gelesen, auf Forever 1.60+ über `C_MerchantFrame.GetItemInfo`.
 
 `merchantSnapshots` wird beim Öffnen eines Händlers (`MERCHANT_SHOW`) und bei Änderungen des Sortiments (`MERCHANT_UPDATE`) aktualisiert. Der Schlüssel ist die NPC-GUID, sonst `npcID:name`. Ein erneutes Öffnen ersetzt den Snapshot.
 

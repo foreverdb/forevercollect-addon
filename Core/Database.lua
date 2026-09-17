@@ -51,8 +51,15 @@ function addon.GetClientInfo()
     }
 end
 
+-- Classic Era reports WOW_PROJECT_CLASSIC; Forever (1.60+) runs on the mainline
+-- engine and reports that engine's project id, so it is recognised by its
+-- interface version instead (1.x content = 10000..19999).
 function addon.IsSupportedClient(client)
-    return client.projectID == WOW_PROJECT_CLASSIC
+    if client.projectID == WOW_PROJECT_CLASSIC then
+        return true
+    end
+    local interfaceVersion = tonumber(client.interfaceVersion) or 0
+    return interfaceVersion >= 10000 and interfaceVersion < 20000
 end
 
 local function getCatalogKey(client)

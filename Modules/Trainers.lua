@@ -50,7 +50,23 @@ local function getServiceTooltipInfo(index)
     end)
 end
 
-local function getServiceRequirements(index)
+-- Mainline-engine clients (Forever 1.60+) list services flat with a category
+-- name per row and no header/expand API; Classic lists headers as rows.
+local function hasClassicTrainerList()
+    return ExpandTrainerSkillLine ~= nil and CollapseTrainerSkillLine ~= nil
+end
+
+-- Classic returns moneyCost, talentCost, professionCost; the mainline engine
+-- returns moneyCost, isProfession (a boolean), so only the money cost is kept there.
+local function getServiceCost(index)
+    local moneyCost, talentCost, professionCost = GetTrainerServiceCost(index)
+    if not hasClassicTrainerList() then
+        return moneyCost, nil, nil
+    end
+    return moneyCost, talentCost, professionCost
+end
+
+local function getServiceRequirements(index, reqLevel)
     local requirements = {}
     local skillName, skillRank, hasSkill = GetTrainerServiceSkillReq(index)
     if skillName then
@@ -72,17 +88,45 @@ local function getServiceRequirements(index)
         end
     end
     requirements.abilities = abilities
-    requirements.level = GetTrainerServiceLevelReq(index)
+    if GetTrainerServiceLevelReq then
+        requirements.level = GetTrainerServiceLevelReq(index)
+    else
+        requirements.level = reqLevel
+    end
     return requirements
 end
 
 -- Cheap fingerprint of the currently listed services, used to tell real list
 -- changes apart from the TRAINER_UPDATE events caused by our own filter changes.
+-- Normalizes GetTrainerServiceInfo across the two client generations:
+-- Classic returns name, rank, category, isExpanded; the mainline engine returns
+-- name, serviceType, texture, reqLevel, subText, category (= skill line name).
+local function getServiceInfo(index)
+    if hasClassicTrainerList() then
+        local name, rank, category, isExpanded = GetTrainerServiceInfo(index)
+        return {
+            name = name,
+            rank = rank,
+            category = category,
+            isExpanded = isExpanded,
+        }
+    end
+    local name, serviceType, texture, reqLevel, subText, skillLine = GetTrainerServiceInfo(index)
+    return {
+        name = name,
+        rank = subText,
+        category = serviceType,
+        icon = texture,
+        reqLevel = reqLevel,
+        skillLine = skillLine ~= "" and skillLine or nil,
+    }
+end
+
 local function getListSignature()
     local parts = {}
     for index = 1, GetNumTrainerServices() do
-        local name, _, category = GetTrainerServiceInfo(index)
-        parts[index] = (name or "") .. ":" .. (category or "")
+        local info = getServiceInfo(index)
+        parts[index] = (info.name or "") .. ":" .. (info.category or "")
     end
     return table.concat(parts, "|")
 end
@@ -91,7 +135,11 @@ local function readServices()
     local services = {}
     local skillLine
     for index = 1, GetNumTrainerServices() do
-        local name, rank, category, isExpanded = GetTrainerServiceInfo(index)
+        local info = getServiceInfo(index)
+        local name, rank, category, isExpanded = info.name, info.rank, info.category, info.isExpanded
+        if info.skillLine then
+            skillLine = info.skillLine
+        end
         if name and name ~= "" then
             local isHeader = category == "header"
             if isHeader then
@@ -111,18 +159,18 @@ local function readServices()
             }
 
             if not isHeader then
-                local link = GetTrainerServiceItemLink(index)
-                local moneyCost, talentCost, professionCost = GetTrainerServiceCost(index)
+                local link = GetTrainerServiceItemLink and GetTrainerServiceItemLink(index) or nil
+                local moneyCost, talentCost, professionCost = getServiceCost(index)
                 local tooltipLines, tooltipSpellID = getServiceTooltipInfo(index)
                 service.link = link
                 service.spellID = getServiceSpellID(link) or tooltipSpellID
                 service.rank = service.rank or getSpellRank(service.spellID)
-                service.icon = GetTrainerServiceIcon(index)
-                service.description = GetTrainerServiceDescription(index)
+                service.icon = info.icon or (GetTrainerServiceIcon and GetTrainerServiceIcon(index)) or nil
+                service.description = GetTrainerServiceDescription and GetTrainerServiceDescription(index) or nil
                 service.moneyCost = moneyCost
                 service.talentCost = talentCost
                 service.professionCost = professionCost
-                service.requirements = getServiceRequirements(index)
+                service.requirements = getServiceRequirements(index, info.reqLevel)
                 service.tooltipLines = tooltipLines
             end
 
@@ -152,20 +200,24 @@ local function withAllServicesVisible(callback)
     end
 
     local collapsedHeaders = {}
-    for index = 1, GetNumTrainerServices() do
-        local name, _, category, isExpanded = GetTrainerServiceInfo(index)
-        if category == "header" and name and not isExpanded then
-            collapsedHeaders[name] = true
+    if hasClassicTrainerList() then
+        for index = 1, GetNumTrainerServices() do
+            local info = getServiceInfo(index)
+            if info.category == "header" and info.name and not info.isExpanded then
+                collapsedHeaders[info.name] = true
+            end
         end
+        ExpandTrainerSkillLine(0)
     end
-    ExpandTrainerSkillLine(0)
 
     local result = callback()
 
-    for index = GetNumTrainerServices(), 1, -1 do
-        local name, _, category = GetTrainerServiceInfo(index)
-        if category == "header" and name and collapsedHeaders[name] then
-            CollapseTrainerSkillLine(index)
+    if hasClassicTrainerList() then
+        for index = GetNumTrainerServices(), 1, -1 do
+            local info = getServiceInfo(index)
+            if info.category == "header" and info.name and collapsedHeaders[info.name] then
+                CollapseTrainerSkillLine(index)
+            end
         end
     end
     for _, filter in ipairs(SERVICE_FILTERS) do
@@ -183,9 +235,9 @@ local function scanTrainerServices(silent)
     end
     if not GetNumTrainerServices or not GetTrainerServiceInfo
         or not GetTrainerServiceTypeFilter or not SetTrainerServiceTypeFilter
-        or not ExpandTrainerSkillLine or not CollapseTrainerSkillLine
+        or not GetTrainerServiceCost or not GetTrainerServiceSkillReq
     then
-        printMessage("This client does not provide the Classic trainer API.")
+        printMessage("This client does not provide the trainer API.")
         return nil
     end
     isScanningTrainer = true

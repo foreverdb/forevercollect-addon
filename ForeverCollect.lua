@@ -46,10 +46,11 @@ addon:RegisterCommand("status", function()
     end
 
     printMessage(string.format(
-        "Catalog: %s, build %s, interface %d.",
+        "Catalog: %s, build %s, interface %d, project %s.",
         catalog.version,
         catalog.build,
-        catalog.interfaceVersion
+        catalog.interfaceVersion,
+        tostring(catalog.projectID)
     ))
     printMessage(string.format(
         "Season: %s (ID %d), locale: %s.",

@@ -22,12 +22,14 @@ local function countTalents(catalog)
     return totalTalents
 end
 
+local hasWarnedAboutTalentAPI
+
 local function scanTalentCatalog()
     initializeDatabase()
 
     local client = getClientInfo()
     if not isSupportedClient(client) then
-        printMessage("Unsupported WoW project. Classic Era is required.")
+        printMessage("Unsupported WoW project. Classic Era or Forever is required.")
         return nil
     end
 
@@ -42,6 +44,15 @@ local function scanTalentCatalog()
 
     if not C_SpecializationInfo.IsInitialized() then
         printMessage("Talent data is not initialized yet. Try /fc scan again.")
+        return nil
+    end
+    -- Forever (1.60+) builds its talent trees on the trait system (C_Traits);
+    -- the legacy tab/tier API this scan reads does not exist there.
+    if not GetNumTalentTabs or not GetNumTalents then
+        if not hasWarnedAboutTalentAPI then
+            hasWarnedAboutTalentAPI = true
+            printMessage("This client does not provide the Classic talent API; talent trees come from the static catalog.")
+        end
         return nil
     end
 

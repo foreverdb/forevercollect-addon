@@ -32,11 +32,30 @@ local function readExtendedCost(index)
     return costs
 end
 
+-- Clients on the mainline engine (Forever 1.60+) replaced GetMerchantItemInfo
+-- with C_MerchantFrame.GetItemInfo, which returns a table instead of a list.
+local function getMerchantItemInfo(index)
+    if C_MerchantFrame and C_MerchantFrame.GetItemInfo then
+        local info = C_MerchantFrame.GetItemInfo(index)
+        if not info then
+            return nil
+        end
+        return info.name, info.texture, info.price, info.stackCount, info.numAvailable,
+            info.isPurchasable, info.isUsable, info.hasExtendedCost
+    end
+    return GetMerchantItemInfo(index)
+end
+
+local function hasMerchantAPI()
+    local hasItemInfo = (C_MerchantFrame and C_MerchantFrame.GetItemInfo) or GetMerchantItemInfo
+    return GetMerchantNumItems and hasItemInfo and GetMerchantItemLink
+end
+
 local function readMerchantItems(source)
     local items = {}
     for index = 1, GetMerchantNumItems() do
         local name, texture, price, stackCount, numAvailable, isPurchasable,
-            isUsable, extendedCost = GetMerchantItemInfo(index)
+            isUsable, extendedCost = getMerchantItemInfo(index)
         local link = GetMerchantItemLink(index)
         if name or link then
             local item = {
@@ -74,7 +93,7 @@ local function scanMerchant(silent)
     if isScanningMerchant then
         return nil
     end
-    if not GetMerchantNumItems or not GetMerchantItemInfo or not GetMerchantItemLink then
+    if not hasMerchantAPI() then
         printMessage("This client does not provide the merchant API.")
         return nil
     end

@@ -179,6 +179,8 @@ Mindestens eines der beiden Felder ist gesetzt; Zeilen ohne Text werden ausgelas
 
 Wird beim Öffnen eines Trainers und bei Änderungen der Liste (`TRAINER_UPDATE`) ersetzt. Beim Scan sind alle Filter (`available`, `unavailable`, `used`) aktiv und alle Kategorien aufgeklappt, sodass die Liste vollständig ist.
 
+Auf Clients der Mainline-Engine (Forever 1.60+) liefert die Trainer-API keine Header-Zeilen: `services` enthält dann nur Dienste (`isHeader = false`), `skillLine` stammt aus dem Kategorienamen der API, `link` und `description` fehlen, `requirements.level` kommt direkt aus `GetTrainerServiceInfo`.
+
 | Feld | Typ | Opt. | Beschreibung |
 |---|---|---|---|
 | `capturedAt` | number | – | Zeitpunkt. |
