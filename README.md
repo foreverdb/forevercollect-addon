@@ -5,14 +5,12 @@ ForeverCollect katalogisiert beobachtete Daten aus World of Warcraft Classic Era
 ## Verwendung
 
 ```text
-/fc scan      Talente und Runen scannen
+/fc scan      Talente scannen
 /fc talents   Talentdaten des aktuellen Katalogs anzeigen
 /fc trainer   Trainerdienste scannen und Anzahl erfasster Daten anzeigen
 /fc items     Anzahl erfasster Items anzeigen
 /fc merchants Händler-Sortimente anzeigen
 /fc loot      Loot-Quellen und -Items anzeigen
-/fc recipes   Berufe und Rezepte anzeigen
-/fc runes     Runen-Snapshot anzeigen
 /fc quests    Anzahl erfasster Quests und Beobachtungen anzeigen
 /fc status    Katalogkontext und Scanstatus anzeigen
 ```
@@ -35,10 +33,8 @@ Modules/NPCs.lua        NPC-Erfassung und -Zusammenführung (Händler, Trainer, 
 Modules/Items.lua       Item-Katalog mit Quellen und Koordinaten (/fc items)
 Modules/Merchants.lua   Händler-Sortimente (/fc merchants)
 Modules/Loot.lua        Loot-Quellen und Drop-Orte (/fc loot)
-Modules/TradeSkills.lua Berufsrezepte aus Berufs- und Craft-Fenster (/fc recipes)
 Modules/Talents.lua     Talentbäume (/fc talents)
 Modules/Trainers.lua    Trainerdienste (/fc trainer)
-Modules/Abilities.lua   Runen (/fc runes)
 Modules/Quests.lua      Questdialoge und Abgaben (/fc quests)
 ForeverCollect.lua      Einstieg: Laden, Login-Scan, /fc help, /fc scan, /fc status
 ```
@@ -106,18 +102,16 @@ catalog = {
     seasonName = "SeasonOfDiscovery",
     scannedAt = 0,
     specializations = {},
-    abilitySnapshots = {},
     trainerSnapshots = {},
     items = {},
     merchantSnapshots = {},
     lootSources = {},
-    tradeSkills = {},
     quests = {},
     npcs = {},
 }
 ```
 
-`scannedAt`, `questScanUpdatedAt`, `abilitiesScannedAt`, `trainerScanUpdatedAt`, `itemsUpdatedAt`, `merchantScanUpdatedAt`, `lootUpdatedAt` und `tradeSkillsUpdatedAt` enthalten Unix-Zeitstempel.
+`scannedAt`, `questScanUpdatedAt`, `trainerScanUpdatedAt`, `itemsUpdatedAt`, `merchantScanUpdatedAt` und `lootUpdatedAt` enthalten Unix-Zeitstempel.
 
 ## Talente
 
@@ -229,30 +223,9 @@ trainerSnapshots = {
 items = {
     [12345] = {
         itemID = 12345,
-        name = "Example Item",
         link = "|cffffffff|Hitem:12345:...|h[Example Item]|h|r",
-        quality = 1,
-        itemLevel = 10,
-        requiredLevel = 5,
-        itemType = "Armor",
-        itemSubType = "Cloth",
-        classID = 4,
-        subclassID = 1,
-        stackCount = 1,
-        equipLoc = "INVTYPE_CHEST",
-        texture = 123456,
-        sellPrice = 25,
-        bindType = 1,
-        expansionID = 0,
-        setID = 0,
-        isCraftingReagent = false,
-        spell = { name = "...", spellID = 1234 },
-        stats = { ITEM_MOD_STAMINA_SHORT = 3 },
-        tooltipLines = {},
         firstSeenAt = 0,
         lastSeenAt = 0,
-        updatedAt = 0,
-        detailsLoaded = true,
         sources = {
             ["merchant:6018"] = {
                 type = "merchant", npcID = 6018, name = "Vendor",
@@ -263,13 +236,12 @@ items = {
                 type = "loot", sourceType = "Creature", sourceID = 456, name = "Mob",
                 locations = { {}, {} }, timesSeen = 5,
             },
-            ["recipe:Alchemy"] = { type = "recipe", skillName = "Alchemy", timesSeen = 1 },
         },
     },
 }
 ```
 
-Die Item-Details stammen aus `GetItemInfo`, `GetItemSpell`, `GetItemStats` und dem Tooltip. Ist ein Item beim ersten Sehen nicht im Client-Cache, werden die Details asynchron nachgeladen (`detailsLoaded = false`, bis sie vorliegen). Bereits geladene Items werden nicht erneut gelesen.
+Das Addon erfasst nur, **wo** ein Item gesehen wurde. Statische Item-Daten (Name, Qualität, Stats, Verkaufspreis, Bindung …) kommen aus den DB2-Tabellen des Clients (`Item`, `ItemSparse`, `ItemSearchName`) über den Server-Importer und werden nicht mehr im Spiel gelesen.
 
 `sources` verknüpft jedes Item mit seinen Fundorten. Händler- und Quest-Quellen tragen die `location` des NPCs (Format wie unter „Quest-NPC und Ort“), Loot-Quellen eine Liste `locations` mit den Spielerpositionen beim Plündern (dedupliziert auf ca. 0,1 % Kartenauflösung, maximal 20 Einträge). Rezept-Quellen haben keine Weltkoordinate.
 
@@ -342,85 +314,7 @@ lootSources = {
 
 ## Berufe
 
-`tradeSkills` enthält die beobachteten Rezepte pro Beruf. Erfasst werden das Berufsfenster (`TRADE_SKILL_SHOW`, z. B. Alchemie) und das Craft-Fenster (`CRAFT_SHOW`, Verzauberung und Tierausbildung). Rezepte werden über Charaktere hinweg zusammengeführt; Schlüssel ist die Spell-ID aus dem Rezept-Link, ersatzweise der Name. Beim Scannen werden Filter („Hat Materialien“, Unterklasse, Ausrüstungsplatz, Namenssuche) vorübergehend aufgehoben und alle Kategorien aufgeklappt; der vorherige Zustand wird danach wiederhergestellt.
-
-```lua
-tradeSkills = {
-    ["Alchemy"] = {
-        skillName = "Alchemy",
-        window = "tradeSkill",     -- oder "craft"
-        rank = 150,
-        maxRank = 225,
-        character = {},
-        updatedAt = 0,
-        recipes = {
-            [2330] = {
-                spellID = 2330,
-                name = "Minor Healing Potion",
-                subSpellName = nil,          -- Craft-Fenster
-                recipeLink = "...",
-                difficulty = "trivial",      -- trivial, easy, medium, optimal, difficult
-                numAvailable = 4,
-                header = "Potion",
-                resultItemID = 118,
-                resultLink = "...",
-                numMadeMin = 1,
-                numMadeMax = 1,
-                reagents = {
-                    { itemID = 2447, name = "Peacebloom", link = "...", texture = 1, count = 1 },
-                },
-                tools = {},
-                cooldown = nil,
-                description = nil,
-                requiredLevel = nil,         -- Craft-Fenster
-                trainingPointCost = nil,     -- Tierausbildung
-                spellFocus = nil,            -- Craft-Fenster
-                firstSeenAt = 0,
-                capturedAt = 0,
-            },
-        },
-    },
-}
-```
-
-## Runen
-
-`abilitySnapshots` enthält die entdeckten SoD-Runen pro Charakter. Gelernte Zauber werden nicht mehr aus dem Zauberbuch gelesen; sie sind über `trainerSnapshots` mit `category = "used"` abgebildet.
-
-```lua
-abilitySnapshots = {
-    ["Player-GUID"] = {
-        scannedAt = 0,
-        character = {},
-        runes = {
-            {
-                category = 16,
-                skillLineAbilityID = 123,
-                itemEnchantmentID = 456,
-                name = "...",
-                icon = 123456,
-                equipmentSlot = 1,
-                level = 25,
-                isEquipped = true,
-                learnedAbilitySpellIDs = { 12345 },
-                abilities = {
-                    {
-                        spellID = 12345,
-                        name = "Balefire Bolt",
-                        rank = "",
-                        icon = 123456,
-                        description = "...",
-                    },
-                },
-            },
-        },
-    },
-}
-```
-
-`runes` enthält alle entdeckten SoD-Runen, nicht nur aktuell ausgerüstete Runen. `isEquipped` kennzeichnet den momentanen Ausrüstungszustand. Dadurch bleibt beispielsweise `Balefire Bolt` auch nach dem Wechsel auf eine andere Rune im Katalog erhalten.
-
-Runen enthalten ihre `learnedAbilitySpellIDs` und unter `abilities` zusätzlich die aufgelösten Namen, Icons und Beschreibungen der gewährten Fähigkeiten.
+Rezepte werden nicht mehr im Spiel gelesen. Rezept↔Beruf, Reagenzien, Werkzeuge, Cooldowns und Lernquellen kommen aus den DB2-Tabellen (`SkillLineAbility`, `SpellReagents`, `SpellTotems`, `SpellCooldowns`, `SpellCastingRequirements`, `ItemEffect`) über den Server-Importer.
 
 ## Quests
 

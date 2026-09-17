@@ -24,7 +24,27 @@ local function getServiceSpellID(link)
         or tonumber(string.match(link, "enchant:(%d+)"))
 end
 
-local function getServiceTooltipLines(index)
+-- The trainer list itself carries no rank in Classic (the subtext is empty), so
+-- derive it from the spell once its ID is known.
+local function getSpellRank(spellID)
+    if not spellID then
+        return nil
+    end
+    local subtext = GetSpellSubtext and GetSpellSubtext(spellID)
+    if (not subtext or subtext == "") and GetSpellInfo then
+        local _, rank = GetSpellInfo(spellID)
+        subtext = rank
+    end
+    if subtext and subtext ~= "" then
+        return subtext
+    end
+    return nil
+end
+
+-- Returns the tooltip lines and, as second value, the spell ID the tooltip
+-- shows. The latter is the only source of the ID for class spells, because
+-- GetTrainerServiceItemLink only returns links for items and enchants.
+local function getServiceTooltipInfo(index)
     return readTooltipLines(function(tooltip)
         tooltip:SetTrainerService(index)
     end)
@@ -81,7 +101,7 @@ local function readServices()
             local service = {
                 index = index,
                 name = name,
-                rank = rank,
+                rank = rank ~= "" and rank or nil,
                 category = category,
                 isHeader = isHeader,
                 isExpanded = isExpanded and true or false,
@@ -93,15 +113,17 @@ local function readServices()
             if not isHeader then
                 local link = GetTrainerServiceItemLink(index)
                 local moneyCost, talentCost, professionCost = GetTrainerServiceCost(index)
+                local tooltipLines, tooltipSpellID = getServiceTooltipInfo(index)
                 service.link = link
-                service.spellID = getServiceSpellID(link)
+                service.spellID = getServiceSpellID(link) or tooltipSpellID
+                service.rank = service.rank or getSpellRank(service.spellID)
                 service.icon = GetTrainerServiceIcon(index)
                 service.description = GetTrainerServiceDescription(index)
                 service.moneyCost = moneyCost
                 service.talentCost = talentCost
                 service.professionCost = professionCost
                 service.requirements = getServiceRequirements(index)
-                service.tooltipLines = getServiceTooltipLines(index)
+                service.tooltipLines = tooltipLines
             end
 
             services[#services + 1] = service
@@ -201,16 +223,22 @@ local function scanTrainerServices(silent)
 
     if not silent or not hasAnnouncedTrainer then
         hasAnnouncedTrainer = true
-        local serviceCount = 0
+        local serviceCount, missingSpellIDs = 0, 0
         for _, service in ipairs(snapshot.services) do
             if not service.isHeader then
                 serviceCount = serviceCount + 1
+                if not service.spellID then
+                    missingSpellIDs = missingSpellIDs + 1
+                end
             end
         end
         printMessage(string.format(
-            "Captured %d trainer services from %s.",
+            "Captured %d trainer services from %s%s.",
             serviceCount,
-            npc.name or "unknown trainer"
+            npc.name or "unknown trainer",
+            missingSpellIDs > 0
+                and string.format(" (%d without spell ID)", missingSpellIDs)
+                or ""
         ))
     end
     return snapshot

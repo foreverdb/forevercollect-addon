@@ -1,8 +1,8 @@
-## Interface: 11509
+## Interface: 11509, 16001
 ## Title: ForeverCollect
 ## Notes: A starting point for a Classic collection addon.
 ## Author: Alex
-## Version: 0.1.0
+## Version: 0.1.1
 ## DefaultState: enabled
 ## SavedVariables: ForeverCollectDB
 
@@ -13,9 +13,7 @@ Modules/NPCs.lua
 Modules/Items.lua
 Modules/Merchants.lua
 Modules/Loot.lua
-Modules/TradeSkills.lua
 Modules/Talents.lua
 Modules/Trainers.lua
-Modules/Abilities.lua
 Modules/Quests.lua
 ForeverCollect.lua

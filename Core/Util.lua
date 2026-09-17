@@ -67,11 +67,52 @@ function addon.FormatTimestamp(timestamp)
     return date("!%Y-%m-%d %H:%M:%S", timestamp)
 end
 
--- Fills the scanning tooltip via `populate(tooltip)` and returns its text lines.
+local function firstPositiveNumber(...)
+    for argIndex = 1, select("#", ...) do
+        local value = select(argIndex, ...)
+        if type(value) == "number" and value > 0 then
+            return value
+        end
+    end
+    return nil
+end
+
+-- Returns the ID of the spell currently shown in `tooltip`, trying the APIs of
+-- the different client generations in turn. Needed where the client offers no
+-- spell link, e.g. for class spells in the trainer window.
+function addon.GetTooltipSpellID(tooltip)
+    if TooltipUtil and TooltipUtil.GetDisplayedSpell then
+        local ok, a, b, c = pcall(TooltipUtil.GetDisplayedSpell, tooltip)
+        local spellID = ok and firstPositiveNumber(a, b, c)
+        if spellID then
+            return spellID
+        end
+    end
+    if tooltip.GetSpell then
+        local ok, a, b, c = pcall(tooltip.GetSpell, tooltip)
+        local spellID = ok and firstPositiveNumber(a, b, c)
+        if spellID then
+            return spellID
+        end
+    end
+    if tooltip.GetTooltipData then
+        local ok, data = pcall(tooltip.GetTooltipData, tooltip)
+        if ok and type(data) == "table" and type(data.id) == "number" and data.id > 0
+            and (not Enum or not Enum.TooltipDataType or data.type == Enum.TooltipDataType.Spell)
+        then
+            return data.id
+        end
+    end
+    return nil
+end
+
+-- Fills the scanning tooltip via `populate(tooltip)` and returns its text lines
+-- plus the ID of the displayed spell, if the tooltip shows one.
 function addon.ReadTooltipLines(populate)
     scanningTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
     scanningTooltip:ClearLines()
     populate(scanningTooltip)
+    local spellID = addon.GetTooltipSpellID(scanningTooltip)
 
     local lines = {}
     for lineIndex = 1, scanningTooltip:NumLines() do
@@ -89,5 +130,5 @@ function addon.ReadTooltipLines(populate)
     end
 
     scanningTooltip:Hide()
-    return lines
+    return lines, spellID
 end

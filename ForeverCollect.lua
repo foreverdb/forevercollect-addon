@@ -5,9 +5,8 @@ addon.name = addonName
 local printMessage = addon.PrintMessage
 local getLatestCatalog = addon.GetLatestCatalog
 
-local function scanAll(silent)
+local function scanAll()
     addon.ScanTalentCatalog()
-    addon.ScanAbilityCatalog(silent)
 end
 
 addon:RegisterEvent("ADDON_LOADED", function(loadedAddonName)
@@ -16,11 +15,13 @@ addon:RegisterEvent("ADDON_LOADED", function(loadedAddonName)
     end
     addon.InitializeDatabase()
     addon.MigrateNPCData()
-    printMessage("loaded. Use /fc help.")
+    local getMetadata = C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata
+    local version = getMetadata and getMetadata(addonName, "Version")
+    printMessage((version and ("v" .. version .. " ") or "") .. "loaded. Use /fc help.")
 end)
 
 addon:RegisterEvent("PLAYER_LOGIN", function()
-    scanAll(true)
+    scanAll()
 end)
 
 addon:RegisterCommand("help", function()
@@ -34,8 +35,8 @@ addon:RegisterCommand("help", function()
 end, "Diese Hilfe anzeigen")
 
 addon:RegisterCommand("scan", function()
-    scanAll(false)
-end, "Talente und Runen scannen")
+    scanAll()
+end, "Talente scannen")
 
 addon:RegisterCommand("status", function()
     local catalog = getLatestCatalog()
@@ -65,27 +66,18 @@ addon:RegisterCommand("status", function()
         catalog.factionName or catalog.factionFile or "Unknown"
     ))
 
-    local abilitySnapshot = addon.GetAbilitySnapshot()
-    if abilitySnapshot then
-        printMessage(string.format("Runes: %d.", #abilitySnapshot.runes))
-    end
-
-    local itemCount, loadedItemCount = addon.CountItems(catalog)
+    local itemCount = addon.CountItems(catalog)
     local merchantCount = 0
     for _ in pairs(catalog.merchantSnapshots or {}) do
         merchantCount = merchantCount + 1
     end
     local lootSourceCount, lootItemCount = addon.CountLoot(catalog)
-    local skillCount, recipeCount = addon.CountRecipes(catalog)
     printMessage(string.format(
-        "Items: %d (%d with details), merchants: %d, loot sources: %d (%d items), professions: %d (%d recipes).",
+        "Items: %d, merchants: %d, loot sources: %d (%d items).",
         itemCount,
-        loadedItemCount,
         merchantCount,
         lootSourceCount,
-        lootItemCount,
-        skillCount,
-        recipeCount
+        lootItemCount
     ))
 end, "Katalogkontext und Scanstatus anzeigen")
 

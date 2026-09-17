@@ -1,7 +1,6 @@
 local _, addon = ...
 
 local printMessage = addon.PrintMessage
-local readTooltipLines = addon.ReadTooltipLines
 local getItemIDFromLink = addon.GetItemIDFromLink
 local addUniqueLocation = addon.AddUniqueLocation
 local getClientInfo = addon.GetClientInfo
@@ -10,9 +9,9 @@ local getLatestCatalog = addon.GetLatestCatalog
 
 local LOOT_LOCATION_CAP = 20
 
--- Items whose details are still being requested from the server, keyed by
--- item ID (only used by the GET_ITEM_INFO_RECEIVED fallback).
-local pendingItems = {}
+-- The catalog only records where an item was seen. Static item data (name,
+-- quality, stats, sell price, ...) comes from the client's DB2 tables via the
+-- server-side wow.export importer, so nothing is read from the item cache here.
 
 local function getSourceKey(source)
     if source.type == "merchant" then
@@ -21,102 +20,9 @@ local function getSourceKey(source)
         return "quest:" .. tostring(source.questID)
     elseif source.type == "loot" then
         return string.format("loot:%s:%s", tostring(source.sourceType), tostring(source.sourceID))
-    elseif source.type == "recipe" then
-        return "recipe:" .. tostring(source.skillName)
     end
     return tostring(source.type)
 end
-
-local function getItemTooltipLines(link)
-    return readTooltipLines(function(tooltip)
-        tooltip:SetHyperlink(link)
-    end)
-end
-
-local function getItemStats(link)
-    if C_Item and C_Item.GetItemStats then
-        return C_Item.GetItemStats(link)
-    elseif GetItemStats then
-        return GetItemStats(link)
-    end
-    return nil
-end
-
-local function getItemSpell(itemID)
-    local spellName, spellID
-    if C_Item and C_Item.GetItemSpell then
-        spellName, spellID = C_Item.GetItemSpell(itemID)
-    elseif GetItemSpell then
-        spellName, spellID = GetItemSpell(itemID)
-    end
-    if spellName or spellID then
-        return { name = spellName, spellID = spellID }
-    end
-    return nil
-end
-
--- Fills `item` from the client's item cache. Returns false when the item is
--- not cached yet.
-local function fillItemDetails(item)
-    local name, link, quality, itemLevel, requiredLevel, itemType, itemSubType,
-        stackCount, equipLoc, texture, sellPrice, classID, subclassID, bindType,
-        expansionID, setID, isCraftingReagent = GetItemInfo(item.link or item.itemID)
-    if not name then
-        return false
-    end
-
-    item.name = name
-    item.link = item.link or link
-    item.quality = quality
-    item.itemLevel = itemLevel
-    item.requiredLevel = requiredLevel
-    item.itemType = itemType
-    item.itemSubType = itemSubType
-    item.stackCount = stackCount
-    item.equipLoc = equipLoc
-    item.texture = texture
-    item.sellPrice = sellPrice
-    item.classID = classID
-    item.subclassID = subclassID
-    item.bindType = bindType
-    item.expansionID = expansionID
-    item.setID = setID
-    item.isCraftingReagent = isCraftingReagent and true or false
-    item.spell = getItemSpell(item.itemID)
-    item.stats = getItemStats(item.link)
-    item.tooltipLines = getItemTooltipLines(item.link)
-    item.detailsLoaded = true
-    item.updatedAt = time()
-    return true
-end
-
-local function requestItemDetails(item)
-    if fillItemDetails(item) then
-        return
-    end
-
-    if Item and Item.CreateFromItemID then
-        local itemObject = Item:CreateFromItemID(item.itemID)
-        if not itemObject:IsItemEmpty() then
-            itemObject:ContinueOnItemLoad(function()
-                fillItemDetails(item)
-            end)
-        end
-        return
-    end
-
-    pendingItems[item.itemID] = item
-end
-
-addon:RegisterEvent("GET_ITEM_INFO_RECEIVED", function(itemID, success)
-    local item = pendingItems[itemID]
-    if not item then
-        return
-    end
-    if success == false or fillItemDetails(item) then
-        pendingItems[itemID] = nil
-    end
-end)
 
 -- Records that `linkOrItemID` was seen at `source` (a table with `type` and
 -- the identifying fields for that type) and returns the catalog entry.
@@ -139,7 +45,6 @@ local function recordItem(linkOrItemID, source)
         item = {
             itemID = itemID,
             firstSeenAt = now,
-            detailsLoaded = false,
             sources = {},
         }
         catalog.items[itemID] = item
@@ -178,23 +83,17 @@ local function recordItem(linkOrItemID, source)
         end
     end
 
-    if not item.detailsLoaded then
-        requestItemDetails(item)
-    end
     catalog.itemsUpdatedAt = now
     return item
 end
 addon.RecordItem = recordItem
 
 local function countItems(catalog)
-    local total, loaded = 0, 0
-    for _, item in pairs(catalog.items or {}) do
+    local total = 0
+    for _ in pairs(catalog.items or {}) do
         total = total + 1
-        if item.detailsLoaded then
-            loaded = loaded + 1
-        end
     end
-    return total, loaded
+    return total
 end
 addon.CountItems = countItems
 
@@ -204,6 +103,5 @@ addon:RegisterCommand("items", function()
         printMessage("No catalog found. Interact with a merchant, quest giver or loot first.")
         return
     end
-    local total, loaded = countItems(catalog)
-    printMessage(string.format("Item catalog contains %d items (%d with details).", total, loaded))
+    printMessage(string.format("Item catalog contains %d items.", countItems(catalog)))
 end, "Anzahl erfasster Items anzeigen")

@@ -57,12 +57,10 @@ Beispiel: `2:11509:2:enUS:5:8:Horde`. Ein Katalog ist also je Client-Projekt, In
 | `scannedAt` | number | – | Zeitpunkt der Katalog-Anlage bzw. des letzten Talent-Scans. |
 | `questScanUpdatedAt` | number | ✓ | Letzte Quest-Beobachtung. |
 | `npcScanUpdatedAt` | number | ✓ | Letzte NPC-Interaktion. |
-| `abilitiesScannedAt` | number | ✓ | Letzter Runen-Scan. |
 | `trainerScanUpdatedAt` | number | ✓ | Letzter Trainer-Scan. |
 | `itemsUpdatedAt` | number | ✓ | Letzte Änderung am Item-Katalog. |
 | `merchantScanUpdatedAt` | number | ✓ | Letzter Händler-Scan. |
 | `lootUpdatedAt` | number | ✓ | Letzte Loot-Beobachtung. |
-| `tradeSkillsUpdatedAt` | number | ✓ | Letzter Rezept-Scan. |
 
 ### 2.2 Sammlungen
 
@@ -73,8 +71,6 @@ Beispiel: `2:11509:2:enUS:5:8:Horde`. Ein Katalog ist also je Client-Projekt, In
 | `items` | map<number, Item> | Item-Katalog, Schlüssel `itemID` | 6 |
 | `merchantSnapshots` | map<NPCKey, MerchantSnapshot> | Sortiment je Händler-NPC | 7 |
 | `lootSources` | map<string, LootSource> | Loot je Quelle | 8 |
-| `tradeSkills` | map<string, TradeSkill> | Rezepte je Beruf (Schlüssel `skillName`) | 9 |
-| `abilitySnapshots` | map<CharacterKey, AbilitySnapshot> | Runen je Charakter | 10 |
 | `quests` | map<number, Quest> | Quests, Schlüssel `questID` | 11 |
 | `npcs` | NPC[] | NPC-Katalog | 12 |
 
@@ -198,7 +194,7 @@ Wird beim Öffnen eines Trainers und bei Änderungen der Liste (`TRAINER_UPDATE`
 |---|---|---|---|
 | `index` | number | – | Listenindex beim Scan. |
 | `name` | string | – | Name des Dienstes bzw. der Überschrift. |
-| `rank` | string | ✓ | Rang-/Untertext, z. B. `"Rank 2"`. |
+| `rank` | string | ✓ | Rang des Dienstes, z. B. `"Rank 2"`. Vom Client-Untertext, sonst über die Spell-ID (`GetSpellSubtext`/`GetSpellInfo`). Fehlt bei Headern und ranglosen Zaubern. |
 | `category` | string | – | `header`, `available`, `unavailable` oder `used` (bereits gelernt). Abhängig vom Charakter. |
 | `isHeader` | boolean | – | `category == "header"`. |
 | `isExpanded` | boolean | – | Aufgeklappt-Zustand beim Scan (Header). |
@@ -211,7 +207,7 @@ Nur für Nicht-Header (`isHeader == false`):
 | Feld | Typ | Opt. | Beschreibung |
 |---|---|---|---|
 | `link` | string | ✓ | Spell-/Enchant-Link. |
-| `spellID` | number | ✓ | Aus `link` (`spell:` oder `enchant:`). |
+| `spellID` | number | ✓ | Aus `link` (`spell:` oder `enchant:`), sonst aus dem Tooltip des Dienstes (`GetTooltipSpellID`). Fehlt nur, wenn der Client für den Dienst keinen Spell liefert. |
 | `icon` | number/string | ✓ | Icon. |
 | `description` | string | ✓ | Beschreibung. |
 | `moneyCost` | number | ✓ | Kosten in Kupfer. |
@@ -226,7 +222,7 @@ Nur für Nicht-Header (`isHeader == false`):
 |---|---|---|---|
 | `level` | number | ✓ | Benötigtes Level. |
 | `skill` | table | ✓ | `{ name: string, rank: number, isMet: boolean }` – benötigte Fertigkeit. |
-| `abilities` | table[] | – | Je `{ name: string, isMet: boolean }` – benötigte Fähigkeiten (kann leer sein). |
+| `abilities` | table[] | – | Je `{ name: string, isMet: boolean }` – benötigte Fähigkeiten (kann leer sein). `name` bezeichnet den **vorausgesetzten** Zauber inkl. Rang-Suffix (i. d. R. den Vorgänger-Rang, z. B. `"Power Word: Fortitude (Rank 1)"` für den Dienst Rang 2), nicht den Dienst selbst. |
 
 ---
 
@@ -240,33 +236,9 @@ Nur für Nicht-Header (`isHeader == false`):
 | `link` | string | ✓ | Erster gesehener Item-Link (kann Suffix/Zufallsverzauberung enthalten). |
 | `firstSeenAt` | number | – | Erste Beobachtung. |
 | `lastSeenAt` | number | – | Letzte Beobachtung. |
-| `detailsLoaded` | boolean | – | `true`, sobald die Felder unten befüllt sind. |
 | `sources` | map<string, ItemSource> | – | Fundorte, Schlüssel siehe 6.2. |
 
-Nur bei `detailsLoaded == true` (aus `GetItemInfo`, `GetItemSpell`, `GetItemStats`, Tooltip):
-
-| Feld | Typ | Opt. | Beschreibung |
-|---|---|---|---|
-| `name` | string | – | Lokalisierter Name. |
-| `quality` | number | – | `Enum.ItemQuality` (0 = Poor … 6 = Artifact). |
-| `itemLevel` | number | – | Item-Level. |
-| `requiredLevel` | number | – | Benötigtes Charakterlevel. |
-| `itemType` | string | – | Lokalisierter Typ, z. B. `"Armor"`. |
-| `itemSubType` | string | – | Lokalisierter Untertyp, z. B. `"Cloth"`. |
-| `stackCount` | number | – | Maximale Stapelgröße. |
-| `equipLoc` | string | – | Inventar-Token, z. B. `"INVTYPE_CHEST"`, leer wenn nicht anlegbar. |
-| `texture` | number/string | – | Icon. |
-| `sellPrice` | number | – | Verkaufspreis in Kupfer. |
-| `classID` | number | – | `Enum.ItemClass`. |
-| `subclassID` | number | – | Unterklasse. |
-| `bindType` | number | – | `Enum.ItemBind` (0 none, 1 on pickup, 2 on equip, 3 on use, 4 quest). |
-| `expansionID` | number | ✓ | Erweiterung. |
-| `setID` | number | ✓ | Set-ID. |
-| `isCraftingReagent` | boolean | – | Handwerksmaterial. |
-| `spell` | table | ✓ | `{ name: string?, spellID: number? }` – Benutzungs-/Ausrüstungseffekt. |
-| `stats` | map<string, number> | ✓ | `GetItemStats`, z. B. `ITEM_MOD_STAMINA_SHORT = 5`. |
-| `tooltipLines` | TooltipLine[] | – | Tooltip des Items. |
-| `updatedAt` | number | – | Zeitpunkt des Detail-Ladens. |
+Statische Item-Daten (Name, Qualität, Level, Stats, Preis, Bindung, Icon …) stammen aus den DB2-Tabellen `Item`/`ItemSparse`/`ItemSearchName` (wow.export → Server-Importer) und werden nicht mehr im Spiel gelesen.
 
 ### 6.2 `ItemSource`
 
@@ -364,103 +336,15 @@ Wird beim Öffnen eines Händlers und bei `MERCHANT_UPDATE` ersetzt.
 
 ---
 
-## 9. `TradeSkill` (Berufe)
+## 9. `TradeSkill` (entfallen)
 
-`catalog.tradeSkills[skillName]`. Rezepte werden über alle Charaktere des Katalogs zusammengeführt (Union) und nie entfernt.
-
-| Feld | Typ | Opt. | Beschreibung |
-|---|---|---|---|
-| `skillName` | string | – | Lokalisierter Berufsname; bei Tierausbildung der Fenstername. |
-| `window` | string | – | `tradeSkill` (Berufsfenster) oder `craft` (Verzauberung, Tierausbildung). |
-| `rank` | number | ✓ | Fertigkeitsrang des zuletzt scannenden Charakters. |
-| `maxRank` | number | ✓ | Maximaler Rang. |
-| `character` | Character | – | Zuletzt scannender Charakter. |
-| `updatedAt` | number | – | Letzter Scan. |
-| `recipes` | map<number\|string, Recipe> | – | Schlüssel: Spell-ID aus dem Rezept-Link, ersatzweise Rezeptname (string). |
-
-### `Recipe`
-
-| Feld | Typ | Opt. | Beschreibung |
-|---|---|---|---|
-| `spellID` | number | ✓ | Spell-ID (`enchant:` oder `spell:` im Link). |
-| `name` | string | – | Rezeptname. |
-| `recipeLink` | string | ✓ | Rezept-Link. |
-| `difficulty` | string | – | `trivial`, `easy`, `medium`, `optimal`, `difficult` – relativ zum scannenden Charakter. |
-| `numAvailable` | number | – | Herstellbare Anzahl mit vorhandenen Materialien (charakterabhängig). |
-| `header` | string | ✓ | Kategorie-Überschrift. |
-| `resultItemID` | number | ✓ | Ergebnis-Item. |
-| `resultLink` | string | ✓ | Link des Ergebnis-Items. |
-| `reagents` | Reagent[] | – | Materialien. |
-| `firstSeenAt` | number | – | Erste Beobachtung. |
-| `capturedAt` | number | – | Letzte Beobachtung. |
-
-Nur `window == "tradeSkill"`:
-
-| Feld | Typ | Opt. | Beschreibung |
-|---|---|---|---|
-| `altVerb` | string | ✓ | Alternatives Verb (z. B. „Schmelzen“). |
-| `numMadeMin`, `numMadeMax` | number | – | Hergestellte Menge. |
-| `tools` | (string\|boolean)[] | ✓ | Abwechselnd Werkzeugname und Vorhanden-Flag (`GetTradeSkillTools`). |
-| `cooldown` | number | ✓ | Restabklingzeit in Sekunden. |
-| `description` | string | ✓ | Beschreibung. |
-
-Nur `window == "craft"`:
-
-| Feld | Typ | Opt. | Beschreibung |
-|---|---|---|---|
-| `subSpellName` | string | ✓ | Untertext, z. B. Rang. |
-| `trainingPointCost` | number | ✓ | Trainingspunkte (Tierausbildung). |
-| `requiredLevel` | number | ✓ | Benötigtes Level. |
-| `description` | string | ✓ | Beschreibung. |
-| `cooldown` | number | ✓ | Restabklingzeit. |
-| `spellFocus` | string | ✓ | Benötigter Zauberfokus. |
-
-### `Reagent`
-
-| Feld | Typ | Opt. | Beschreibung |
-|---|---|---|---|
-| `itemID` | number | ✓ | Aus `link`. |
-| `name` | string | ✓ | Name. |
-| `link` | string | ✓ | Item-Link. |
-| `texture` | number/string | ✓ | Icon. |
-| `count` | number | – | Benötigte Anzahl. |
+Wird nicht mehr geschrieben (siehe Abschnitt 13). Rezepte, Reagenzien, Werkzeuge und Cooldowns kommen aus DB2-Exporten (wow.export) über den Server-Importer.
 
 ---
 
-## 10. `AbilitySnapshot` (Runen)
+## 10. `AbilitySnapshot` (entfallen)
 
-`catalog.abilitySnapshots[characterKey]`, wird bei jedem Runen-Scan ersetzt.
-
-| Feld | Typ | Opt. | Beschreibung |
-|---|---|---|---|
-| `scannedAt` | number | – | Zeitpunkt. |
-| `character` | Character | – | Charakter. |
-| `runes` | Rune[] | – | Alle entdeckten SoD-Runen (nicht nur ausgerüstete). Leer außerhalb von Season of Discovery. |
-
-### `Rune`
-
-| Feld | Typ | Opt. | Beschreibung |
-|---|---|---|---|
-| `category` | number | – | Runen-Kategorie (Ausrüstungsplatz-Gruppe). |
-| `skillLineAbilityID` | number | – | Eindeutige Runen-ID. |
-| `itemEnchantmentID` | number | ✓ | Verzauberungs-ID. |
-| `name` | string | – | Name. |
-| `icon` | number/string | ✓ | Icon. |
-| `equipmentSlot` | number | ✓ | Ausrüstungsplatz. |
-| `level` | number | ✓ | Benötigtes Level. |
-| `isEquipped` | boolean | – | Aktuell ausgerüstet. |
-| `learnedAbilitySpellIDs` | number[] | – | Gewährte Spell-IDs. |
-| `abilities` | RuneAbility[] | – | Aufgelöste Fähigkeiten. |
-
-### `RuneAbility`
-
-| Feld | Typ | Opt. | Beschreibung |
-|---|---|---|---|
-| `spellID` | number | – | Spell-ID. |
-| `name` | string | ✓ | Name. |
-| `rank` | string | ✓ | Rangtext. |
-| `icon` | number/string | ✓ | Icon. |
-| `description` | string | ✓ | Beschreibung. |
+Wird seit Schema 9.1 nicht mehr geschrieben (siehe Abschnitt 13). Der statische Zauberkatalog kommt aus DB2-Exporten (wow.export) über den Server-Importer; das Addon liefert nur noch Beobachtungen (Trainer, Talente, Quests).
 
 ---
 
@@ -540,7 +424,10 @@ Beim Anheben der Schema-Version werden vorhandene Daten **nicht** bereinigt. In 
 |---|---|---|
 | `catalog.skillSnapshots` | ≤ 8 | Fertigkeitslinien pro Charakter; wird nicht mehr geschrieben. |
 | `catalog.skillsScannedAt` | ≤ 8 | Zeitstempel dazu. |
-| `abilitySnapshots[*].spells` | ≤ 8 | Zauberbuch-Einträge; ab 9 enthält ein Snapshot nur noch `runes`. Gelernte Zauber sind über `trainerSnapshots` (`category = "used"`) abgebildet. |
+| `abilitySnapshots[*].spells` | ≤ 8 | Zauberbuch-Einträge. Gelernte Zauber sind über `trainerSnapshots` (`category = "used"`) abgebildet. |
+| `abilitySnapshots`, `abilitiesScannedAt` | ≤ 9.0 | SoD-Runen je Charakter; wird nicht mehr geschrieben und serverseitig nie importiert. |
+| `tradeSkills`, `tradeSkillsUpdatedAt` | ≤ 9.0 | Berufsrezepte aus Berufs-/Craft-Fenster; ersetzt durch DB2-Import (`SkillLineAbility`, `SpellReagents` …). Serverseitig nie importiert. |
+| `items[*].detailsLoaded`, `name`, `quality`, `itemLevel`, `requiredLevel`, `itemType`, `itemSubType`, `stackCount`, `equipLoc`, `texture`, `sellPrice`, `classID`, `subclassID`, `bindType`, `expansionID`, `setID`, `isCraftingReagent`, `spell`, `stats`, `tooltipLines`, `updatedAt` | ≤ 9.0 | Item-Details aus `GetItemInfo`/Tooltip; ersetzt durch DB2-Import (`ItemSparse`). |
 | `quests[*].observations[*].questNPC` ohne `interactionTypes`/`location.source` | ≤ 7 | Wird beim Laden normalisiert (`addon.MigrateNPCData`). |
 
 Kataloge, die mit Version 9 erstmals angelegt werden, enthalten diese Felder nicht.
@@ -550,3 +437,4 @@ Kataloge, die mit Version 9 erstmals angelegt werden, enthalten diese Felder nic
 - Neu: `items`, `merchantSnapshots`, `lootSources`, `tradeSkills` und die Zeitstempel `itemsUpdatedAt`, `merchantScanUpdatedAt`, `lootUpdatedAt`, `tradeSkillsUpdatedAt`.
 - Neu: `trainerSnapshots` wird tatsächlich befüllt (in 8 dokumentiert, aber leer).
 - Entfernt: `skillSnapshots`, `skillsScannedAt`, `abilitySnapshots[*].spells` (siehe Abschnitt 13).
+- Später entfernt (ohne Versionssprung, Felder waren optional): `abilitySnapshots`, `abilitiesScannedAt` – Runen-Scan gestrichen; `items[*]`-Details (`detailsLoaded` & Co.) und `tradeSkills`/`tradeSkillsUpdatedAt` – statische Zauber-, Item- und Rezeptdaten kommen aus wow.export.
