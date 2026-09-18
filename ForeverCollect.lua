@@ -34,6 +34,12 @@ addon:RegisterCommand("help", function()
     printMessage("Commands: " .. table.concat(names, ", "))
 end, "Diese Hilfe anzeigen")
 
+addon:RegisterCommand("verbose", function()
+    local settings = ForeverCollectDB.settings
+    settings.verbose = not addon.IsVerbose()
+    printMessage(settings.verbose and "Capture notices enabled." or "Capture notices disabled.")
+end, "Meldungen bei jeder Erfassung ein-/ausschalten")
+
 addon:RegisterCommand("scan", function()
     scanAll()
 end, "Talente scannen")

@@ -284,7 +284,7 @@ local function scanTrainerServices(silent)
                 end
             end
         end
-        printMessage(string.format(
+        addon.Announce(string.format(
             "Captured %d trainer services from %s%s.",
             serviceCount,
             npc.name or "unknown trainer",

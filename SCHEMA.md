@@ -18,6 +18,7 @@ Dieses Dokument beschreibt vollständig die Struktur der SavedVariable `ForeverC
 | Feld | Typ | Opt. | Beschreibung |
 |---|---|---|---|
 | `schemaVersion` | number | – | Schema-Version der Datei; wird beim Laden auf mindestens 9 angehoben. |
+| `settings` | table | ✓ | Addon-Einstellungen, z. B. `verbose` (Chat-Meldungen je Erfassung, Standard `true`). Vom Server ignoriert. |
 | `latestCatalogKey` | string | ✓ | Schlüssel des zuletzt verwendeten Katalogs in `catalogs`. Fehlt, bis ein Katalog angelegt wurde. |
 | `catalogs` | map<string, Catalog> | – | Alle Kataloge, Schlüssel siehe unten. |
 
@@ -244,16 +245,16 @@ Statische Item-Daten (Name, Qualität, Level, Stats, Preis, Bindung, Icon …) s
 
 ### 6.2 `ItemSource`
 
-Schlüssel: `merchant:<npcID>`, `quest:<questID>`, `loot:<sourceType>:<sourceID>`, `recipe:<skillName>`.
+Schlüssel: `merchant:<npcID>`, `quest:<questID>`, `loot:<sourceType>:<sourceID>`, bei Berufsfunden `loot:<profession>:<sourceType>:<sourceID>`.
 
 | Feld | Typ | Opt. | Beschreibung |
 |---|---|---|---|
-| `type` | string | – | `merchant`, `quest`, `loot`, `recipe`. |
+| `type` | string | – | `merchant`, `quest`, `loot`. |
 | `npcID` | number | ✓ | Nur `merchant`. |
 | `questID` | number | ✓ | Nur `quest`. |
 | `sourceType` | string | ✓ | Nur `loot`: `Creature`, `GameObject`, `Fishing`, … |
 | `sourceID` | number | ✓ | Nur `loot`: Creature-/Objekt-ID; fehlt bei `Fishing`. |
-| `skillName` | string | ✓ | Nur `recipe`. |
+| `profession` | string | ✓ | Nur `loot` aus Berufsaktionen: `Herbalism`, `Mining`, `Skinning`, `Fishing`. |
 | `name` | string | ✓ | Name des NPCs/der Quelle. |
 | `firstSeenAt` | number | – | Erste Beobachtung dieser Quelle. |
 | `lastSeenAt` | number | – | Letzte Beobachtung. |
@@ -307,13 +308,15 @@ Wird beim Öffnen eines Händlers und bei `MERCHANT_UPDATE` ersetzt.
 
 ## 8. `LootSource`
 
-`catalog.lootSources[key]`, Schlüssel `<sourceType>:<sourceID>` bzw. nur `<sourceType>` ohne ID (z. B. `Fishing`). Aggregiert über alle Loot-Vorgänge; derselbe Loot-Container (GUID) zählt pro Sitzung nur einmal.
+`catalog.lootSources[key]`, Schlüssel `<sourceType>:<sourceID>` bzw. nur `<sourceType>` ohne ID (z. B. `Fishing`). Aggregiert über alle Loot-Vorgänge; derselbe Loot-Container (GUID) zählt pro Sitzung nur einmal. Berufsfunde (Kräuter, Erz, Kürschnern, Angeln) erhalten den Berufsnamen als Präfix: `Herbalism:GameObject:1617`, `Skinning:Creature:705`, `Fishing` – erkannt am vorangegangenen Sammel-Zauber (`UNIT_SPELLCAST_SUCCEEDED`), Kürschner-Loot umgeht dabei die Container-Deduplizierung.
 
 | Feld | Typ | Opt. | Beschreibung |
 |---|---|---|---|
 | `sourceType` | string | – | `Creature`, `GameObject`, `Fishing`, `Item` (Behälter aus dem Inventar), `Unknown`. |
+| `profession` | string | ✓ | `Herbalism`, `Mining`, `Skinning` oder `Fishing`, wenn der Loot aus einer Berufsaktion stammt. |
+| `gatherSpellID` | number | ✓ | Spell-ID des Sammel-Zaubers (z. B. 2366 Herb Gathering). |
 | `sourceID` | number | ✓ | Creature-/GameObject-ID aus der GUID. Fehlt bei `Fishing`, `Item` und `Unknown`. |
-| `name` | string | ✓ | Name der Quelle, falls sie beim Plündern das Ziel war. |
+| `name` | string | ✓ | Name der Quelle, falls sie beim Plündern das Ziel war; bei Kräuter-/Erzknoten der zuletzt angezeigte Tooltip-Titel des Knotens. |
 | `firstSeenAt` | number | – | Erste Beobachtung. |
 | `lastSeenAt` | number | – | Letzte Beobachtung. |
 | `lootCount` | number | – | Anzahl geöffneter Loot-Fenster. |

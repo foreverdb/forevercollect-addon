@@ -13,6 +13,7 @@ local SEASON_NAMES = {
 
 local function initializeDatabase()
     ForeverCollectDB = ForeverCollectDB or {}
+    ForeverCollectDB.settings = ForeverCollectDB.settings or {}
     if not ForeverCollectDB.schemaVersion or ForeverCollectDB.schemaVersion < DATABASE_SCHEMA_VERSION then
         ForeverCollectDB.schemaVersion = DATABASE_SCHEMA_VERSION
     end

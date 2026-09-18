@@ -12,6 +12,7 @@ Core/Registry.lua
 Modules/NPCs.lua
 Modules/Items.lua
 Modules/Merchants.lua
+Modules/Gathering.lua
 Modules/Loot.lua
 Modules/Talents.lua
 Modules/Trainers.lua

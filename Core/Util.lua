@@ -12,6 +12,36 @@ function addon.PrintMessage(message)
     print("|cff33ff99ForeverCollect|r: " .. message)
 end
 
+-- Capture notices ("Quest captured: ...") can be silenced with /fc verbose;
+-- the flag lives outside the catalogs so uploads never carry it.
+function addon.IsVerbose()
+    local settings = ForeverCollectDB and ForeverCollectDB.settings
+    return not settings or settings.verbose ~= false
+end
+
+function addon.Announce(message)
+    if addon.IsVerbose() then
+        addon.PrintMessage(message)
+    end
+end
+
+-- Formats copper as "1g 2s 3c" for chat notices.
+function addon.FormatMoney(copper)
+    copper = tonumber(copper) or 0
+    local gold = math.floor(copper / 10000)
+    local silver = math.floor(copper / 100) % 100
+    local rest = copper % 100
+    local parts = {}
+    if gold > 0 then
+        parts[#parts + 1] = gold .. "g"
+    end
+    if silver > 0 or gold > 0 then
+        parts[#parts + 1] = silver .. "s"
+    end
+    parts[#parts + 1] = rest .. "c"
+    return table.concat(parts, " ")
+end
+
 function addon.AddUniqueValue(values, value)
     if not value then
         return

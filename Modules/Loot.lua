@@ -1,6 +1,8 @@
 local _, addon = ...
 
 local printMessage = addon.PrintMessage
+local announce = addon.Announce
+local formatMoney = addon.FormatMoney
 local getItemIDFromLink = addon.GetItemIDFromLink
 local addUniqueLocation = addon.AddUniqueLocation
 local getPlayerLocation = addon.GetPlayerLocation
@@ -9,6 +11,7 @@ local getClientInfo = addon.GetClientInfo
 local getOrCreateCatalog = addon.GetOrCreateCatalog
 local getLatestCatalog = addon.GetLatestCatalog
 local recordItem = addon.RecordItem
+local consumePendingGather = addon.ConsumePendingGather
 
 local LOOT_SLOT_ITEM = LOOT_SLOT_ITEM or 1
 local LOOT_SLOT_MONEY = LOOT_SLOT_MONEY or 2
@@ -19,11 +22,17 @@ local ITEM_LOCATION_CAP = 20
 -- reopening the same loot window does not inflate the counters.
 local seenLootGUIDs = {}
 
-local function getSourceKey(sourceType, sourceID)
+-- Profession finds get their own key ("Herbalism:GameObject:1617",
+-- "Skinning:Creature:705") so skins never mix with a creature's regular loot.
+local function getSourceKey(sourceType, sourceID, profession)
+    local key = sourceType
     if sourceID then
-        return string.format("%s:%d", sourceType, sourceID)
+        key = string.format("%s:%d", sourceType, sourceID)
     end
-    return sourceType
+    if profession and profession ~= sourceType then
+        key = profession .. ":" .. key
+    end
+    return key
 end
 
 local function moneyPattern(globalString)
@@ -69,8 +78,9 @@ local function describeSource(guid)
     return sourceType or "Unknown", sourceID, name
 end
 
-local function getOrCreateSource(catalog, sourceType, sourceID, name, now)
-    local key = getSourceKey(sourceType, sourceID)
+local function getOrCreateSource(catalog, sourceType, sourceID, name, now, gather)
+    local profession = gather and gather.profession or nil
+    local key = getSourceKey(sourceType, sourceID, profession)
     local source = catalog.lootSources[key]
     if not source then
         source = {
@@ -83,6 +93,10 @@ local function getOrCreateSource(catalog, sourceType, sourceID, name, now)
             money = { timesSeen = 0, total = 0 },
         }
         catalog.lootSources[key] = source
+    end
+    if gather then
+        source.profession = gather.profession
+        source.gatherSpellID = gather.spellID
     end
     source.name = name or source.name
     source.lastSeenAt = now
@@ -112,6 +126,8 @@ local function scanLoot()
     local now = time()
     local location = getPlayerLocation()
     local countedSources = {}
+    local gather = consumePendingGather()
+    local summary = { items = 0, money = 0, sources = {}, sourceNames = {}, itemNames = {} }
 
     for slot = 1, numSlots do
         local slotType = GetLootSlotType and GetLootSlotType(slot) or LOOT_SLOT_ITEM
@@ -123,21 +139,30 @@ local function scanLoot()
             guids[1] = false
         end
         for _, guid in ipairs(guids) do
-            if guid and seenLootGUIDs[guid] then
+            -- A skinned corpse was already counted as regular loot; profession
+            -- finds are recorded under their own key, so they bypass that check.
+            if guid and seenLootGUIDs[guid] and not gather then
                 -- already counted this container
             else
                 local sourceType, sourceID, sourceName = describeSource(guid or nil)
-                local source = getOrCreateSource(catalog, sourceType, sourceID, sourceName, now)
-                local sourceKey = getSourceKey(sourceType, sourceID)
+                if gather and not sourceName then
+                    sourceName = gather.nodeName
+                end
+                local source = getOrCreateSource(catalog, sourceType, sourceID, sourceName, now, gather)
+                local sourceKey = getSourceKey(sourceType, sourceID, gather and gather.profession)
                 if not countedSources[sourceKey] then
                     countedSources[sourceKey] = true
                     source.lootCount = source.lootCount + 1
                     addUniqueLocation(source.locations, location, SOURCE_LOCATION_CAP)
+                    summary.sources[#summary.sources + 1] = sourceKey
+                    summary.sourceNames[#summary.sourceNames + 1] = source.name or sourceKey
                 end
 
                 if slotType == LOOT_SLOT_MONEY then
+                    local copper = parseMoneyText(name)
                     source.money.timesSeen = source.money.timesSeen + 1
-                    source.money.total = source.money.total + parseMoneyText(name)
+                    source.money.total = source.money.total + copper
+                    summary.money = summary.money + copper
                 elseif link then
                     local itemID = getItemIDFromLink(link)
                     if itemID then
@@ -160,11 +185,15 @@ local function scanLoot()
                         item.quantityTotal = item.quantityTotal + (quantity or 1)
                         item.lastSeenAt = now
                         addUniqueLocation(item.locations, location, ITEM_LOCATION_CAP)
+                        summary.items = summary.items + 1
+                        summary.itemNames[#summary.itemNames + 1] = string.format("%s x%d", name or "?", quantity or 1)
+                        summary.firstItemName = summary.firstItemName or name
 
                         recordItem(link, {
                             type = "loot",
                             sourceType = sourceType,
                             sourceID = sourceID,
+                            profession = gather and gather.profession or nil,
                             name = source.name,
                             location = location,
                         })
@@ -180,6 +209,46 @@ local function scanLoot()
         end
     end
     catalog.lootUpdatedAt = now
+
+    -- Nodes without a readable tooltip name are named after what they yielded
+    -- ("Peacebloom" node -> Peacebloom), which is how players refer to them anyway.
+    if gather and summary.firstItemName then
+        for _, sourceKey in ipairs(summary.sources) do
+            local source = catalog.lootSources[sourceKey]
+            if source and not source.name then
+                source.name = summary.firstItemName
+            end
+        end
+        for index, sourceName in ipairs(summary.sourceNames) do
+            if sourceName == summary.sources[index] then
+                summary.sourceNames[index] = summary.firstItemName
+            end
+        end
+    end
+
+    if #summary.sources > 0 then
+        local moneyText = summary.money > 0 and (", " .. formatMoney(summary.money)) or ""
+        if gather then
+            local where = location.zone or location.mapName or "unknown zone"
+            if location.subZone and location.subZone ~= "" then
+                where = where .. " - " .. location.subZone
+            end
+            announce(string.format(
+                "%s: %s from %s in %s.",
+                gather.profession,
+                #summary.itemNames > 0 and table.concat(summary.itemNames, ", ") or "nothing",
+                table.concat(summary.sourceNames, ", "),
+                where
+            ))
+        else
+            announce(string.format(
+                "Loot captured from %s: %d item(s)%s.",
+                table.concat(summary.sourceNames, ", "),
+                summary.items,
+                moneyText
+            ))
+        end
+    end
 end
 
 addon:RegisterEvent("LOOT_OPENED", function()

@@ -135,7 +135,7 @@ local function scanMerchant(silent)
 
     if not silent or not hasAnnouncedMerchant then
         hasAnnouncedMerchant = true
-        printMessage(string.format(
+        addon.Announce(string.format(
             "Captured %d merchant items from %s.",
             #items,
             npc.name or "unknown merchant"

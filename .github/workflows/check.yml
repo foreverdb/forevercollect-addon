@@ -1,0 +1,25 @@
+name: Check
+
+# Lua syntax check for every change, so a broken module never reaches a release.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lua:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua 5.1
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lua5.1
+      - name: Check Lua syntax
+        run: luac5.1 -p ForeverCollect.lua Core/*.lua Modules/*.lua
+      - name: Check TOC
+        run: |
+          grep -q '^## Version: ' ForeverCollect.toc || { echo "::error::ForeverCollect.toc has no Version"; exit 1; }
+          while read -r file; do
+            file="${file//\\//}"
+            [[ -f "$file" ]] || { echo "::error file=ForeverCollect.toc::listed file missing: $file"; exit 1; }
+          done < <(grep -v '^##' ForeverCollect.toc | grep -v '^\s*$' | tr -d '\r')

@@ -183,11 +183,23 @@ local function captureNPCInteraction(interactionType, role)
 end
 addon.CaptureNPCInteraction = captureNPCInteraction
 
+local function announceNPC(interactionType)
+    local npc = captureNPCInteraction(interactionType)
+    if npc then
+        addon.Announce(string.format(
+            "NPC captured: %s (%s) as %s.",
+            npc.name or "unknown",
+            tostring(npc.npcID or "?"),
+            interactionType
+        ))
+    end
+end
+
 addon:RegisterEvent("BANKFRAME_OPENED", function()
-    captureNPCInteraction("banker")
+    announceNPC("banker")
 end)
 addon:RegisterEvent("TAXIMAP_OPENED", function()
-    captureNPCInteraction("flightMaster")
+    announceNPC("flightMaster")
 end)
 --addon:RegisterEvent("INNKEEPER_SHOW", function()
 --    captureNPCInteraction("innkeeper")

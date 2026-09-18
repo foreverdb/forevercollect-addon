@@ -19,6 +19,9 @@ local function getSourceKey(source)
     elseif source.type == "quest" then
         return "quest:" .. tostring(source.questID)
     elseif source.type == "loot" then
+        if source.profession and source.profession ~= source.sourceType then
+            return string.format("loot:%s:%s:%s", source.profession, tostring(source.sourceType), tostring(source.sourceID))
+        end
         return string.format("loot:%s:%s", tostring(source.sourceType), tostring(source.sourceID))
     end
     return tostring(source.type)
@@ -62,7 +65,7 @@ local function recordItem(linkOrItemID, source)
                 questID = source.questID,
                 sourceType = source.sourceType,
                 sourceID = source.sourceID,
-                skillName = source.skillName,
+                profession = source.profession,
                 name = source.name,
                 firstSeenAt = now,
                 timesSeen = 0,

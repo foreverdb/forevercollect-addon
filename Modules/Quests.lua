@@ -1,6 +1,8 @@
 local _, addon = ...
 
 local printMessage = addon.PrintMessage
+local announce = addon.Announce
+local formatMoney = addon.FormatMoney
 local getItemIDFromLink = addon.GetItemIDFromLink
 local getClientInfo = addon.GetClientInfo
 local getOrCreateCatalog = addon.GetOrCreateCatalog
@@ -155,6 +157,18 @@ local function captureQuest(event)
     catalog.questScanUpdatedAt = time()
     if event ~= "QUEST_ITEM_UPDATE" then
         activeQuestPhase = event
+        local phaseLabel = ({
+            QUEST_DETAIL = "offered",
+            QUEST_PROGRESS = "in progress",
+            QUEST_COMPLETE = "ready to turn in",
+        })[event] or event
+        announce(string.format(
+            "Quest captured: %s (%d), %s, NPC %s.",
+            quest.title or "?",
+            questID,
+            phaseLabel,
+            observation.questNPC and observation.questNPC.name or "unknown"
+        ))
     end
 end
 addon.CaptureQuest = captureQuest
@@ -173,6 +187,13 @@ local function recordQuestTurnIn(questID, xpReward, moneyReward)
     }
     catalog.quests[questID] = quest
     catalog.questScanUpdatedAt = time()
+    announce(string.format(
+        "Quest turned in: %s (%d), %d XP, %s.",
+        quest.title or "?",
+        questID,
+        tonumber(xpReward) or 0,
+        formatMoney(moneyReward)
+    ))
 end
 addon.RecordQuestTurnIn = recordQuestTurnIn
 

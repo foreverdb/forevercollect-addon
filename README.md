@@ -2,6 +2,14 @@
 
 ForeverCollect katalogisiert beobachtete Daten aus World of Warcraft Classic Era und Forever (1.60+). Die Daten werden in der SavedVariable `ForeverCollectDB` gespeichert. Die vollständige Feldreferenz des aktuellen Schemas (Version 9) steht in [SCHEMA.md](SCHEMA.md).
 
+## Installation
+
+Das Zip des neuesten [GitHub-Releases](https://github.com/alexbangert/forevercollect-addon/releases) nach `Interface/AddOns/` des jeweiligen Clients entpacken (es enthält den Ordner `ForeverCollect/`). Für die Entwicklung kopiert `./deploy.sh` das Arbeitsverzeichnis direkt in die installierten Clients.
+
+## Release
+
+Die Version steht in `ForeverCollect.toc` (`## Version:`). Wird sie auf `main` erhöht, prüft der Workflow `.github/workflows/release.yml` die Lua-Syntax, packt `ForeverCollect-vX.Y.Z.zip` und legt Tag und Release `vX.Y.Z` mit automatischen Release-Notes an. Ein Push ohne Versionsänderung oder mit bereits vorhandenem Tag erzeugt kein Release. `check.yml` prüft bei jedem Push und Pull Request die Syntax und ob alle in der TOC gelisteten Dateien existieren.
+
 ## Verwendung
 
 ```text
@@ -13,7 +21,10 @@ ForeverCollect katalogisiert beobachtete Daten aus World of Warcraft Classic Era
 /fc loot      Loot-Quellen und -Items anzeigen
 /fc quests    Anzahl erfasster Quests und Beobachtungen anzeigen
 /fc status    Katalogkontext und Scanstatus anzeigen
+/fc verbose   Meldungen bei jeder Erfassung ein-/ausschalten (Standard: an)
 ```
+
+Jede Erfassung (Quest-Dialog, Abgabe, Loot, Händler, Trainer, Bankier, Flugmeister) wird im Chat gemeldet; `/fc verbose` schaltet diese Meldungen aus und wieder ein (Einstellung in `ForeverCollectDB.settings`, nicht Teil der Uploads).
 
 WoW schreibt die Daten nach `/reload`, Logout oder Beenden in:
 
@@ -43,6 +54,7 @@ Core/Registry.lua       Event-Frame und Dispatcher für Events und Slash-Command
 Modules/NPCs.lua        NPC-Erfassung und -Zusammenführung (Händler, Trainer, Bank, Flugmeister)
 Modules/Items.lua       Item-Katalog mit Quellen und Koordinaten (/fc items)
 Modules/Merchants.lua   Händler-Sortimente (/fc merchants)
+Modules/Gathering.lua   Erkennt Sammel-Zauber (Kräuter, Erz, Kürschnern, Angeln) und Knotennamen per Tooltip
 Modules/Loot.lua        Loot-Quellen und Drop-Orte (/fc loot)
 Modules/Talents.lua     Talentbäume (/fc talents)
 Modules/Trainers.lua    Trainerdienste (/fc trainer)

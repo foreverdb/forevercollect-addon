@@ -1,0 +1,89 @@
+name: Release
+
+# Packages the addon and publishes a GitHub release whenever the version in
+# ForeverCollect.toc changes on main. Can also be run by hand for a version whose
+# tag does not exist yet.
+
+on:
+  push:
+    branches: [main]
+    paths: [ForeverCollect.toc]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Read version
+        id: version
+        run: |
+          version="$(sed -n 's/^## Version: *//p' ForeverCollect.toc | tr -d '\r' | head -n 1)"
+          if [[ -z "$version" ]]; then
+            echo "::error file=ForeverCollect.toc::no '## Version:' line found"
+            exit 1
+          fi
+          previous=""
+          if git rev-parse --verify --quiet HEAD~1 >/dev/null; then
+            previous="$(git show HEAD~1:ForeverCollect.toc 2>/dev/null | sed -n 's/^## Version: *//p' | tr -d '\r' | head -n 1 || true)"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
+          echo "Version: $version (previous commit: ${previous:-none})"
+
+      - name: Decide whether to release
+        id: decide
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          PREVIOUS: ${{ steps.version.outputs.previous }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [[ "$EVENT" != "workflow_dispatch" && "$VERSION" == "$PREVIOUS" ]]; then
+            echo "Version unchanged ($VERSION); nothing to release."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
+            echo "::warning::tag v$VERSION already exists; not releasing again."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "release=true" >> "$GITHUB_OUTPUT"
+
+      - name: Install Lua 5.1
+        if: steps.decide.outputs.release == 'true'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lua5.1
+
+      - name: Check Lua syntax
+        if: steps.decide.outputs.release == 'true'
+        run: luac5.1 -p ForeverCollect.lua Core/*.lua Modules/*.lua
+
+      - name: Package addon
+        if: steps.decide.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          rm -rf build && mkdir -p build/ForeverCollect
+          cp ForeverCollect.toc ForeverCollect.lua LICENSE README.md SCHEMA.md build/ForeverCollect/
+          cp -r Core Modules build/ForeverCollect/
+          (cd build && zip -qr "ForeverCollect-v$VERSION.zip" ForeverCollect)
+          unzip -l "build/ForeverCollect-v$VERSION.zip"
+
+      - name: Create release
+        if: steps.decide.outputs.release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: ForeverCollect v${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: build/ForeverCollect-v${{ steps.version.outputs.version }}.zip
