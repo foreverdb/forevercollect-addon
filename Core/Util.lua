@@ -19,7 +19,12 @@ function addon.IsVerbose()
     return not settings or settings.verbose ~= false
 end
 
+-- Every module announces a successful capture through here, which also feeds the
+-- unsaved-captures counter in Core/Autosave.lua.
 function addon.Announce(message)
+    if addon.NoteCapture then
+        addon.NoteCapture()
+    end
     if addon.IsVerbose() then
         addon.PrintMessage(message)
     end

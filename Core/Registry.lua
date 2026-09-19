@@ -41,14 +41,16 @@ function addon:GetCommandNames()
 end
 
 function addon:HandleSlashCommand(message)
-    local command = string.lower(string.gsub(message or "", "^%s*(.-)%s*$", "%1"))
+    local trimmed = string.gsub(message or "", "^%s*(.-)%s*$", "%1")
+    local command, argument = string.match(trimmed, "^(%S+)%s*(.-)$")
+    command = string.lower(command or "")
     if command == "" then
         command = "help"
     end
 
     local entry = commands[command]
     if entry then
-        entry.handler()
+        entry.handler(argument ~= "" and string.lower(argument) or nil)
     else
         printMessage("Unknown command. Use /fc help.")
     end

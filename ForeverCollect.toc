@@ -2,13 +2,14 @@
 ## Title: ForeverCollect
 ## Notes: A starting point for a Classic collection addon.
 ## Author: Alex
-## Version: 0.1.2
+## Version: 0.1.3
 ## DefaultState: enabled
 ## SavedVariables: ForeverCollectDB
 
 Core/Util.lua
 Core/Database.lua
 Core/Registry.lua
+Core/Autosave.lua
 Modules/NPCs.lua
 Modules/Items.lua
 Modules/Merchants.lua

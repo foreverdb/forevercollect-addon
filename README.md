@@ -22,9 +22,13 @@ Die Version steht in `ForeverCollect.toc` (`## Version:`). Wird sie auf `main` e
 /fc quests    Anzahl erfasster Quests und Beobachtungen anzeigen
 /fc status    Katalogkontext und Scanstatus anzeigen
 /fc verbose   Meldungen bei jeder Erfassung ein-/ausschalten (Standard: an)
+/fc save      Gesammelte Daten jetzt sichern (lädt das UI neu)
+/fc autosave  Automatisch sichern: /fc autosave 30 (Minuten) oder /fc autosave off
 ```
 
 Jede Erfassung (Quest-Dialog, Abgabe, Loot, Händler, Trainer, Bankier, Flugmeister) wird im Chat gemeldet; `/fc verbose` schaltet diese Meldungen aus und wieder ein (Einstellung in `ForeverCollectDB.settings`, nicht Teil der Uploads).
+
+**Speichern:** WoW schreibt Addon-Daten nur beim Ausloggen, Beenden oder `/reload` auf die Platte – alles seit dem letzten Speichern lebt nur im Speicher und geht bei einem Absturz oder abgeschossenen Prozess verloren. Das Addon zählt deshalb die Erfassungen seit dem letzten Speichern, erinnert nach 50 Erfassungen bzw. 30 Minuten im Chat an `/fc save` (ein UI-Reload, nie im Kampf, beim Zaubern oder mit offenem Dialog) und kann mit `/fc autosave <Minuten>` selbstständig neu laden, sobald gerade nichts läuft. `/fc status` zeigt die ungesicherten Erfassungen.
 
 WoW schreibt die Daten nach `/reload`, Logout oder Beenden in:
 
@@ -52,6 +56,7 @@ Core/Util.lua           Chat-Ausgabe, Tooltip-Scanner, kleine Helfer
 Core/Database.lua       ForeverCollectDB, Client-/Charakterkontext, Katalogverwaltung
 Core/Registry.lua       Event-Frame und Dispatcher für Events und Slash-Commands
 Modules/NPCs.lua        NPC-Erfassung und -Zusammenführung (Händler, Trainer, Bank, Flugmeister)
+Core/Autosave.lua       Ungesicherte Erfassungen, /fc save, /fc autosave
 Modules/Items.lua       Item-Katalog mit Quellen und Koordinaten (/fc items)
 Modules/Merchants.lua   Händler-Sortimente (/fc merchants)
 Modules/Gathering.lua   Erkennt Sammel-Zauber (Kräuter, Erz, Kürschnern, Angeln) und Knotennamen per Tooltip

@@ -86,6 +86,12 @@ addon:RegisterCommand("status", function()
         lootSourceCount,
         lootItemCount
     ))
+    local unsaved, seconds = addon.UnsavedCaptures()
+    printMessage(string.format(
+        "Unsaved captures: %d (%d min since the last save; /fc save writes them).",
+        unsaved,
+        math.floor(seconds / 60)
+    ))
 end, "Katalogkontext und Scanstatus anzeigen")
 
 SLASH_FOREVERCOLLECT1 = "/forevercollect"
