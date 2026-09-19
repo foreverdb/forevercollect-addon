@@ -126,6 +126,36 @@ local function getSuggestedGroup()
     return nil
 end
 
+-- Quest texts arrive with the game's placeholders already filled in ($N name, $C class,
+-- $R race). The name is personal data and the texts should be comparable between players,
+-- so whole-word occurrences are turned back into the placeholders before anything is stored.
+local function escapePattern(text)
+    return (text:gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0"))
+end
+
+local function replaceWord(text, word, placeholder)
+    if not word or word == "" then
+        return text
+    end
+    return (text:gsub("%f[%w]" .. escapePattern(word) .. "%f[%W]", placeholder))
+end
+
+local function scrubPlayer(text)
+    if type(text) ~= "string" or text == "" then
+        return text
+    end
+    local name = UnitName("player")
+    local className = UnitClass("player")
+    local raceName = UnitRace("player")
+    text = replaceWord(text, name, "$N")
+    text = replaceWord(text, className, "$C")
+    text = replaceWord(text, className and className:lower(), "$c")
+    text = replaceWord(text, raceName, "$R")
+    text = replaceWord(text, raceName and raceName:lower(), "$r")
+    return text
+end
+addon.ScrubPlayer = scrubPlayer
+
 local function captureQuest(event)
     if event == "QUEST_ITEM_UPDATE" and not activeQuestPhase then
         return
@@ -167,14 +197,14 @@ local function captureQuest(event)
         observation.suggestedGroup = getSuggestedGroup() or observation.suggestedGroup
     end
     if event == "QUEST_DETAIL" then
-        observation.description = GetQuestText and GetQuestText() or nil
-        observation.objectives = GetObjectiveText and GetObjectiveText() or nil
+        observation.description = scrubPlayer(GetQuestText and GetQuestText() or nil)
+        observation.objectives = scrubPlayer(GetObjectiveText and GetObjectiveText() or nil)
         observation.rewards = scanQuestRewards(questID, observation)
     elseif event == "QUEST_PROGRESS" then
-        observation.text = GetProgressText and GetProgressText() or nil
+        observation.text = scrubPlayer(GetProgressText and GetProgressText() or nil)
         observation.progress = scanQuestProgress(questID, observation)
     elseif event == "QUEST_COMPLETE" then
-        observation.text = GetRewardText and GetRewardText() or nil
+        observation.text = scrubPlayer(GetRewardText and GetRewardText() or nil)
         observation.rewards = scanQuestRewards(questID, observation)
     elseif event == "QUEST_ITEM_UPDATE" then
         if activeQuestPhase == "QUEST_DETAIL" or activeQuestPhase == "QUEST_COMPLETE" then

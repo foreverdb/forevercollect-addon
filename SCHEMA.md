@@ -372,9 +372,9 @@ Wird seit Schema 9.1 nicht mehr geschrieben (siehe Abschnitt 13). Der statische 
 | `capturedAt` | number | – | Zeitpunkt. |
 | `character` | Character | – | Charakter (Questtexte können von Klasse/Rasse/Level abhängen). |
 | `questNPC` | NPC | – | Dialogpartner mit `role` `giver`/`progress`/`turnIn` und `location`. |
-| `description` | string | ✓ | Nur `QUEST_DETAIL`: Questtext. |
-| `objectives` | string | ✓ | Nur `QUEST_DETAIL`: Zieltext. |
-| `text` | string | ✓ | `QUEST_PROGRESS`: Fortschrittstext; `QUEST_COMPLETE`: Abgabetext. |
+| `description` | string | ✓ | Nur `QUEST_DETAIL`: Questtext. Name, Klasse und Rasse des Spielers sind wieder durch die Platzhalter `$N`, `$C`/`$c`, `$R`/`$r` ersetzt. |
+| `objectives` | string | ✓ | Nur `QUEST_DETAIL`: Zieltext (Platzhalter wie bei `description`). |
+| `text` | string | ✓ | `QUEST_PROGRESS`: Fortschrittstext; `QUEST_COMPLETE`: Abgabetext (Platzhalter wie bei `description`). |
 | `rewards` | QuestRewards | ✓ | `QUEST_DETAIL` und `QUEST_COMPLETE`. |
 | `progress` | table | ✓ | Nur `QUEST_PROGRESS`: `{ requiredItems: QuestItem[], requiredMoney: number? }`. |
 | `tag` | table | ✓ | `QUEST_DETAIL`/`QUEST_COMPLETE`: `{ id: number, name: string? }` – Quest-Typ wie im Questlog (81 Dungeon, 62 Raid, 1 Elite, 41 PvP, 21 Klasse …; IDs wie `QuestInfo`). Fehlt bei Quests ohne Tag. |
