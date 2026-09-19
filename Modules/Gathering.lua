@@ -15,7 +15,8 @@ local GATHER_SPELLS = {
 }
 
 local PENDING_TIMEOUT = 5 -- seconds between the cast and the loot window
-local TOOLTIP_TIMEOUT = 15 -- seconds a hovered node name stays usable
+local TOOLTIP_TIMEOUT = 4 -- seconds a hovered node name stays usable
+local TOOLTIP_MAX_LINES = 2 -- node tooltips: name, optionally a skill requirement
 
 local professionBySpellID = {}
 local professionBySpellName = {}
@@ -61,6 +62,11 @@ end
 -- read or compared; those are skipped and the Loot module falls back to the
 -- gathered item's name.
 local function readTooltipTitle(tooltip)
+    -- UI tooltips (buttons, profession links) are longer or explanatory; world
+    -- object tooltips carry just the name and maybe a requirement line.
+    if tooltip:NumLines() > TOOLTIP_MAX_LINES then
+        return nil
+    end
     local line = _G[tooltip:GetName() .. "TextLeft1"]
     local text = line and line:GetText()
     if text == nil or (issecretvalue and issecretvalue(text)) then
