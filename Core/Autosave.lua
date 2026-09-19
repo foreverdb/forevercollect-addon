@@ -70,7 +70,7 @@ end
 -- The reminder is a standard game popup: "Save now" reloads the UI, "Later" snoozes it.
 local POPUP = "FOREVERCOLLECT_SAVE_REMINDER"
 StaticPopupDialogs[POPUP] = {
-    text = "ForeverCollect: your captures since the last save are not written to disk yet.\n\n"
+    text = "ForeverCollect: %d capture(s) are not saved yet (%d min since the last save).\n\n"
         .. "The game writes addon data only on logout or /reload; a crash loses everything since.",
     button1 = "Save now (reload UI)",
     button2 = "Later",
@@ -110,9 +110,13 @@ local function tick()
     local dueByCount = unsavedCaptures - lastReminderCaptures >= REMIND_AFTER_CAPTURES
     local dueByTime = minutes >= REMIND_AFTER_MINUTES
     if dueByCount or dueByTime then
-        printMessage("|cffffcc00Captures since the last save are not written yet|r - /fc save, or /fc autosave 30 to reload automatically.")
+        local sinceSave = math.floor((now - sessionStartedAt) / 60)
+        printMessage(string.format(
+            "|cffffcc00%d capture(s) are not saved yet|r (%d min since the last save) - /fc save, or /fc autosave 30 to reload automatically.",
+            unsavedCaptures, sinceSave
+        ))
         if not StaticPopup_Visible(POPUP) then
-            StaticPopup_Show(POPUP)
+            StaticPopup_Show(POPUP, unsavedCaptures, sinceSave)
         end
         lastReminderAt = now
         lastReminderCaptures = unsavedCaptures

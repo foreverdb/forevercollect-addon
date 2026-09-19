@@ -2,7 +2,7 @@
 ## Title: ForeverCollect
 ## Notes: A starting point for a Classic collection addon.
 ## Author: Alex
-## Version: 0.1.6
+## Version: 0.1.7
 ## DefaultState: enabled
 ## SavedVariables: ForeverCollectDB
 
