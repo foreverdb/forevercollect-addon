@@ -67,6 +67,26 @@ local function save(force)
     reloadUI()
 end
 
+-- The reminder is a standard game popup: "Save now" reloads the UI, "Later" snoozes it.
+local POPUP = "FOREVERCOLLECT_SAVE_REMINDER"
+StaticPopupDialogs[POPUP] = {
+    text = "ForeverCollect: %d capture(s) are not saved yet (%d min since the last save).\n\n"
+        .. "The game writes addon data only on logout or /reload; a crash loses everything since.",
+    button1 = "Save now (reload UI)",
+    button2 = "Later",
+    OnAccept = function()
+        if canReloadNow() then
+            reloadUI()
+        else
+            printMessage("Cannot reload right now (combat, casting or an open dialog). Use /fc save in a moment.")
+        end
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3, -- keep the first popup slots free for the game's own dialogs
+}
+
 local function autosaveMinutes()
     local settings = ForeverCollectDB and ForeverCollectDB.settings
     return settings and tonumber(settings.autosaveMinutes) or 0
@@ -90,11 +110,14 @@ local function tick()
     local dueByCount = unsavedCaptures - lastReminderCaptures >= REMIND_AFTER_CAPTURES
     local dueByTime = minutes >= REMIND_AFTER_MINUTES
     if dueByCount or dueByTime then
+        local sinceSave = math.floor((now - sessionStartedAt) / 60)
         printMessage(string.format(
-            "|cffffcc00%d capture(s) are not saved yet|r (%d min since the last save). "
-            .. "They are written only on logout or /reload - type /fc save now, or /fc autosave 30 to reload automatically.",
-            unsavedCaptures, math.floor((now - sessionStartedAt) / 60)
+            "|cffffcc00%d capture(s) are not saved yet|r (%d min since the last save) - /fc save, or /fc autosave 30 to reload automatically.",
+            unsavedCaptures, sinceSave
         ))
+        if not StaticPopup_Visible(POPUP) then
+            StaticPopup_Show(POPUP, unsavedCaptures, sinceSave)
+        end
         lastReminderAt = now
         lastReminderCaptures = unsavedCaptures
     end

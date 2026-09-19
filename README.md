@@ -30,7 +30,7 @@ Jede Erfassung (Quest-Dialog, Abgabe, Loot, Händler, Trainer, Bankier, Flugmeis
 
 **Quest-Typ:** Bei jeder Annahme und Abgabe wird der Quest-Typ aus dem Questlog mitgeschrieben (`tag`: Dungeon, Raid, Elite, PvP …, plus `suggestedGroup`). Bereits erfasste Quests bekommen den Typ, sobald sie erneut angenommen oder abgegeben werden.
 
-**Speichern:** WoW schreibt Addon-Daten nur beim Ausloggen, Beenden oder `/reload` auf die Platte – alles seit dem letzten Speichern lebt nur im Speicher und geht bei einem Absturz oder abgeschossenen Prozess verloren. Das Addon zählt deshalb die Erfassungen seit dem letzten Speichern, erinnert nach 50 Erfassungen bzw. 30 Minuten im Chat an `/fc save` (ein UI-Reload, nie im Kampf, beim Zaubern oder mit offenem Dialog) und kann mit `/fc autosave <Minuten>` selbstständig neu laden, sobald gerade nichts läuft. `/fc status` zeigt die ungesicherten Erfassungen.
+**Speichern:** WoW schreibt Addon-Daten nur beim Ausloggen, Beenden oder `/reload` auf die Platte – alles seit dem letzten Speichern lebt nur im Speicher und geht bei einem Absturz oder abgeschossenen Prozess verloren. Das Addon zählt deshalb die Erfassungen seit dem letzten Speichern, erinnert nach 50 Erfassungen bzw. 30 Minuten mit einem Popup („Save now“ lädt das UI neu, „Later“ verschiebt) und im Chat an `/fc save` (ein UI-Reload, nie im Kampf, beim Zaubern oder mit offenem Dialog) und kann mit `/fc autosave <Minuten>` selbstständig neu laden, sobald gerade nichts läuft. `/fc status` zeigt die ungesicherten Erfassungen.
 
 WoW schreibt die Daten nach `/reload`, Logout oder Beenden in:
 
