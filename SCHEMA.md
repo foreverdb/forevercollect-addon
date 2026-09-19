@@ -377,6 +377,8 @@ Wird seit Schema 9.1 nicht mehr geschrieben (siehe Abschnitt 13). Der statische 
 | `text` | string | ✓ | `QUEST_PROGRESS`: Fortschrittstext; `QUEST_COMPLETE`: Abgabetext. |
 | `rewards` | QuestRewards | ✓ | `QUEST_DETAIL` und `QUEST_COMPLETE`. |
 | `progress` | table | ✓ | Nur `QUEST_PROGRESS`: `{ requiredItems: QuestItem[], requiredMoney: number? }`. |
+| `tag` | table | ✓ | `QUEST_DETAIL`/`QUEST_COMPLETE`: `{ id: number, name: string? }` – Quest-Typ wie im Questlog (81 Dungeon, 62 Raid, 1 Elite, 41 PvP, 21 Klasse …; IDs wie `QuestInfo`). Fehlt bei Quests ohne Tag. |
+| `suggestedGroup` | number | ✓ | `QUEST_DETAIL`/`QUEST_COMPLETE`: empfohlene Gruppengröße (`GetSuggestedGroupSize`), nur wenn > 0. |
 
 ### `QuestRewards`
 

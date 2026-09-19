@@ -99,6 +99,33 @@ local function scanQuestProgress(questID, observation)
     }
 end
 
+-- The quest type the client shows as a tag in the quest log (81 Dungeon, 62 Raid, 1 Elite,
+-- 41 PvP, 21 Class, ...); the ids match the QuestInfo table.
+local function getQuestTag(questID)
+    if C_QuestLog and C_QuestLog.GetQuestTagInfo then
+        local info = C_QuestLog.GetQuestTagInfo(questID)
+        if info and info.tagID then
+            return { id = info.tagID, name = info.tagName }
+        end
+        return nil
+    end
+    if GetQuestTagInfo then
+        local tagID, tagName = GetQuestTagInfo(questID)
+        if tagID then
+            return { id = tagID, name = tagName }
+        end
+    end
+    return nil
+end
+
+local function getSuggestedGroup()
+    local size = GetSuggestedGroupSize and GetSuggestedGroupSize()
+    if size and size > 0 then
+        return size
+    end
+    return nil
+end
+
 local function captureQuest(event)
     if event == "QUEST_ITEM_UPDATE" and not activeQuestPhase then
         return
@@ -135,6 +162,10 @@ local function captureQuest(event)
     end
 
     quest.title = GetTitleText and GetTitleText() or quest.title
+    if event == "QUEST_DETAIL" or event == "QUEST_COMPLETE" then
+        observation.tag = getQuestTag(questID) or observation.tag
+        observation.suggestedGroup = getSuggestedGroup() or observation.suggestedGroup
+    end
     if event == "QUEST_DETAIL" then
         observation.description = GetQuestText and GetQuestText() or nil
         observation.objectives = GetObjectiveText and GetObjectiveText() or nil
