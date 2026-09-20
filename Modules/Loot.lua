@@ -12,6 +12,7 @@ local getOrCreateCatalog = addon.GetOrCreateCatalog
 local getLatestCatalog = addon.GetLatestCatalog
 local recordItem = addon.RecordItem
 local consumePendingGather = addon.ConsumePendingGather
+local readable = addon.Readable
 
 local LOOT_SLOT_ITEM = LOOT_SLOT_ITEM or 1
 local LOOT_SLOT_MONEY = LOOT_SLOT_MONEY or 2
@@ -51,17 +52,22 @@ local function parseMoneyText(text)
 end
 
 -- Returns the GUIDs the loot in `slot` came from. Falls back to the dead
--- target when the client does not report loot sources.
+-- target when the client does not report loot sources. Secret GUIDs (hostile
+-- units in instanced content on the mainline engine) are left out: they can
+-- neither be parsed nor used as table keys.
 local function getSlotSourceGUIDs(slot)
     local guids = {}
     if GetLootSourceInfo then
         local sources = { GetLootSourceInfo(slot) }
         for index = 1, #sources, 2 do
-            guids[#guids + 1] = sources[index]
+            local guid = readable(sources[index])
+            if guid then
+                guids[#guids + 1] = guid
+            end
         end
     end
-    if #guids == 0 and UnitGUID("target") and UnitIsDead and UnitIsDead("target") then
-        guids[1] = UnitGUID("target")
+    if #guids == 0 and UnitIsDead and UnitIsDead("target") then
+        guids[1] = readable(UnitGUID("target"))
     end
     return guids
 end
@@ -72,8 +78,8 @@ local function describeSource(guid)
     end
     local sourceType, sourceID = parseGUID(guid)
     local name
-    if guid and UnitGUID("target") == guid then
-        name = UnitName("target")
+    if guid and readable(UnitGUID("target")) == guid then
+        name = readable(UnitName("target"))
     end
     return sourceType or "Unknown", sourceID, name
 end
@@ -107,10 +113,11 @@ end
 -- detect the signature by the type of the fifth value (`locked` is boolean).
 local function getLootSlotInfo(slot)
     local _, name, quantity, value4, value5, value6, value7, value8 = GetLootSlotInfo(slot)
+    local quality, isQuestItem, questID = value5, value7, value8
     if type(value5) == "boolean" then
-        return name, quantity, value4, value6, value7
+        quality, isQuestItem, questID = value4, value6, value7
     end
-    return name, quantity, value5, value7, value8
+    return readable(name), readable(quantity), readable(quality), readable(isQuestItem), readable(questID)
 end
 
 local function scanLoot()

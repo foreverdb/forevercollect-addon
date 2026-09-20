@@ -102,6 +102,22 @@ function addon.FormatTimestamp(timestamp)
     return date("!%Y-%m-%d %H:%M:%S", timestamp)
 end
 
+-- Nil for values the client hands out as "secret" (mainline engine, e.g. Forever:
+-- hostile units in instanced content, world cursor text): they cannot be
+-- compared, matched, concatenated or used as table keys.
+function addon.Readable(value)
+    if value == nil then
+        return nil
+    end
+    if issecretvalue and issecretvalue(value) then
+        return nil
+    end
+    if canaccessvalue and not canaccessvalue(value) then
+        return nil
+    end
+    return value
+end
+
 local function firstPositiveNumber(...)
     for argIndex = 1, select("#", ...) do
         local value = select(argIndex, ...)

@@ -1,5 +1,7 @@
 local _, addon = ...
 
+local readable = addon.Readable
+
 -- Tags the next loot window with the gathering profession whose cast just
 -- succeeded (herbalism, mining, skinning, fishing) so the Loot module can
 -- record nodes and skins as profession finds with their location. Node names
@@ -68,13 +70,7 @@ local function readTooltipTitle(tooltip)
         return nil
     end
     local line = _G[tooltip:GetName() .. "TextLeft1"]
-    local text = line and line:GetText()
-    if text == nil or (issecretvalue and issecretvalue(text)) then
-        return nil
-    end
-    if canaccessvalue and not canaccessvalue(text) then
-        return nil
-    end
+    local text = readable(line and line:GetText())
     if type(text) ~= "string" or text == "" then
         return nil
     end
