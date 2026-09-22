@@ -62,6 +62,7 @@ Beispiel: `2:11509:2:enUS:5:8:Horde`. Ein Katalog ist also je Client-Projekt, In
 | `itemsUpdatedAt` | number | ✓ | Letzte Änderung am Item-Katalog. |
 | `merchantScanUpdatedAt` | number | ✓ | Letzter Händler-Scan. |
 | `lootUpdatedAt` | number | ✓ | Letzte Loot-Beobachtung. |
+| `spellTooltipsUpdatedAt` | number | ✓ | Letzter Talent-Tooltip-Scan. |
 
 ### 2.2 Sammlungen
 
@@ -74,8 +75,9 @@ Beispiel: `2:11509:2:enUS:5:8:Horde`. Ein Katalog ist also je Client-Projekt, In
 | `lootSources` | map<string, LootSource> | Loot je Quelle | 8 |
 | `quests` | map<number, Quest> | Quests, Schlüssel `questID` | 11 |
 | `npcs` | NPC[] | NPC-Katalog | 12 |
+| `spellTooltips` | map<number, SpellTooltip> | Tooltips der Talentrang-Spells der Klasse, Schlüssel `spellID` | 14 |
 
-Alle Sammlungen sind immer vorhanden (ggf. leer).
+Alle Sammlungen sind immer vorhanden (ggf. leer); `spellTooltips` kam ohne Versionssprung hinzu und fehlt in älteren Katalogen.
 
 **`NPCKey`**: GUID des NPCs (`"Creature-0-…"`), falls keine GUID vorliegt `"<npcID>:<name>"` (`addon.GetNPCKey`).
 **`CharacterKey`**: Spieler-GUID (`"Player-…"`), ersatzweise `"<Name>-<Realm>"`.
@@ -149,7 +151,7 @@ Mindestens eines der beiden Felder ist gesetzt; Zeilen ohne Text werden ausgelas
 
 ## 4. `Specialization` (Talentbäume)
 
-`catalog.specializations` wird bei jedem Talent-Scan vollständig ersetzt.
+`catalog.specializations` wird bei jedem Talent-Scan vollständig ersetzt (Tab/Tier-API von Classic Era). Auf Forever bleibt es leer; dort liefert der Client die Bäume (Trait-Tabellen, serverseitig importiert) und das Addon nur die Tooltips (Abschnitt 14).
 
 | Feld | Typ | Opt. | Beschreibung |
 |---|---|---|---|
@@ -172,7 +174,8 @@ Mindestens eines der beiden Felder ist gesetzt; Zeilen ohne Text werden ausgelas
 | `tier` | number | – | Zeile im Baum. |
 | `column` | number | – | Spalte im Baum. |
 | `maxRank` | number | – | Maximaler Rang. |
-| `tooltipLines` | TooltipLine[] | – | Tooltip des Talents. |
+| `tooltipLines` | TooltipLine[] | – | Tooltip des Talents (Rang 1). |
+| `prerequisites` | { talentID: number, rank: number }[] | ✓ | Vorausgesetzte Talente desselben Baums (Pfeile im Spiel) mit benötigtem Rang; fehlt ohne Voraussetzung. |
 
 ---
 
@@ -423,6 +426,21 @@ Liste von `NPC` (Abschnitt 3.4). Ein NPC erscheint genau einmal; Zusammenführun
 
 ---
 
+## 14. `spellTooltips`
+
+Map `spellID → SpellTooltip`. Auf Forever (Trait-System) liest das Addon beim Login (verzögert) und bei `/fc scan` per `GameTooltip:SetTraitEntry` (Fallback `SetSpellByID`) die Tooltips aller Ränge jedes Talent-Spells der aktiven Trait-Konfiguration. Die Baumstruktur selbst kommt nicht vom Addon, sondern aus den Trait-Tabellen des Clients; die Tooltips ergänzen dort die Werte („Increases … by 2 %“), die der Client nur als Platzhalter kennt. Ein Eintrag wird nur geschrieben, wenn der Tooltip mehr als die Namenszeile liefert (Zauberdaten laden verzögert); vorhandene Einträge werden bei jedem Scan ersetzt.
+
+### `SpellTooltip`
+
+| Feld | Typ | Opt. | Beschreibung |
+|---|---|---|---|
+| `name` | string | ✓ | Zaubername. |
+| `lines` | TooltipLine[] | | Tooltip von Rang 1 inklusive Namenszeile (Abschnitt 3.3). |
+| `ranks` | { rank: number, tooltipLines: TooltipLine[] }[] | ✓ | Tooltip je Rang. |
+| `capturedAt` | number | | Zeitpunkt des Scans. |
+
+---
+
 ## 13. Altlasten aus früheren Schema-Versionen
 
 Beim Anheben der Schema-Version werden vorhandene Daten **nicht** bereinigt. In Katalogen, die mit Version ≤ 8 angelegt wurden, können daher zusätzlich vorkommen:
@@ -444,4 +462,5 @@ Kataloge, die mit Version 9 erstmals angelegt werden, enthalten diese Felder nic
 - Neu: `items`, `merchantSnapshots`, `lootSources`, `tradeSkills` und die Zeitstempel `itemsUpdatedAt`, `merchantScanUpdatedAt`, `lootUpdatedAt`, `tradeSkillsUpdatedAt`.
 - Neu: `trainerSnapshots` wird tatsächlich befüllt (in 8 dokumentiert, aber leer).
 - Entfernt: `skillSnapshots`, `skillsScannedAt`, `abilitySnapshots[*].spells` (siehe Abschnitt 13).
+- Später neu (ohne Versionssprung, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (Abschnitt 14).
 - Später entfernt (ohne Versionssprung, Felder waren optional): `abilitySnapshots`, `abilitiesScannedAt` – Runen-Scan gestrichen; `items[*]`-Details (`detailsLoaded` & Co.) und `tradeSkills`/`tradeSkillsUpdatedAt` – statische Zauber-, Item- und Rezeptdaten kommen aus wow.export.

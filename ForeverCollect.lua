@@ -5,8 +5,12 @@ addon.name = addonName
 local printMessage = addon.PrintMessage
 local getLatestCatalog = addon.GetLatestCatalog
 
-local function scanAll()
-    addon.ScanTalentCatalog()
+local function scanAll(options)
+    if addon.HasClassicTalentAPI() then
+        addon.ScanTalentCatalog(options)
+    else
+        addon.ScanTraitCatalog(options)
+    end
 end
 
 addon:RegisterEvent("ADDON_LOADED", function(loadedAddonName)
@@ -21,7 +25,7 @@ addon:RegisterEvent("ADDON_LOADED", function(loadedAddonName)
 end)
 
 addon:RegisterEvent("PLAYER_LOGIN", function()
-    scanAll()
+    scanAll({ silent = true })
 end)
 
 addon:RegisterCommand("help", function()
@@ -42,7 +46,7 @@ end, "Meldungen bei jeder Erfassung ein-/ausschalten")
 
 addon:RegisterCommand("scan", function()
     scanAll()
-end, "Talente scannen")
+end, "Talente scannen (Forever: Talent-Tooltips)")
 
 addon:RegisterCommand("status", function()
     local catalog = getLatestCatalog()

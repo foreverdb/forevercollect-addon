@@ -13,8 +13,9 @@ Die Version steht in `ForeverCollect.toc` (`## Version:`). Wird sie auf `main` e
 ## Verwendung
 
 ```text
-/fc scan      Talente scannen
+/fc scan      Talente scannen (Forever: Talent-Tooltips)
 /fc talents   Talentdaten des aktuellen Katalogs anzeigen
+/fc traits    Trait-Bäume des Clients diagnostizieren (Forever)
 /fc trainer   Trainerdienste scannen und Anzahl erfasster Daten anzeigen
 /fc items     Anzahl erfasster Items anzeigen
 /fc merchants Händler-Sortimente anzeigen
@@ -42,12 +43,9 @@ WTF/Account/<ACCOUNT>/SavedVariables/ForeverCollect.lua
 
 ```sh
 ./deploy.sh           # kopiert das Addon in _classic_era_ und _classic_beta_ (Forever)
-./upload.sh           # lädt die Forever-SavedVariables zum Ingress hoch (POST /imports/forevercollect)
-./upload.sh era       # dasselbe für Classic Era
-./upload.sh forever <pfad>   # expliziter Dateipfad
 ```
 
-`upload.sh` ermittelt das Account-Verzeichnis des Clients selbst und löscht die Datei nach erfolgreichem Upload nur, wenn der jeweilige Client (`WowB.exe` bzw. `WowClassic.exe`) nicht läuft. `WOW_DIR` und `TARGET_URL` lassen sich per Umgebungsvariable überschreiben.
+Hochgeladen wird über den ForeverDB-Client (`foreverdb-client`): Der Ingress nimmt nur noch den fertigen JSON-Snapshot entgegen, die Umwandlung der SavedVariables passiert im Client. Das frühere `upload.sh` konnte das nicht leisten und ist entfallen.
 
 ## Projektstruktur
 
@@ -63,7 +61,8 @@ Modules/Items.lua       Item-Katalog mit Quellen und Koordinaten (/fc items)
 Modules/Merchants.lua   Händler-Sortimente (/fc merchants)
 Modules/Gathering.lua   Erkennt Sammel-Zauber (Kräuter, Erz, Kürschnern, Angeln) und Knotennamen per Tooltip
 Modules/Loot.lua        Loot-Quellen und Drop-Orte (/fc loot)
-Modules/Talents.lua     Talentbäume (/fc talents)
+Modules/Talents.lua     Talentbäume über die Classic-API (/fc talents)
+Modules/Traits.lua      Talent-Tooltips über das Trait-System auf Forever (/fc traits)
 Modules/Trainers.lua    Trainerdienste (/fc trainer)
 Modules/Quests.lua      Questdialoge und Abgaben (/fc quests)
 ForeverCollect.lua      Einstieg: Laden, Login-Scan, /fc help, /fc scan, /fc status
@@ -145,7 +144,7 @@ catalog = {
 
 ## Talente
 
-`specializations` ist ein Array der Talentbäume des aktuellen Classic-Clients. Forever (1.60+) baut seine Talente auf dem Trait-System (`C_Traits`) auf; dort bleibt `specializations` leer, die Baumstruktur kommt aus dem statischen Katalog des Servers.
+`specializations` ist ein Array der Talentbäume, gelesen über die Tab/Tier-API von Classic Era (`Modules/Talents.lua`). Forever (1.60+) baut seine Talente auf dem Trait-System (`C_Traits`) auf; dort bleibt `specializations` leer – Baumstruktur, Ränge und Voraussetzungen kommen aus den Trait-Tabellen des Clients (`TraitNode`, `TraitEdge`), die der Importer einliest. Was nur das Spiel kennt, sind die Tooltip-Texte mit ihren Werten: `Modules/Traits.lua` läuft beim Login (5 s verzögert) und bei `/fc scan` über die aktive Trait-Konfiguration und legt je Talent-Spell die Tooltips aller Ränge in `spellTooltips` ab. `/fc traits` zeigt, was der Client liefert. Automatische Scans melden sich nur einmal pro Sitzung; warum auf Forever keine Bäume gescannt werden, erklärt nur `/fc scan`.
 
 ```lua
 specializations = {

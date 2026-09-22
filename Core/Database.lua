@@ -108,6 +108,7 @@ function addon.GetOrCreateCatalog(client)
             items = {},
             merchantSnapshots = {},
             lootSources = {},
+            spellTooltips = {},
         }
         ForeverCollectDB.catalogs[key] = catalog
     else
@@ -127,6 +128,7 @@ function addon.GetOrCreateCatalog(client)
         catalog.items = catalog.items or {}
         catalog.merchantSnapshots = catalog.merchantSnapshots or {}
         catalog.lootSources = catalog.lootSources or {}
+        catalog.spellTooltips = catalog.spellTooltips or {}
     end
 
     ForeverCollectDB.latestCatalogKey = key

@@ -22,36 +22,73 @@ local function countTalents(catalog)
     return totalTalents
 end
 
-local hasWarnedAboutTalentAPI
+-- Classic Era exposes the tab/tier talent API; Forever (1.60+) builds its trees
+-- on the trait system, which Modules/Traits.lua scans instead.
+local function hasClassicTalentAPI()
+    return C_SpecializationInfo
+        and C_SpecializationInfo.GetTalentInfo
+        and C_SpecializationInfo.GetSpecializationInfo
+        and C_SpecializationInfo.IsInitialized
+        and GetNumTalentTabs
+        and GetNumTalents
+        and true or false
+end
+addon.HasClassicTalentAPI = hasClassicTalentAPI
 
-local function scanTalentCatalog()
+-- Prerequisite arrows: GetTalentPrereqs names the required talent by tier and
+-- column; a prerequisite must be maxed, so its maxRank is the required rank.
+local function attachPrerequisites(specialization, specializationIndex, groupIndex)
+    if not GetTalentPrereqs then
+        return
+    end
+    local byCell = {}
+    for _, talent in ipairs(specialization.talents) do
+        byCell[talent.tier .. ":" .. talent.column] = talent
+    end
+    for _, talent in ipairs(specialization.talents) do
+        local ok, results = pcall(function()
+            return { GetTalentPrereqs(specializationIndex, talent.index, false, false, groupIndex) }
+        end)
+        if ok then
+            -- Triples of tier, column, isLearnable per prerequisite.
+            for offset = 1, #results, 3 do
+                local prerequisite = byCell[tostring(results[offset]) .. ":" .. tostring(results[offset + 1])]
+                if prerequisite then
+                    talent.prerequisites = talent.prerequisites or {}
+                    table.insert(talent.prerequisites, {
+                        talentID = prerequisite.talentID,
+                        rank = prerequisite.maxRank,
+                    })
+                end
+            end
+        end
+    end
+end
+
+-- `options.silent` marks automatic scans (login, talent events): they never
+-- explain why nothing was scanned, only /fc scan does.
+local function scanTalentCatalog(options)
+    options = options or {}
     initializeDatabase()
 
     local client = getClientInfo()
     if not isSupportedClient(client) then
-        printMessage("Unsupported WoW project. Classic Era or Forever is required.")
+        if not options.silent then
+            printMessage("Unsupported WoW project. Classic Era or Forever is required.")
+        end
         return nil
     end
 
-    if not C_SpecializationInfo
-        or not C_SpecializationInfo.GetTalentInfo
-        or not C_SpecializationInfo.GetSpecializationInfo
-        or not C_SpecializationInfo.IsInitialized
-    then
-        printMessage("This client does not provide the Classic talent API.")
+    if not hasClassicTalentAPI() then
+        if not options.silent then
+            printMessage("This client has no Classic talent API; the talent trees come from the client data, /fc scan reads their tooltips (see /fc traits).")
+        end
         return nil
     end
 
     if not C_SpecializationInfo.IsInitialized() then
-        printMessage("Talent data is not initialized yet. Try /fc scan again.")
-        return nil
-    end
-    -- Forever (1.60+) builds its talent trees on the trait system (C_Traits);
-    -- the legacy tab/tier API this scan reads does not exist there.
-    if not GetNumTalentTabs or not GetNumTalents then
-        if not hasWarnedAboutTalentAPI then
-            hasWarnedAboutTalentAPI = true
-            printMessage("This client does not provide the Classic talent API; talent trees come from the static catalog.")
+        if not options.silent then
+            printMessage("Talent data is not initialized yet. Try /fc scan again.")
         end
         return nil
     end
@@ -108,6 +145,7 @@ local function scanTalentCatalog()
             end
         end
 
+        attachPrerequisites(specialization, specializationIndex, groupIndex)
         catalog.specializations[#catalog.specializations + 1] = specialization
     end
 
@@ -126,9 +164,11 @@ local function scanTalentCatalog()
 end
 addon.ScanTalentCatalog = scanTalentCatalog
 
-addon:RegisterEvent("PLAYER_TALENT_UPDATE", function()
-    scanTalentCatalog()
-end)
+if hasClassicTalentAPI() then
+    addon:RegisterEvent("PLAYER_TALENT_UPDATE", function()
+        scanTalentCatalog({ silent = true })
+    end)
+end
 
 addon:RegisterCommand("talents", function()
     local catalog = getLatestCatalog()
