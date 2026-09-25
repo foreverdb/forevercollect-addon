@@ -72,9 +72,31 @@ local function getSlotSourceGUIDs(slot)
     return guids
 end
 
-local function describeSource(guid)
+-- Returns the current instance's ID (GetInstanceInfo's instanceID, the map ID)
+-- and name, or nil outside instanced content.
+local function getInstance()
+    if not IsInInstance or not GetInstanceInfo or not readable(IsInInstance()) then
+        return nil
+    end
+    local name, _, _, _, _, _, _, instanceID = GetInstanceInfo()
+    instanceID = readable(instanceID)
+    if type(instanceID) ~= "number" or instanceID <= 0 then
+        return nil
+    end
+    return instanceID, readable(name)
+end
+
+local function describeSource(guid, gather)
     if IsFishingLoot and IsFishingLoot() then
         return "Fishing", nil, nil
+    end
+    -- Loot of hostile units in instances has only secret GUIDs, so it is
+    -- filed under the instance instead of an unattributable "Unknown".
+    if not guid and not gather then
+        local instanceID, instanceName = getInstance()
+        if instanceID then
+            return "Instance", instanceID, instanceName
+        end
     end
     local sourceType, sourceID = parseGUID(guid)
     local name
@@ -151,7 +173,7 @@ local function scanLoot()
             if guid and seenLootGUIDs[guid] and not gather then
                 -- already counted this container
             else
-                local sourceType, sourceID, sourceName = describeSource(guid or nil)
+                local sourceType, sourceID, sourceName = describeSource(guid or nil, gather)
                 if gather and not sourceName then
                     sourceName = gather.nodeName
                 end

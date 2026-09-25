@@ -314,7 +314,7 @@ merchantSnapshots = {
 
 ## Loot
 
-`lootSources` aggregiert Loot-Beobachtungen pro Quelle (`LOOT_OPENED`). Der Schlüssel ist `<sourceType>:<sourceID>` aus der Quell-GUID (`Creature`, `GameObject`), `Fishing` beim Angeln. Derselbe Loot-Container zählt pro Sitzung nur einmal.
+`lootSources` aggregiert Loot-Beobachtungen pro Quelle (`LOOT_OPENED`). Der Schlüssel ist `<sourceType>:<sourceID>` aus der Quell-GUID (`Creature`, `GameObject`), `Fishing` beim Angeln. In Instanzen sind die GUIDs feindlicher Einheiten geheim; solcher Loot landet unter `Instance:<instanceID>` mit dem Instanznamen als `name`. Derselbe Loot-Container zählt pro Sitzung nur einmal (ohne GUID, also bei `Instance`, lässt sich das nicht erkennen).
 
 ```lua
 lootSources = {

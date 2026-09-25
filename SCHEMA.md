@@ -315,10 +315,10 @@ Wird beim Öffnen eines Händlers und bei `MERCHANT_UPDATE` ersetzt.
 
 | Feld | Typ | Opt. | Beschreibung |
 |---|---|---|---|
-| `sourceType` | string | – | `Creature`, `GameObject`, `Fishing`, `Item` (Behälter aus dem Inventar), `Unknown`. |
+| `sourceType` | string | – | `Creature`, `GameObject`, `Fishing`, `Item` (Behälter aus dem Inventar), `Instance` (Loot ohne lesbare Quell-GUID in einer Instanz, z. B. von feindlichen Einheiten, deren GUIDs dort geheim sind), `Unknown`. |
 | `profession` | string | ✓ | `Herbalism`, `Mining`, `Skinning` oder `Fishing`, wenn der Loot aus einer Berufsaktion stammt. |
 | `gatherSpellID` | number | ✓ | Spell-ID des Sammel-Zaubers (z. B. 2366 Herb Gathering). |
-| `sourceID` | number | ✓ | Creature-/GameObject-ID aus der GUID. Fehlt bei `Fishing`, `Item` und `Unknown`. |
+| `sourceID` | number | ✓ | Creature-/GameObject-ID aus der GUID, bei `Instance` die Instanz-ID aus `GetInstanceInfo()`. Fehlt bei `Fishing`, `Item` und `Unknown`. |
 | `name` | string | ✓ | Name der Quelle, falls sie beim Plündern das Ziel war; bei Kräuter-/Erzknoten der zuletzt angezeigte Tooltip-Titel des Knotens. |
 | `firstSeenAt` | number | – | Erste Beobachtung. |
 | `lastSeenAt` | number | – | Letzte Beobachtung. |

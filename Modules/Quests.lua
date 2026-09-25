@@ -240,6 +240,11 @@ local function recordQuestTurnIn(questID, xpReward, moneyReward)
     end
     local catalog = getOrCreateCatalog(getClientInfo())
     local quest = catalog.quests[questID] or { questID = questID, observations = {} }
+    -- Auto-accepted quests (e.g. in instances) never open a quest frame, so the
+    -- turn-in may be the only chance to learn the title.
+    if not quest.title and C_QuestLog and C_QuestLog.GetTitleForQuestID then
+        quest.title = addon.Readable(C_QuestLog.GetTitleForQuestID(questID))
+    end
     quest.turnIn = {
         capturedAt = time(),
         xp = xpReward,
