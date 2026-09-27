@@ -18,7 +18,7 @@ Dieses Dokument beschreibt vollständig die Struktur der SavedVariable `ForeverC
 | Feld | Typ | Opt. | Beschreibung |
 |---|---|---|---|
 | `schemaVersion` | number | – | Schema-Version der Datei; wird beim Laden auf mindestens 9 angehoben. |
-| `settings` | table | ✓ | Addon-Einstellungen, z. B. `verbose` (Chat-Meldungen je Erfassung, Standard `true`). Vom Server ignoriert. |
+| `settings` | table | ✓ | Addon-Einstellungen, z. B. `verbose` (Chat-Meldungen je Erfassung, Standard `true`) und `questCacheCrawl` (`{ build, nextIndex }`, Position von `/fc questcache`). Vom Server ignoriert. |
 | `latestCatalogKey` | string | ✓ | Schlüssel des zuletzt verwendeten Katalogs in `catalogs`. Fehlt, bis ein Katalog angelegt wurde. |
 | `catalogs` | map<string, Catalog> | – | Alle Kataloge, Schlüssel siehe unten. |
 

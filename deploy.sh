@@ -13,8 +13,8 @@ for client in "${CLIENTS[@]}"; do
     fi
     TARGET="$WOW_DIR/$client/Interface/AddOns/ForeverCollect"
     mkdir -p "$TARGET"
-    rm -rf "$TARGET/Core" "$TARGET/Modules"
+    rm -rf "$TARGET/Core" "$TARGET/Modules" "$TARGET/Data"
     cp ForeverCollect.* "$TARGET"
-    cp -r Core Modules "$TARGET"
+    cp -r Core Modules Data "$TARGET"
     echo "deployed to $client"
 done

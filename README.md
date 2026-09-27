@@ -21,6 +21,7 @@ Die Version steht in `ForeverCollect.toc` (`## Version:`). Wird sie auf `main` e
 /fc merchants Händler-Sortimente anzeigen
 /fc loot      Loot-Quellen und -Items anzeigen
 /fc quests    Anzahl erfasster Quests und Beobachtungen anzeigen
+/fc questcache Alle Quests beim Server abfragen (stop, status, reset)
 /fc status    Katalogkontext und Scanstatus anzeigen
 /fc verbose   Meldungen bei jeder Erfassung ein-/ausschalten (Standard: an)
 /fc save      Gesammelte Daten jetzt sichern (lädt das UI neu)
@@ -30,6 +31,8 @@ Die Version steht in `ForeverCollect.toc` (`## Version:`). Wird sie auf `main` e
 Jede Erfassung (Quest-Dialog, Abgabe, Loot, Händler, Trainer, Bankier, Flugmeister) wird im Chat gemeldet; `/fc verbose` schaltet diese Meldungen aus und wieder ein (Einstellung in `ForeverCollectDB.settings`, nicht Teil der Uploads).
 
 **Quest-Typ:** Bei jeder Annahme und Abgabe wird der Quest-Typ aus dem Questlog mitgeschrieben (`tag`: Dungeon, Raid, Elite, PvP …, plus `suggestedGroup`). Bereits erfasste Quests bekommen den Typ, sobald sie erneut angenommen oder abgegeben werden.
+
+**Quest-Katalog:** Die Questdaten der Website kommen aus dem Client (`QuestV2.db2` und dem Quest-Cache `Cache/WDB/<locale>/questcache.wdb`); die Beobachtungen ergänzen NPCs, Fortschritts- und Abgabetexte. Der Cache enthält nur Quests, die der Client schon beim Server abgefragt hat. `/fc questcache` fragt alle IDs aus `Data/QuestIDs.lua` gedrosselt ab (20/s, gut 5 Minuten, fortsetzbar); danach ausloggen, damit der Client den Cache schreibt, und `foreverdb-import all` ausführen.
 
 **Speichern:** WoW schreibt Addon-Daten nur beim Ausloggen, Beenden oder `/reload` auf die Platte – alles seit dem letzten Speichern lebt nur im Speicher und geht bei einem Absturz oder abgeschossenen Prozess verloren. Das Addon zählt deshalb die Erfassungen seit dem letzten Speichern, erinnert nach 50 Erfassungen bzw. 30 Minuten mit einem Popup („Save now“ lädt das UI neu, „Later“ verschiebt) und im Chat an `/fc save` (ein UI-Reload, nie im Kampf, beim Zaubern oder mit offenem Dialog) und kann mit `/fc autosave <Minuten>` selbstständig neu laden, sobald gerade nichts läuft. `/fc status` zeigt die ungesicherten Erfassungen.
 
@@ -65,6 +68,8 @@ Modules/Talents.lua     Talentbäume über die Classic-API (/fc talents)
 Modules/Traits.lua      Talent-Tooltips über das Trait-System auf Forever (/fc traits)
 Modules/Trainers.lua    Trainerdienste (/fc trainer)
 Modules/Quests.lua      Questdialoge und Abgaben (/fc quests)
+Modules/QuestCache.lua  Fragt alle Quests aus Data/QuestIDs.lua beim Server ab (/fc questcache)
+Data/QuestIDs.lua       Quest-IDs aus QuestV2.db2, erzeugt mit `foreverdb-import quest-ids`
 ForeverCollect.lua      Einstieg: Laden, Login-Scan, /fc help, /fc scan, /fc status
 ```
 

@@ -19,4 +19,6 @@ Modules/Talents.lua
 Modules/Traits.lua
 Modules/Trainers.lua
 Modules/Quests.lua
+Data/QuestIDs.lua
+Modules/QuestCache.lua
 ForeverCollect.lua
