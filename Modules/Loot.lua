@@ -13,6 +13,7 @@ local getLatestCatalog = addon.GetLatestCatalog
 local recordItem = addon.RecordItem
 local consumePendingGather = addon.ConsumePendingGather
 local readable = addon.Readable
+local getInstance = addon.GetInstance
 
 local LOOT_SLOT_ITEM = LOOT_SLOT_ITEM or 1
 local LOOT_SLOT_MONEY = LOOT_SLOT_MONEY or 2
@@ -72,20 +73,6 @@ local function getSlotSourceGUIDs(slot)
     return guids
 end
 
--- Returns the current instance's ID (GetInstanceInfo's instanceID, the map ID)
--- and name, or nil outside instanced content.
-local function getInstance()
-    if not IsInInstance or not GetInstanceInfo or not readable(IsInInstance()) then
-        return nil
-    end
-    local name, _, _, _, _, _, _, instanceID = GetInstanceInfo()
-    instanceID = readable(instanceID)
-    if type(instanceID) ~= "number" or instanceID <= 0 then
-        return nil
-    end
-    return instanceID, readable(name)
-end
-
 local function describeSource(guid, gather)
     if IsFishingLoot and IsFishingLoot() then
         return "Fishing", nil, nil
@@ -127,6 +114,9 @@ local function getOrCreateSource(catalog, sourceType, sourceID, name, now, gathe
         source.gatherSpellID = gather.spellID
     end
     source.name = name or source.name
+    -- Positions are unavailable inside instances, so the instance ties the
+    -- source (bosses and trash alike) to its dungeon.
+    source.instanceID = getInstance() or source.instanceID
     source.lastSeenAt = now
     return source
 end

@@ -4,7 +4,7 @@ ForeverCollect katalogisiert beobachtete Daten aus World of Warcraft Classic Era
 
 ## Installation
 
-Das Zip des neuesten [GitHub-Releases](https://github.com/alexbangert/forevercollect-addon/releases) nach `Interface/AddOns/` des jeweiligen Clients entpacken (es enthält den Ordner `ForeverCollect/`). Für die Entwicklung kopiert `./deploy.sh` das Arbeitsverzeichnis direkt in die installierten Clients.
+Das Zip des neuesten [GitHub-Releases](https://github.com/foreverdb/forevercollect-addon/releases) nach `Interface/AddOns/` des jeweiligen Clients entpacken (es enthält den Ordner `ForeverCollect/`). Für die Entwicklung kopiert `./deploy.sh` das Arbeitsverzeichnis direkt in die installierten Clients.
 
 ## Release
 

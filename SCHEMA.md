@@ -73,11 +73,12 @@ Beispiel: `2:11509:2:enUS:5:8:Horde`. Ein Katalog ist also je Client-Projekt, In
 | `items` | map<number, Item> | Item-Katalog, Schlüssel `itemID` | 6 |
 | `merchantSnapshots` | map<NPCKey, MerchantSnapshot> | Sortiment je Händler-NPC | 7 |
 | `lootSources` | map<string, LootSource> | Loot je Quelle | 8 |
+| `encounters` | map<number, Encounter> | Bosskämpfe, Schlüssel `encounterID` | 15 |
 | `quests` | map<number, Quest> | Quests, Schlüssel `questID` | 11 |
 | `npcs` | NPC[] | NPC-Katalog | 12 |
 | `spellTooltips` | map<number, SpellTooltip> | Tooltips der Talentrang-Spells der Klasse, Schlüssel `spellID` | 14 |
 
-Alle Sammlungen sind immer vorhanden (ggf. leer); `spellTooltips` kam ohne Versionssprung hinzu und fehlt in älteren Katalogen.
+Alle Sammlungen sind immer vorhanden (ggf. leer); `spellTooltips` und `encounters` kamen ohne Versionssprung hinzu und fehlen in älteren Katalogen.
 
 **`NPCKey`**: GUID des NPCs (`"Creature-0-…"`), falls keine GUID vorliegt `"<npcID>:<name>"` (`addon.GetNPCKey`).
 **`CharacterKey`**: Spieler-GUID (`"Player-…"`), ersatzweise `"<Name>-<Realm>"`.
@@ -320,6 +321,7 @@ Wird beim Öffnen eines Händlers und bei `MERCHANT_UPDATE` ersetzt.
 | `gatherSpellID` | number | ✓ | Spell-ID des Sammel-Zaubers (z. B. 2366 Herb Gathering). |
 | `sourceID` | number | ✓ | Creature-/GameObject-ID aus der GUID, bei `Instance` die Instanz-ID aus `GetInstanceInfo()`. Fehlt bei `Fishing`, `Item` und `Unknown`. |
 | `name` | string | ✓ | Name der Quelle, falls sie beim Plündern das Ziel war; bei Kräuter-/Erzknoten der zuletzt angezeigte Tooltip-Titel des Knotens. |
+| `instanceID` | number | ✓ | Instanz-ID (`GetInstanceInfo()`, = Map-ID) der letzten Beobachtung in einer Instanz. Dort liefert `C_Map` keine Position, `locations` bleibt leer; die Instanz ordnet die Quelle ihrem Dungeon zu. |
 | `firstSeenAt` | number | – | Erste Beobachtung. |
 | `lastSeenAt` | number | – | Letzte Beobachtung. |
 | `lootCount` | number | – | Anzahl geöffneter Loot-Fenster. |
@@ -439,6 +441,23 @@ Map `spellID → SpellTooltip`. Auf Forever (Trait-System) liest das Addon beim 
 | `ranks` | { rank: number, tooltipLines: TooltipLine[] }[] | ✓ | Tooltip je Rang. |
 | `capturedAt` | number | | Zeitpunkt des Scans. |
 
+## 15. `encounters`
+
+Map `encounterID → Encounter`. Zwischen `ENCOUNTER_START` und `ENCOUNTER_END` sammelt das Addon die Creature-IDs der Boss-Einheiten (`boss1`…`boss8`, `INSTANCE_ENCOUNTER_ENGAGE_UNIT`). Sie verbinden eine `DungeonEncounter`-Zeile des Clients mit den Creatures, deren Loot unter `Creature:<npcID>` in `lootSources` liegt.
+
+### `Encounter`
+
+| Feld | Typ | Opt. | Beschreibung |
+|---|---|---|---|
+| `encounterID` | number | – | `DungeonEncounter.db2`-ID. |
+| `name` | string | ✓ | Name aus `ENCOUNTER_START`. |
+| `difficultyID` | number | ✓ | Schwierigkeitsgrad. |
+| `instanceID` | number | ✓ | Instanz-ID (`GetInstanceInfo()`, = Map-ID). |
+| `pulls` | number | – | Beendete Versuche. |
+| `kills` | number | – | Davon erfolgreich. |
+| `firstSeenAt`, `lastSeenAt` | number | – | Erste/letzte Beobachtung. |
+| `npcs` | { npcID: number, name?: string, via: string }[] | – | Boss-Creatures; `via = "boss"` für Boss-Einheiten, `"target"`, wenn keine Boss-Einheit sichtbar war und nach einem Sieg eine tote Creature im Ziel lag (unsicherer). |
+
 ---
 
 ## 13. Altlasten aus früheren Schema-Versionen
@@ -462,5 +481,5 @@ Kataloge, die mit Version 9 erstmals angelegt werden, enthalten diese Felder nic
 - Neu: `items`, `merchantSnapshots`, `lootSources`, `tradeSkills` und die Zeitstempel `itemsUpdatedAt`, `merchantScanUpdatedAt`, `lootUpdatedAt`, `tradeSkillsUpdatedAt`.
 - Neu: `trainerSnapshots` wird tatsächlich befüllt (in 8 dokumentiert, aber leer).
 - Entfernt: `skillSnapshots`, `skillsScannedAt`, `abilitySnapshots[*].spells` (siehe Abschnitt 13).
-- Später neu (ohne Versionssprung, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (Abschnitt 14).
+- Später neu (ohne Versionssprung, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (Abschnitt 14); `encounters` (Abschnitt 15) und `lootSources[*].instanceID` (Addon 0.1.10).
 - Später entfernt (ohne Versionssprung, Felder waren optional): `abilitySnapshots`, `abilitiesScannedAt` – Runen-Scan gestrichen; `items[*]`-Details (`detailsLoaded` & Co.) und `tradeSkills`/`tradeSkillsUpdatedAt` – statische Zauber-, Item- und Rezeptdaten kommen aus wow.export.

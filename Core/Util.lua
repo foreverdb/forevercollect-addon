@@ -118,6 +118,20 @@ function addon.Readable(value)
     return value
 end
 
+-- Returns the current instance's ID (GetInstanceInfo's instanceID, the map ID)
+-- and name, or nil outside instanced content.
+function addon.GetInstance()
+    if not IsInInstance or not GetInstanceInfo or not addon.Readable(IsInInstance()) then
+        return nil
+    end
+    local name, _, _, _, _, _, _, instanceID = GetInstanceInfo()
+    instanceID = addon.Readable(instanceID)
+    if type(instanceID) ~= "number" or instanceID <= 0 then
+        return nil
+    end
+    return instanceID, addon.Readable(name)
+end
+
 local function firstPositiveNumber(...)
     for argIndex = 1, select("#", ...) do
         local value = select(argIndex, ...)
