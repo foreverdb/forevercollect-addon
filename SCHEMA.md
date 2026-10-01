@@ -106,6 +106,18 @@ Position des Spielers zum Zeitpunkt einer Interaktion – eine Näherung an den 
 
 Alle Felder außer `source` fehlen, wenn der Client keine Kartendaten liefert (z. B. in Instanzen ohne Karte).
 
+#### 3.1.1 `CountedLocation`
+
+`Location` mit Trefferzählung, verwendet für Berufsfunde (`lootSources[*].locations` und `lootSources[*].items[*].locations`, wenn `profession` gesetzt ist). Treffer an derselben Stelle (gleiche `uiMapID`, `x`/`y` auf 0,001 gerundet) werden zusammengefasst statt verworfen.
+
+| Feld | Typ | Opt. | Beschreibung |
+|---|---|---|---|
+| *(alle Felder von `Location`)* | | | |
+| `count` | number | – | Anzahl Sammelvorgänge an dieser Stelle. |
+| `firstSeenAt` | number | – | Erster Sammelvorgang. |
+| `lastSeenAt` | number | – | Letzter Sammelvorgang. |
+| `times` | number[] | – | Zeitstempel der letzten max. 20 Sammelvorgänge, aufsteigend. |
+
 ### 3.2 `Character`
 
 Kontext des beobachtenden Charakters (`addon.GetCharacterContext`).
@@ -325,7 +337,7 @@ Wird beim Öffnen eines Händlers und bei `MERCHANT_UPDATE` ersetzt.
 | `firstSeenAt` | number | – | Erste Beobachtung. |
 | `lastSeenAt` | number | – | Letzte Beobachtung. |
 | `lootCount` | number | – | Anzahl geöffneter Loot-Fenster. |
-| `locations` | Location[] | – | Spielerposition je Loot-Vorgang, dedupliziert, max. 100. |
+| `locations` | Location[] \| CountedLocation[] | – | Spielerposition je Loot-Vorgang, dedupliziert, max. 100. Bei Berufsfunden `CountedLocation` (3.1.1), max. 500. |
 | `items` | map<number, LootItem> | – | Schlüssel `itemID`. |
 | `money` | table | – | `{ timesSeen: number, total: number }` – Geld-Drops, `total` in Kupfer. |
 
@@ -342,7 +354,7 @@ Wird beim Öffnen eines Händlers und bei `MERCHANT_UPDATE` ersetzt.
 | `timesSeen` | number | – | Anzahl Drops. |
 | `quantityTotal` | number | – | Summe der gedroppten Menge. |
 | `lastSeenAt` | number | – | Letzte Beobachtung. |
-| `locations` | Location[] | – | Drop-Orte dieses Items, dedupliziert, max. 20. |
+| `locations` | Location[] \| CountedLocation[] | – | Drop-Orte dieses Items, dedupliziert, max. 20. Bei Berufsfunden `CountedLocation` (3.1.1), max. 100. |
 
 ---
 
@@ -481,5 +493,5 @@ Kataloge, die mit Version 9 erstmals angelegt werden, enthalten diese Felder nic
 - Neu: `items`, `merchantSnapshots`, `lootSources`, `tradeSkills` und die Zeitstempel `itemsUpdatedAt`, `merchantScanUpdatedAt`, `lootUpdatedAt`, `tradeSkillsUpdatedAt`.
 - Neu: `trainerSnapshots` wird tatsächlich befüllt (in 8 dokumentiert, aber leer).
 - Entfernt: `skillSnapshots`, `skillsScannedAt`, `abilitySnapshots[*].spells` (siehe Abschnitt 13).
-- Später neu (ohne Versionssprung, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (Abschnitt 14); `encounters` (Abschnitt 15) und `lootSources[*].instanceID` (Addon 0.1.10).
+- Später neu (ohne Versionssprung, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (Abschnitt 14); `encounters` (Abschnitt 15) und `lootSources[*].instanceID` (Addon 0.1.10); `CountedLocation` mit `count`/`firstSeenAt`/`lastSeenAt`/`times` für Berufsfunde (Addon 0.1.11).
 - Später entfernt (ohne Versionssprung, Felder waren optional): `abilitySnapshots`, `abilitiesScannedAt` – Runen-Scan gestrichen; `items[*]`-Details (`detailsLoaded` & Co.) und `tradeSkills`/`tradeSkillsUpdatedAt` – statische Zauber-, Item- und Rezeptdaten kommen aus wow.export.

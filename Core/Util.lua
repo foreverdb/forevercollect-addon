@@ -59,35 +59,69 @@ function addon.AddUniqueValue(values, value)
     values[#values + 1] = value
 end
 
+local function locationKey(location)
+    return string.format(
+        "%d:%d:%d",
+        location.uiMapID,
+        math.floor(location.x * 1000 + 0.5),
+        math.floor(location.y * 1000 + 0.5)
+    )
+end
+
+local function findLocation(locations, key)
+    for _, existing in ipairs(locations) do
+        if existing.uiMapID and existing.x and existing.y and locationKey(existing) == key then
+            return existing
+        end
+    end
+    return nil
+end
+
 -- Appends `location` to `locations` unless a location on the same map within
 -- ~0.1% of the same coordinates is already listed. Returns true when added.
 function addon.AddUniqueLocation(locations, location, cap)
     if not location or not location.uiMapID or not location.x or not location.y then
         return false
     end
-    local key = string.format(
-        "%d:%d:%d",
-        location.uiMapID,
-        math.floor(location.x * 1000 + 0.5),
-        math.floor(location.y * 1000 + 0.5)
-    )
-    for _, existing in ipairs(locations) do
-        if existing.uiMapID and existing.x and existing.y then
-            local existingKey = string.format(
-                "%d:%d:%d",
-                existing.uiMapID,
-                math.floor(existing.x * 1000 + 0.5),
-                math.floor(existing.y * 1000 + 0.5)
-            )
-            if existingKey == key then
-                return false
-            end
-        end
+    if findLocation(locations, locationKey(location)) then
+        return false
     end
     if cap and #locations >= cap then
         return false
     end
     locations[#locations + 1] = location
+    return true
+end
+
+-- Like AddUniqueLocation, but every hit on a spot is counted: the entry (a copy
+-- of `location`) carries `count`, `firstSeenAt`, `lastSeenAt` and the newest
+-- `timesCap` timestamps in `times`. Gathering uses it so spawn points and the
+-- pace between gathers can be told apart from a single visit.
+function addon.CountLocation(locations, location, cap, now, timesCap)
+    if not location or not location.uiMapID or not location.x or not location.y then
+        return false
+    end
+    local entry = findLocation(locations, locationKey(location))
+    if not entry then
+        if cap and #locations >= cap then
+            return false
+        end
+        entry = {}
+        for field, value in pairs(location) do
+            entry[field] = value
+        end
+        entry.count = 0
+        entry.firstSeenAt = now
+        entry.times = {}
+        locations[#locations + 1] = entry
+    end
+    entry.count = (entry.count or 0) + 1
+    entry.lastSeenAt = now
+    entry.times = entry.times or {}
+    entry.times[#entry.times + 1] = now
+    while timesCap and #entry.times > timesCap do
+        table.remove(entry.times, 1)
+    end
     return true
 end
 

@@ -5,6 +5,7 @@ local announce = addon.Announce
 local formatMoney = addon.FormatMoney
 local getItemIDFromLink = addon.GetItemIDFromLink
 local addUniqueLocation = addon.AddUniqueLocation
+local countLocation = addon.CountLocation
 local getPlayerLocation = addon.GetPlayerLocation
 local parseGUID = addon.ParseGUID
 local getClientInfo = addon.GetClientInfo
@@ -19,6 +20,11 @@ local LOOT_SLOT_ITEM = LOOT_SLOT_ITEM or 1
 local LOOT_SLOT_MONEY = LOOT_SLOT_MONEY or 2
 local SOURCE_LOCATION_CAP = 100
 local ITEM_LOCATION_CAP = 20
+-- Profession finds keep more spots, each with a hit count and timestamps, so
+-- spawn points and gathering pace can be derived (where farming pays off).
+local GATHER_SOURCE_LOCATION_CAP = 500
+local GATHER_ITEM_LOCATION_CAP = 100
+local GATHER_LOCATION_TIMES_CAP = 20
 
 -- Loot containers (corpses, nodes) already counted this session, so that
 -- reopening the same loot window does not inflate the counters.
@@ -172,7 +178,11 @@ local function scanLoot()
                 if not countedSources[sourceKey] then
                     countedSources[sourceKey] = true
                     source.lootCount = source.lootCount + 1
-                    addUniqueLocation(source.locations, location, SOURCE_LOCATION_CAP)
+                    if gather then
+                        countLocation(source.locations, location, GATHER_SOURCE_LOCATION_CAP, now, GATHER_LOCATION_TIMES_CAP)
+                    else
+                        addUniqueLocation(source.locations, location, SOURCE_LOCATION_CAP)
+                    end
                     summary.sources[#summary.sources + 1] = sourceKey
                     summary.sourceNames[#summary.sourceNames + 1] = source.name or sourceKey
                 end
@@ -203,7 +213,11 @@ local function scanLoot()
                         item.timesSeen = item.timesSeen + 1
                         item.quantityTotal = item.quantityTotal + (quantity or 1)
                         item.lastSeenAt = now
-                        addUniqueLocation(item.locations, location, ITEM_LOCATION_CAP)
+                        if gather then
+                            countLocation(item.locations, location, GATHER_ITEM_LOCATION_CAP, now, GATHER_LOCATION_TIMES_CAP)
+                        else
+                            addUniqueLocation(item.locations, location, ITEM_LOCATION_CAP)
+                        end
                         summary.items = summary.items + 1
                         summary.itemNames[#summary.itemNames + 1] = string.format("%s x%d", name or "?", quantity or 1)
                         summary.firstItemName = summary.firstItemName or name
