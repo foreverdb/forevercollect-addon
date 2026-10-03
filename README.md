@@ -100,13 +100,13 @@ ForeverCollectDB = {
 Jeder Katalog wird unter folgendem Schlüssel gespeichert:
 
 ```text
-projectID:interfaceVersion:seasonID:locale:classID:raceID:factionFile
+projectID:interfaceVersion:build:seasonID:locale:classID:raceID:factionFile
 ```
 
 Beispiel:
 
 ```text
-2:11509:2:enUS:8:3:Alliance
+2:11509:61987:2:enUS:8:3:Alliance
 ```
 
 Der Schlüssel trennt Talentdaten für unterschiedliche Klassen, Rassen und Fraktionen. Die Locale bleibt ebenfalls Teil des Schlüssels, weil Namen, Beschreibungen und Tooltip-Texte lokalisiert sind.

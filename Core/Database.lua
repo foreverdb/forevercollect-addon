@@ -63,11 +63,15 @@ function addon.IsSupportedClient(client)
     return interfaceVersion >= 10000 and interfaceVersion < 20000
 end
 
+-- The build is part of the key so every client patch starts a fresh catalog:
+-- the server can then tell post-patch observations (e.g. changed node spawns)
+-- apart from older ones instead of folding them into the old build.
 local function getCatalogKey(client)
     return string.format(
-        "%d:%d:%d:%s:%d:%d:%s",
+        "%d:%d:%s:%d:%s:%d:%d:%s",
         client.projectID,
         client.interfaceVersion,
+        tostring(client.build),
         client.seasonID,
         client.locale,
         client.classID,
