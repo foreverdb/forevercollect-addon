@@ -48,7 +48,7 @@ WTF/Account/<ACCOUNT>/SavedVariables/ForeverCollect.lua
 ./deploy.sh           # kopiert das Addon in _classic_era_ und _classic_beta_ (Forever)
 ```
 
-Hochgeladen wird über den ForeverDB-Client (`foreverdb-client`): Der Ingress nimmt nur noch den fertigen JSON-Snapshot entgegen, die Umwandlung der SavedVariables passiert im Client. Das frühere `upload.sh` konnte das nicht leisten und ist entfallen.
+Hochgeladen wird über den ForeverDB Uploader (`foreverdb-client`, Binary `foreverdb-uploader`): Der Ingress nimmt nur noch den fertigen JSON-Snapshot entgegen, die Umwandlung der SavedVariables passiert im Uploader. Das frühere `upload.sh` konnte das nicht leisten und ist entfallen.
 
 ## Projektstruktur
 
