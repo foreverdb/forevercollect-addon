@@ -324,7 +324,7 @@ Wird beim Öffnen eines Händlers und bei `MERCHANT_UPDATE` ersetzt.
 
 ## 8. `LootSource`
 
-`catalog.lootSources[key]`, Schlüssel `<sourceType>:<sourceID>` bzw. nur `<sourceType>` ohne ID (z. B. `Fishing`). Aggregiert über alle Loot-Vorgänge; derselbe Loot-Container (GUID) zählt pro Sitzung nur einmal. Berufsfunde (Kräuter, Erz, Kürschnern, Angeln) erhalten den Berufsnamen als Präfix: `Herbalism:GameObject:1617`, `Skinning:Creature:705`, `Fishing` – erkannt am vorangegangenen Sammel-Zauber (`UNIT_SPELLCAST_SUCCEEDED`), Kürschner-Loot umgeht dabei die Container-Deduplizierung.
+`catalog.lootSources[key]`, Schlüssel `<sourceType>:<sourceID>` bzw. nur `<sourceType>` ohne ID (z. B. `Fishing`). Aggregiert über alle Loot-Vorgänge; derselbe Loot-Container (GUID) zählt pro Sitzung nur einmal. Bei geteiltem Loot in einer Gruppe (jede Loot-Methode außer Personal Loot) meldet das Addon geöffnete Leichen-GUIDs per Addon-Nachricht (Prefix `ForeverCollect`, `L1:<guid>,<guid>…`) an die Gruppe; die anderen Addons zählen diese Leichen nicht mehr, sodass ein Kill nur vom ersten Öffner gezählt wird. Berufsfunde (Kräuter, Erz, Kürschnern, Angeln) erhalten den Berufsnamen als Präfix: `Herbalism:GameObject:1617`, `Skinning:Creature:705`, `Fishing` – erkannt am vorangegangenen Sammel-Zauber (`UNIT_SPELLCAST_SUCCEEDED`), Kürschner-Loot umgeht dabei die Container-Deduplizierung.
 
 | Feld | Typ | Opt. | Beschreibung |
 |---|---|---|---|

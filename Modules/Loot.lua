@@ -30,6 +30,60 @@ local GATHER_LOCATION_TIMES_CAP = 20
 -- reopening the same loot window does not inflate the counters.
 local seenLootGUIDs = {}
 
+-- With shared loot, every group member opens the same corpse. The first
+-- opener tells the group's addons, which then skip that corpse, so it is
+-- counted once and never from a window others have already partly looted.
+local LOOT_MESSAGE_PREFIX = "ForeverCollect"
+local LOOT_MESSAGE_TAG = "L1:"
+local LOOT_MESSAGE_MAX_LENGTH = 255
+
+if C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix then
+    C_ChatInfo.RegisterAddonMessagePrefix(LOOT_MESSAGE_PREFIX)
+end
+
+local function isSharedLoot()
+    if not IsInGroup or not IsInGroup() then
+        return false
+    end
+    local method
+    if C_PartyInfo and C_PartyInfo.GetLootMethod then
+        method = C_PartyInfo.GetLootMethod()
+    elseif GetLootMethod then
+        method = GetLootMethod()
+    end
+    if method == "personalloot" then
+        return false
+    end
+    if Enum and Enum.LootMethod and method == Enum.LootMethod.Personal then
+        return false
+    end
+    return true
+end
+
+local function getGroupChannel()
+    if LE_PARTY_CATEGORY_INSTANCE and IsInGroup(LE_PARTY_CATEGORY_INSTANCE) then
+        return "INSTANCE_CHAT"
+    end
+    return IsInRaid and IsInRaid() and "RAID" or "PARTY"
+end
+
+local function announceLootedGUIDs(guids)
+    if #guids == 0 or not C_ChatInfo or not C_ChatInfo.SendAddonMessage or not isSharedLoot() then
+        return
+    end
+    local channel = getGroupChannel()
+    local message = LOOT_MESSAGE_TAG
+    for _, guid in ipairs(guids) do
+        local separator = message == LOOT_MESSAGE_TAG and "" or ","
+        if #message + #separator + #guid > LOOT_MESSAGE_MAX_LENGTH then
+            C_ChatInfo.SendAddonMessage(LOOT_MESSAGE_PREFIX, message, channel)
+            message, separator = LOOT_MESSAGE_TAG, ""
+        end
+        message = message .. separator .. guid
+    end
+    C_ChatInfo.SendAddonMessage(LOOT_MESSAGE_PREFIX, message, channel)
+end
+
 -- Profession finds get their own key ("Herbalism:GameObject:1617",
 -- "Skinning:Creature:705") so skins never mix with a creature's regular loot.
 local function getSourceKey(sourceType, sourceID, profession)
@@ -83,8 +137,8 @@ local function describeSource(guid, gather)
     if IsFishingLoot and IsFishingLoot() then
         return "Fishing", nil, nil
     end
-    -- Loot of hostile units in instances has only secret GUIDs, so it is
-    -- filed under the instance instead of an unattributable "Unknown".
+    -- Loot without a readable source GUID is filed under the instance
+    -- instead of an unattributable "Unknown".
     if not guid and not gather then
         local instanceID, instanceName = getInstance()
         if instanceID then
@@ -92,6 +146,9 @@ local function describeSource(guid, gather)
         end
     end
     local sourceType, sourceID = parseGUID(guid)
+    -- Inside instances the target of a hostile unit is secret, so creatures
+    -- looted there stay unnamed; the importer fills those names from the
+    -- client's creature cache (creaturecache.wdb).
     local name
     if guid and readable(UnitGUID("target")) == guid then
         name = readable(UnitName("target"))
@@ -236,10 +293,17 @@ local function scanLoot()
         end
     end
 
+    local newGUIDs = {}
     for slot = 1, numSlots do
         for _, guid in ipairs(getSlotSourceGUIDs(slot)) do
-            seenLootGUIDs[guid] = true
+            if not seenLootGUIDs[guid] then
+                seenLootGUIDs[guid] = true
+                newGUIDs[#newGUIDs + 1] = guid
+            end
         end
+    end
+    if not gather then
+        announceLootedGUIDs(newGUIDs)
     end
     catalog.lootUpdatedAt = now
 
@@ -288,6 +352,18 @@ addon:RegisterEvent("LOOT_OPENED", function()
     local ok, err = pcall(scanLoot)
     if not ok then
         printMessage("Loot scan failed: " .. tostring(err))
+    end
+end)
+
+addon:RegisterEvent("CHAT_MSG_ADDON", function(prefix, message)
+    if prefix ~= LOOT_MESSAGE_PREFIX or type(message) ~= "string" then
+        return
+    end
+    if string.sub(message, 1, #LOOT_MESSAGE_TAG) ~= LOOT_MESSAGE_TAG then
+        return
+    end
+    for guid in string.gmatch(string.sub(message, #LOOT_MESSAGE_TAG + 1), "[^,]+") do
+        seenLootGUIDs[guid] = true
     end
 end)
 
