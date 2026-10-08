@@ -347,4 +347,4 @@ addon:RegisterCommand("trainer", function()
         latest.trainerNPC.name or "Unknown",
         formatTimestamp(latest.capturedAt)
     ))
-end, "Trainerdienste scannen und Anzahl erfasster Daten anzeigen")
+end, "Scan trainer services and show number of captured entries")

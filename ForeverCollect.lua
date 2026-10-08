@@ -36,17 +36,17 @@ addon:RegisterCommand("help", function()
         end
     end
     printMessage("Commands: " .. table.concat(names, ", "))
-end, "Diese Hilfe anzeigen")
+end, "Show this help")
 
 addon:RegisterCommand("verbose", function()
     local settings = ForeverCollectDB.settings
     settings.verbose = not addon.IsVerbose()
     printMessage(settings.verbose and "Capture notices enabled." or "Capture notices disabled.")
-end, "Meldungen bei jeder Erfassung ein-/ausschalten")
+end, "Toggle notices for every capture")
 
 addon:RegisterCommand("scan", function()
     scanAll()
-end, "Talente scannen (Forever: Talent-Tooltips)")
+end, "Scan talents (Forever: talent tooltips)")
 
 addon:RegisterCommand("status", function()
     local catalog = getLatestCatalog()
@@ -96,7 +96,7 @@ addon:RegisterCommand("status", function()
         unsaved,
         math.floor(seconds / 60)
     ))
-end, "Katalogkontext und Scanstatus anzeigen")
+end, "Show catalog context and scan status")
 
 SLASH_FOREVERCOLLECT1 = "/forevercollect"
 SLASH_FOREVERCOLLECT2 = "/fc"

@@ -1,372 +1,372 @@
 # ForeverCollectDB – Schema Version 9
 
-Dieses Dokument beschreibt vollständig die Struktur der SavedVariable `ForeverCollectDB`, wie sie von ForeverCollect mit `DATABASE_SCHEMA_VERSION = 9` (`Core/Database.lua`) geschrieben wird. Es ist die Referenz für Konsumenten, die die Datei `WTF/Account/<ACCOUNT>/SavedVariables/ForeverCollect.lua` einlesen.
+This document fully describes the structure of the SavedVariable `ForeverCollectDB` as written by ForeverCollect with `DATABASE_SCHEMA_VERSION = 9` (`Core/Database.lua`). It is the reference for consumers that read the file `WTF/Account/<ACCOUNT>/SavedVariables/ForeverCollect.lua`.
 
-## Konventionen
+## Conventions
 
-- **Typen**: `string`, `number` (Lua-Double; IDs und Zeitstempel sind ganzzahlig), `boolean`, `table`. Listen sind Tabellen mit fortlaufenden Integer-Schlüsseln ab 1 (`T[]`); Maps sind mit `map<K, V>` notiert.
-- **Pflicht/Optional**: Spalte „Opt.“ – `–` = immer vorhanden, `✓` = kann fehlen. Ein fehlendes Feld ist in Lua `nil` und erscheint **nicht** in der serialisierten Datei. Leere Tabellen werden als `{}` geschrieben.
-- **Zeitstempel** (`…At`) sind Unix-Sekunden (`time()`), UTC.
-- **Lokalisierte Texte** (Namen, Beschreibungen, Tooltips) liegen in der Sprache des Clients (`catalog.locale`).
-- **Koordinaten**: `x`/`y` sind auf 0–1 normierte Kartenkoordinaten der `uiMapID`; `worldX`/`worldY` sind Weltkoordinaten des Kontinents `worldContinentID`.
-- Die Datei wird vom Client nur bei `/reload`, Logout oder Beenden geschrieben.
+- **Types**: `string`, `number` (Lua double; IDs and timestamps are integers), `boolean`, `table`. Lists are tables with consecutive integer keys starting at 1 (`T[]`); maps are written as `map<K, V>`.
+- **Required/optional**: column "Opt." – `–` = always present, `✓` = may be absent. A missing field is `nil` in Lua and does **not** appear in the serialized file. Empty tables are written as `{}`.
+- **Timestamps** (`…At`) are Unix seconds (`time()`), UTC.
+- **Localized texts** (names, descriptions, tooltips) are in the client's language (`catalog.locale`).
+- **Coordinates**: `x`/`y` are map coordinates of the `uiMapID`, normalized to 0–1; `worldX`/`worldY` are world coordinates of the continent `worldContinentID`.
+- The client writes the file only on `/reload`, logout or exit.
 
 ---
 
-## 1. Wurzel: `ForeverCollectDB`
+## 1. Root: `ForeverCollectDB`
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `schemaVersion` | number | – | Schema-Version der Datei; wird beim Laden auf mindestens 9 angehoben. |
-| `settings` | table | ✓ | Addon-Einstellungen, z. B. `verbose` (Chat-Meldungen je Erfassung, Standard `true`) und `questCacheCrawl` (`{ build, nextIndex }`, Position von `/fc questcache`). Vom Server ignoriert. |
-| `latestCatalogKey` | string | ✓ | Schlüssel des zuletzt verwendeten Katalogs in `catalogs`. Fehlt, bis ein Katalog angelegt wurde. |
-| `catalogs` | map<string, Catalog> | – | Alle Kataloge, Schlüssel siehe unten. |
+| `schemaVersion` | number | – | Schema version of the file; raised to at least 9 on load. |
+| `settings` | table | ✓ | Addon settings, e.g. `verbose` (chat notice per capture, default `true`) and `questCacheCrawl` (`{ build, nextIndex }`, position of `/fc questcache`). Ignored by the server. |
+| `latestCatalogKey` | string | ✓ | Key of the most recently used catalog in `catalogs`. Absent until a catalog has been created. |
+| `catalogs` | map<string, Catalog> | – | All catalogs; see below for the key. |
 
-### Katalogschlüssel
+### Catalog Key
 
 ```
 <projectID>:<interfaceVersion>:<seasonID>:<locale>:<classID>:<raceID>:<factionFile>
 ```
 
-Beispiel: `2:11509:2:enUS:5:8:Horde`. Ein Katalog ist also je Client-Projekt, Interface-Version, Saison, Sprache, Klasse, Rasse und Fraktion getrennt. Mehrere Charaktere mit gleicher Kombination teilen sich einen Katalog.
+Example: `2:11509:2:enUS:5:8:Horde`. A catalog is thus separate per client project, interface version, season, language, class, race and faction. Several characters with the same combination share one catalog.
 
 ---
 
 ## 2. `Catalog`
 
-### 2.1 Metadaten
+### 2.1 Metadata
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `schemaVersion` | number | – | Schema-Version, mit der der Katalog zuletzt geöffnet wurde (9). |
+| `schemaVersion` | number | – | Schema version the catalog was last opened with (9). |
 | `projectID` | number | – | `WOW_PROJECT_ID`; Classic Era = 2. |
-| `version` | string | – | Client-Version, z. B. `"1.15.9"`. |
-| `build` | string | – | Build-Nummer, z. B. `"69722"`. |
-| `buildDate` | string | – | Build-Datum, z. B. `"Sep  4 2026"`. |
-| `interfaceVersion` | number | – | Interface-Version, z. B. `11509`. |
-| `locale` | string | – | Client-Sprache, z. B. `"enUS"`, `"deDE"`. |
-| `classID` | number | – | Klassen-ID des Charakters. |
-| `className` | string | – | Lokalisierter Klassenname. |
-| `classFile` | string | – | Klassen-Token, z. B. `"PRIEST"`. |
-| `raceID` | number | – | Rassen-ID. |
-| `raceName` | string | – | Lokalisierter Rassenname. |
-| `raceFile` | string | – | Rassen-Token, z. B. `"Troll"`. |
-| `factionName` | string | – | Lokalisierter Fraktionsname. |
-| `factionFile` | string | – | `"Alliance"` oder `"Horde"`. |
-| `seasonID` | number | – | `C_Seasons.GetActiveSeason()`, 0 ohne Saison. |
-| `seasonName` | string | – | `NoSeason` (0), `SeasonOfMastery` (1), `SeasonOfDiscovery` (2), `Hardcore` (3), `Fresh` (11), `FreshHardcore` (12), sonst `Unknown`. |
-| `scannedAt` | number | – | Zeitpunkt der Katalog-Anlage bzw. des letzten Talent-Scans. |
-| `questScanUpdatedAt` | number | ✓ | Letzte Quest-Beobachtung. |
-| `npcScanUpdatedAt` | number | ✓ | Letzte NPC-Interaktion. |
-| `trainerScanUpdatedAt` | number | ✓ | Letzter Trainer-Scan. |
-| `itemsUpdatedAt` | number | ✓ | Letzte Änderung am Item-Katalog. |
-| `merchantScanUpdatedAt` | number | ✓ | Letzter Händler-Scan. |
-| `lootUpdatedAt` | number | ✓ | Letzte Loot-Beobachtung. |
-| `spellTooltipsUpdatedAt` | number | ✓ | Letzter Talent-Tooltip-Scan. |
+| `version` | string | – | Client version, e.g. `"1.15.9"`. |
+| `build` | string | – | Build number, e.g. `"69722"`. |
+| `buildDate` | string | – | Build date, e.g. `"Sep  4 2026"`. |
+| `interfaceVersion` | number | – | Interface version, e.g. `11509`. |
+| `locale` | string | – | Client language, e.g. `"enUS"`, `"deDE"`. |
+| `classID` | number | – | Class ID of the character. |
+| `className` | string | – | Localized class name. |
+| `classFile` | string | – | Class token, e.g. `"PRIEST"`. |
+| `raceID` | number | – | Race ID. |
+| `raceName` | string | – | Localized race name. |
+| `raceFile` | string | – | Race token, e.g. `"Troll"`. |
+| `factionName` | string | – | Localized faction name. |
+| `factionFile` | string | – | `"Alliance"` or `"Horde"`. |
+| `seasonID` | number | – | `C_Seasons.GetActiveSeason()`, 0 without a season. |
+| `seasonName` | string | – | `NoSeason` (0), `SeasonOfMastery` (1), `SeasonOfDiscovery` (2), `Hardcore` (3), `Fresh` (11), `FreshHardcore` (12), otherwise `Unknown`. |
+| `scannedAt` | number | – | Time the catalog was created or of the last talent scan. |
+| `questScanUpdatedAt` | number | ✓ | Last quest observation. |
+| `npcScanUpdatedAt` | number | ✓ | Last NPC interaction. |
+| `trainerScanUpdatedAt` | number | ✓ | Last trainer scan. |
+| `itemsUpdatedAt` | number | ✓ | Last change to the item catalog. |
+| `merchantScanUpdatedAt` | number | ✓ | Last merchant scan. |
+| `lootUpdatedAt` | number | ✓ | Last loot observation. |
+| `spellTooltipsUpdatedAt` | number | ✓ | Last talent tooltip scan. |
 
-### 2.2 Sammlungen
+### 2.2 Collections
 
-| Feld | Typ | Beschreibung | Abschnitt |
+| Field | Type | Description | Section |
 |---|---|---|---|
-| `specializations` | Specialization[] | Talentbäume der Klasse | 4 |
-| `trainerSnapshots` | map<NPCKey, TrainerSnapshot> | Dienste je Trainer-NPC | 5 |
-| `items` | map<number, Item> | Item-Katalog, Schlüssel `itemID` | 6 |
-| `merchantSnapshots` | map<NPCKey, MerchantSnapshot> | Sortiment je Händler-NPC | 7 |
-| `lootSources` | map<string, LootSource> | Loot je Quelle | 8 |
-| `encounters` | map<number, Encounter> | Bosskämpfe, Schlüssel `encounterID` | 15 |
-| `quests` | map<number, Quest> | Quests, Schlüssel `questID` | 11 |
-| `npcs` | NPC[] | NPC-Katalog | 12 |
-| `spellTooltips` | map<number, SpellTooltip> | Tooltips der Talentrang-Spells der Klasse, Schlüssel `spellID` | 14 |
+| `specializations` | Specialization[] | Talent trees of the class | 4 |
+| `trainerSnapshots` | map<NPCKey, TrainerSnapshot> | Services per trainer NPC | 5 |
+| `items` | map<number, Item> | Item catalog, keyed by `itemID` | 6 |
+| `merchantSnapshots` | map<NPCKey, MerchantSnapshot> | Inventory per merchant NPC | 7 |
+| `lootSources` | map<string, LootSource> | Loot per source | 8 |
+| `encounters` | map<number, Encounter> | Boss encounters, keyed by `encounterID` | 15 |
+| `quests` | map<number, Quest> | Quests, keyed by `questID` | 11 |
+| `npcs` | NPC[] | NPC catalog | 12 |
+| `spellTooltips` | map<number, SpellTooltip> | Tooltips of the class's talent rank spells, keyed by `spellID` | 14 |
 
-Alle Sammlungen sind immer vorhanden (ggf. leer); `spellTooltips` und `encounters` kamen ohne Versionssprung hinzu und fehlen in älteren Katalogen.
+All collections are always present (possibly empty); `spellTooltips` and `encounters` were added without a version bump and are missing in older catalogs.
 
-**`NPCKey`**: GUID des NPCs (`"Creature-0-…"`), falls keine GUID vorliegt `"<npcID>:<name>"` (`addon.GetNPCKey`).
-**`CharacterKey`**: Spieler-GUID (`"Player-…"`), ersatzweise `"<Name>-<Realm>"`.
+**`NPCKey`**: GUID of the NPC (`"Creature-0-…"`); if no GUID is available, `"<npcID>:<name>"` (`addon.GetNPCKey`).
+**`CharacterKey`**: Player GUID (`"Player-…"`), alternatively `"<Name>-<Realm>"`.
 
 ---
 
-## 3. Gemeinsame Typen
+## 3. Common Types
 
 ### 3.1 `Location`
 
-Position des Spielers zum Zeitpunkt einer Interaktion – eine Näherung an den Ort des NPCs/der Quelle.
+Position of the player at the time of an interaction – an approximation of the location of the NPC/source.
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `source` | string | – | Immer `"playerAtInteraction"`. |
+| `source` | string | – | Always `"playerAtInteraction"`. |
 | `zone` | string | ✓ | `GetZoneText()`. |
-| `subZone` | string | ✓ | `GetSubZoneText()`, kann leer sein. |
-| `uiMapID` | number | ✓ | Karte des Spielers (`C_Map.GetBestMapForUnit`). |
-| `mapName` | string | ✓ | Lokalisierter Kartenname. |
+| `subZone` | string | ✓ | `GetSubZoneText()`, can be empty. |
+| `uiMapID` | number | ✓ | Map of the player (`C_Map.GetBestMapForUnit`). |
+| `mapName` | string | ✓ | Localized map name. |
 | `mapType` | number | ✓ | `Enum.UIMapType`. |
-| `parentMapID` | number | ✓ | Übergeordnete Karte. |
-| `x`, `y` | number | ✓ | Normierte Kartenkoordinaten (0–1). |
-| `worldContinentID` | number | ✓ | Kontinent des Welt-Koordinatensystems. |
-| `worldX`, `worldY` | number | ✓ | Weltkoordinaten. |
+| `parentMapID` | number | ✓ | Parent map. |
+| `x`, `y` | number | ✓ | Normalized map coordinates (0–1). |
+| `worldContinentID` | number | ✓ | Continent of the world coordinate system. |
+| `worldX`, `worldY` | number | ✓ | World coordinates. |
 
-Alle Felder außer `source` fehlen, wenn der Client keine Kartendaten liefert (z. B. in Instanzen ohne Karte).
+All fields except `source` are absent if the client provides no map data (e.g. in instances without a map).
 
 #### 3.1.1 `CountedLocation`
 
-`Location` mit Trefferzählung, verwendet für Berufsfunde (`lootSources[*].locations` und `lootSources[*].items[*].locations`, wenn `profession` gesetzt ist). Treffer an derselben Stelle (gleiche `uiMapID`, `x`/`y` auf 0,001 gerundet) werden zusammengefasst statt verworfen.
+`Location` with a hit count, used for profession finds (`lootSources[*].locations` and `lootSources[*].items[*].locations` when `profession` is set). Hits at the same spot (same `uiMapID`, `x`/`y` rounded to 0.001) are merged instead of discarded.
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| *(alle Felder von `Location`)* | | | |
-| `count` | number | – | Anzahl Sammelvorgänge an dieser Stelle. |
-| `firstSeenAt` | number | – | Erster Sammelvorgang. |
-| `lastSeenAt` | number | – | Letzter Sammelvorgang. |
-| `times` | number[] | – | Zeitstempel der letzten max. 20 Sammelvorgänge, aufsteigend. |
+| *(all fields of `Location`)* | | | |
+| `count` | number | – | Number of gathers at this spot. |
+| `firstSeenAt` | number | – | First gather. |
+| `lastSeenAt` | number | – | Last gather. |
+| `times` | number[] | – | Timestamps of the last 20 gathers at most, ascending. |
 
 ### 3.2 `Character`
 
-Kontext des beobachtenden Charakters (`addon.GetCharacterContext`).
+Context of the observing character (`addon.GetCharacterContext`).
 
-| Feld | Typ | Beschreibung |
+| Field | Type | Description |
 |---|---|---|
-| `name` | string | Charaktername |
-| `realm` | string | Realmname |
-| `level` | number | Level zum Zeitpunkt der Beobachtung |
-| `race`, `raceName` | string | Lokalisierter Rassenname (beide identisch) |
-| `raceFile` | string | Rassen-Token |
-| `raceID` | number | Rassen-ID |
-| `sex` | number | `UnitSex`: 2 = männlich, 3 = weiblich |
-| `faction`, `factionFile` | string | `"Alliance"`/`"Horde"` (beide identisch) |
-| `factionName` | string | Lokalisierter Fraktionsname |
-| `className` | string | Lokalisierter Klassenname |
-| `classFile` | string | Klassen-Token |
-| `classID` | number | Klassen-ID |
+| `name` | string | Character name |
+| `realm` | string | Realm name |
+| `level` | number | Level at the time of the observation |
+| `race`, `raceName` | string | Localized race name (both identical) |
+| `raceFile` | string | Race token |
+| `raceID` | number | Race ID |
+| `sex` | number | `UnitSex`: 2 = male, 3 = female |
+| `faction`, `factionFile` | string | `"Alliance"`/`"Horde"` (both identical) |
+| `factionName` | string | Localized faction name |
+| `className` | string | Localized class name |
+| `classFile` | string | Class token |
+| `classID` | number | Class ID |
 
 ### 3.3 `TooltipLine`
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `leftText` | string | ✓ | Linker Tooltip-Text der Zeile. |
-| `rightText` | string | ✓ | Rechter Tooltip-Text der Zeile. |
+| `leftText` | string | ✓ | Left tooltip text of the line. |
+| `rightText` | string | ✓ | Right tooltip text of the line. |
 
-Mindestens eines der beiden Felder ist gesetzt; Zeilen ohne Text werden ausgelassen.
+At least one of the two fields is set; lines without text are omitted.
 
 ### 3.4 `NPC`
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `role` | string | – | Rolle bei der ersten Beobachtung: `giver`, `progress`, `turnIn` (Quest), `merchant`, `trainer`, `banker`, `flightMaster`, `innkeeper`. |
-| `guid` | string | ✓ | Unit-GUID. |
-| `objectType` | string | ✓ | Erstes GUID-Segment, z. B. `"Creature"`, `"GameObject"`. |
-| `objectID`, `npcID` | number | ✓ | Creature-ID (beide identisch). |
-| `name` | string | ✓ | Lokalisierter Name. |
-| `interactionTypes` | string[] | – | Alle beobachteten Interaktionen: `questGiver`, `merchant`, `trainer`, `banker`, `flightMaster`, `innkeeper`. |
-| `creatureType` | string | – | `UnitCreatureType`, sonst `"Unknown"`. |
-| `classification` | string | – | `UnitClassification` (`normal`, `elite`, `rare`, …), sonst `"unknown"`. |
-| `location` | Location | – | Standort (siehe 3.1). |
+| `role` | string | – | Role at the first observation: `giver`, `progress`, `turnIn` (quest), `merchant`, `trainer`, `banker`, `flightMaster`, `innkeeper`. |
+| `guid` | string | ✓ | Unit GUID. |
+| `objectType` | string | ✓ | First GUID segment, e.g. `"Creature"`, `"GameObject"`. |
+| `objectID`, `npcID` | number | ✓ | Creature ID (both identical). |
+| `name` | string | ✓ | Localized name. |
+| `interactionTypes` | string[] | – | All observed interactions: `questGiver`, `merchant`, `trainer`, `banker`, `flightMaster`, `innkeeper`. |
+| `creatureType` | string | – | `UnitCreatureType`, otherwise `"Unknown"`. |
+| `classification` | string | – | `UnitClassification` (`normal`, `elite`, `rare`, …), otherwise `"unknown"`. |
+| `location` | Location | – | Location (see 3.1). |
 
 ---
 
-## 4. `Specialization` (Talentbäume)
+## 4. `Specialization` (Talent Trees)
 
-`catalog.specializations` wird bei jedem Talent-Scan vollständig ersetzt (Tab/Tier-API von Classic Era). Auf Forever bleibt es leer; dort liefert der Client die Bäume (Trait-Tabellen, serverseitig importiert) und das Addon nur die Tooltips (Abschnitt 14).
+`catalog.specializations` is replaced completely on every talent scan (Classic Era tab/tier API). On Forever it stays empty; there the client provides the trees (trait tables, imported server-side) and the addon only the tooltips (section 14).
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `index` | number | – | Baum-Index (1–3). |
-| `id` | number | ✓ | Spezialisierungs-ID. |
-| `name` | string | ✓ | Lokalisierter Name. |
-| `description` | string | ✓ | Beschreibung. |
-| `icon` | number/string | ✓ | Icon (FileDataID oder Pfad). |
-| `talents` | Talent[] | – | Talente des Baums. |
+| `index` | number | – | Tree index (1–3). |
+| `id` | number | ✓ | Specialization ID. |
+| `name` | string | ✓ | Localized name. |
+| `description` | string | ✓ | Description. |
+| `icon` | number/string | ✓ | Icon (FileDataID or path). |
+| `talents` | Talent[] | – | Talents of the tree. |
 
 ### `Talent`
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `index` | number | – | Talent-Index im Baum. |
-| `talentID` | number | – | Talent-ID. |
-| `spellID` | number | ✓ | Spell-ID des aktuellen Rangs. |
+| `index` | number | – | Talent index in the tree. |
+| `talentID` | number | – | Talent ID. |
+| `spellID` | number | ✓ | Spell ID of the current rank. |
 | `name` | string | – | Name. |
 | `icon` | number/string | ✓ | Icon. |
-| `tier` | number | – | Zeile im Baum. |
-| `column` | number | – | Spalte im Baum. |
-| `maxRank` | number | – | Maximaler Rang. |
-| `tooltipLines` | TooltipLine[] | – | Tooltip des Talents (Rang 1). |
-| `prerequisites` | { talentID: number, rank: number }[] | ✓ | Vorausgesetzte Talente desselben Baums (Pfeile im Spiel) mit benötigtem Rang; fehlt ohne Voraussetzung. |
+| `tier` | number | – | Row in the tree. |
+| `column` | number | – | Column in the tree. |
+| `maxRank` | number | – | Maximum rank. |
+| `tooltipLines` | TooltipLine[] | – | Tooltip of the talent (rank 1). |
+| `prerequisites` | { talentID: number, rank: number }[] | ✓ | Required talents of the same tree (arrows in game) with the required rank; absent without prerequisites. |
 
 ---
 
 ## 5. `TrainerSnapshot`
 
-Wird beim Öffnen eines Trainers und bei Änderungen der Liste (`TRAINER_UPDATE`) ersetzt. Beim Scan sind alle Filter (`available`, `unavailable`, `used`) aktiv und alle Kategorien aufgeklappt, sodass die Liste vollständig ist.
+Replaced when a trainer is opened and when the list changes (`TRAINER_UPDATE`). During the scan, all filters (`available`, `unavailable`, `used`) are active and all categories expanded, so the list is complete.
 
-Auf Clients der Mainline-Engine (Forever 1.60+) liefert die Trainer-API keine Header-Zeilen: `services` enthält dann nur Dienste (`isHeader = false`), `skillLine` stammt aus dem Kategorienamen der API, `link` und `description` fehlen, `requirements.level` kommt direkt aus `GetTrainerServiceInfo`.
+On clients with the mainline engine (Forever 1.60+), the trainer API provides no header rows: `services` then contains only services (`isHeader = false`), `skillLine` comes from the API's category name, `link` and `description` are absent, and `requirements.level` comes directly from `GetTrainerServiceInfo`.
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `capturedAt` | number | – | Zeitpunkt. |
-| `character` | Character | – | Beobachtender Charakter (relevant für `category`). |
-| `trainerNPC` | NPC | – | Der Trainer (inkl. `location`). |
+| `capturedAt` | number | – | Timestamp. |
+| `character` | Character | – | Observing character (relevant for `category`). |
+| `trainerNPC` | NPC | – | The trainer (incl. `location`). |
 | `greeting` | string | ✓ | `GetTrainerGreetingText()`. |
-| `isTradeskillTrainer` | boolean | – | Berufstrainer. |
-| `services` | TrainerService[] | – | Alle Listeneinträge inkl. Kategorie-Überschriften. |
+| `isTradeskillTrainer` | boolean | – | Profession trainer. |
+| `services` | TrainerService[] | – | All list entries incl. category headers. |
 
 ### `TrainerService`
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `index` | number | – | Listenindex beim Scan. |
-| `name` | string | – | Name des Dienstes bzw. der Überschrift. |
-| `rank` | string | ✓ | Rang des Dienstes, z. B. `"Rank 2"`. Vom Client-Untertext, sonst über die Spell-ID (`GetSpellSubtext`/`GetSpellInfo`). Fehlt bei Headern und ranglosen Zaubern. |
-| `category` | string | – | `header`, `available`, `unavailable` oder `used` (bereits gelernt). Abhängig vom Charakter. |
+| `index` | number | – | List index during the scan. |
+| `name` | string | – | Name of the service or header. |
+| `rank` | string | ✓ | Rank of the service, e.g. `"Rank 2"`. From the client subtext, otherwise via the spell ID (`GetSpellSubtext`/`GetSpellInfo`). Absent for headers and rankless spells. |
+| `category` | string | – | `header`, `available`, `unavailable` or `used` (already learned). Depends on the character. |
 | `isHeader` | boolean | – | `category == "header"`. |
-| `isExpanded` | boolean | – | Aufgeklappt-Zustand beim Scan (Header). |
+| `isExpanded` | boolean | – | Expanded state during the scan (headers). |
 | `isAvailable` | boolean | – | `category == "available"`. |
 | `isKnown` | boolean | – | `category == "used"`. |
-| `skillLine` | string | ✓ | Name der zuletzt gelesenen Überschrift. |
+| `skillLine` | string | ✓ | Name of the most recently read header. |
 
-Nur für Nicht-Header (`isHeader == false`):
+Only for non-headers (`isHeader == false`):
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `link` | string | ✓ | Spell-/Enchant-Link. |
-| `spellID` | number | ✓ | Aus `link` (`spell:` oder `enchant:`), sonst aus dem Tooltip des Dienstes (`GetTooltipSpellID`). Fehlt nur, wenn der Client für den Dienst keinen Spell liefert. |
+| `link` | string | ✓ | Spell/enchant link. |
+| `spellID` | number | ✓ | From `link` (`spell:` or `enchant:`), otherwise from the service's tooltip (`GetTooltipSpellID`). Absent only if the client provides no spell for the service. |
 | `icon` | number/string | ✓ | Icon. |
-| `description` | string | ✓ | Beschreibung. |
-| `moneyCost` | number | ✓ | Kosten in Kupfer. |
-| `talentCost` | number | ✓ | Talentpunkte. |
-| `professionCost` | number | ✓ | Berufspunkte. |
-| `requirements` | TrainerRequirements | – | Voraussetzungen. |
-| `tooltipLines` | TooltipLine[] | – | Tooltip des Dienstes. |
+| `description` | string | ✓ | Description. |
+| `moneyCost` | number | ✓ | Cost in copper. |
+| `talentCost` | number | ✓ | Talent points. |
+| `professionCost` | number | ✓ | Profession points. |
+| `requirements` | TrainerRequirements | – | Requirements. |
+| `tooltipLines` | TooltipLine[] | – | Tooltip of the service. |
 
 ### `TrainerRequirements`
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `level` | number | ✓ | Benötigtes Level. |
-| `skill` | table | ✓ | `{ name: string, rank: number, isMet: boolean }` – benötigte Fertigkeit. |
-| `abilities` | table[] | – | Je `{ name: string, isMet: boolean }` – benötigte Fähigkeiten (kann leer sein). `name` bezeichnet den **vorausgesetzten** Zauber inkl. Rang-Suffix (i. d. R. den Vorgänger-Rang, z. B. `"Power Word: Fortitude (Rank 1)"` für den Dienst Rang 2), nicht den Dienst selbst. |
+| `level` | number | ✓ | Required level. |
+| `skill` | table | ✓ | `{ name: string, rank: number, isMet: boolean }` – required skill. |
+| `abilities` | table[] | – | Each `{ name: string, isMet: boolean }` – required abilities (can be empty). `name` refers to the **required** spell incl. rank suffix (usually the previous rank, e.g. `"Power Word: Fortitude (Rank 1)"` for the rank 2 service), not the service itself. |
 
 ---
 
-## 6. `Item` (Item-Katalog)
+## 6. `Item` (Item Catalog)
 
-`catalog.items[itemID]`. Einträge werden nur über Quellen angelegt (Händler, Quests, Loot, Rezepte) und nie gelöscht.
+`catalog.items[itemID]`. Entries are only created through sources (merchants, quests, loot, recipes) and never deleted.
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `itemID` | number | – | Item-ID. |
-| `link` | string | ✓ | Erster gesehener Item-Link (kann Suffix/Zufallsverzauberung enthalten). |
-| `firstSeenAt` | number | – | Erste Beobachtung. |
-| `lastSeenAt` | number | – | Letzte Beobachtung. |
-| `sources` | map<string, ItemSource> | – | Fundorte, Schlüssel siehe 6.2. |
+| `itemID` | number | – | Item ID. |
+| `link` | string | ✓ | First item link seen (can contain a suffix/random enchantment). |
+| `firstSeenAt` | number | – | First observation. |
+| `lastSeenAt` | number | – | Last observation. |
+| `sources` | map<string, ItemSource> | – | Where the item was found; see 6.2 for the key. |
 
-Statische Item-Daten (Name, Qualität, Level, Stats, Preis, Bindung, Icon …) stammen aus den DB2-Tabellen `Item`/`ItemSparse`/`ItemSearchName` (wow.export → Server-Importer) und werden nicht mehr im Spiel gelesen.
+Static item data (name, quality, level, stats, price, binding, icon …) comes from the DB2 tables `Item`/`ItemSparse`/`ItemSearchName` (wow.export → server importer) and is no longer read in game.
 
 ### 6.2 `ItemSource`
 
-Schlüssel: `merchant:<npcID>`, `quest:<questID>`, `loot:<sourceType>:<sourceID>`, bei Berufsfunden `loot:<profession>:<sourceType>:<sourceID>`.
+Key: `merchant:<npcID>`, `quest:<questID>`, `loot:<sourceType>:<sourceID>`, for profession finds `loot:<profession>:<sourceType>:<sourceID>`.
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
 | `type` | string | – | `merchant`, `quest`, `loot`. |
-| `npcID` | number | ✓ | Nur `merchant`. |
-| `questID` | number | ✓ | Nur `quest`. |
-| `sourceType` | string | ✓ | Nur `loot`: `Creature`, `GameObject`, `Fishing`, … |
-| `sourceID` | number | ✓ | Nur `loot`: Creature-/Objekt-ID; fehlt bei `Fishing`. |
-| `profession` | string | ✓ | Nur `loot` aus Berufsaktionen: `Herbalism`, `Mining`, `Skinning`, `Fishing`. |
-| `name` | string | ✓ | Name des NPCs/der Quelle. |
-| `firstSeenAt` | number | – | Erste Beobachtung dieser Quelle. |
-| `lastSeenAt` | number | – | Letzte Beobachtung. |
-| `timesSeen` | number | – | Anzahl Beobachtungen. |
-| `location` | Location | ✓ | `merchant`/`quest`: NPC-Standort der ersten Beobachtung. |
-| `locations` | Location[] | ✓ | `loot`: Drop-Orte, dedupliziert (gleiche `uiMapID`, `x`/`y` auf 0,001 gerundet), max. 20. |
+| `npcID` | number | ✓ | Only `merchant`. |
+| `questID` | number | ✓ | Only `quest`. |
+| `sourceType` | string | ✓ | Only `loot`: `Creature`, `GameObject`, `Fishing`, … |
+| `sourceID` | number | ✓ | Only `loot`: creature/object ID; absent for `Fishing`. |
+| `profession` | string | ✓ | Only `loot` from profession actions: `Herbalism`, `Mining`, `Skinning`, `Fishing`. |
+| `name` | string | ✓ | Name of the NPC/source. |
+| `firstSeenAt` | number | – | First observation of this source. |
+| `lastSeenAt` | number | – | Last observation. |
+| `timesSeen` | number | – | Number of observations. |
+| `location` | Location | ✓ | `merchant`/`quest`: NPC location of the first observation. |
+| `locations` | Location[] | ✓ | `loot`: drop locations, deduplicated (same `uiMapID`, `x`/`y` rounded to 0.001), max. 20. |
 
 ---
 
 ## 7. `MerchantSnapshot`
 
-Wird beim Öffnen eines Händlers und bei `MERCHANT_UPDATE` ersetzt.
+Replaced when a merchant is opened and on `MERCHANT_UPDATE`.
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `capturedAt` | number | – | Zeitpunkt. |
-| `character` | Character | – | Beobachtender Charakter (relevant für `isUsable`, `isPurchasable`). |
-| `merchantNPC` | NPC | – | Der Händler (inkl. `location`). |
-| `canRepair` | boolean | – | Händler repariert. |
-| `items` | MerchantItem[] | – | Sortiment. |
+| `capturedAt` | number | – | Timestamp. |
+| `character` | Character | – | Observing character (relevant for `isUsable`, `isPurchasable`). |
+| `merchantNPC` | NPC | – | The merchant (incl. `location`). |
+| `canRepair` | boolean | – | Merchant can repair. |
+| `items` | MerchantItem[] | – | Inventory. |
 
 ### `MerchantItem`
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `index` | number | – | Position im Sortiment. |
-| `itemID` | number | ✓ | Aus `link`. |
+| `index` | number | – | Position in the inventory. |
+| `itemID` | number | ✓ | From `link`. |
 | `name` | string | ✓ | Name. |
-| `link` | string | ✓ | Item-Link. |
+| `link` | string | ✓ | Item link. |
 | `texture` | number/string | ✓ | Icon. |
-| `price` | number | – | Preis in Kupfer (0 bei reinem Extended Cost). |
-| `stackCount` | number | – | Verkaufte Menge pro Kauf. |
-| `maxStack` | number | ✓ | Maximale Kaufmenge. |
-| `numAvailable` | number | – | Verfügbarer Vorrat; `-1` = unbegrenzt. |
-| `isPurchasable` | boolean | – | Kaufbar für den Charakter. |
-| `isUsable` | boolean | – | Benutzbar durch den Charakter. |
-| `hasExtendedCost` | boolean | – | Zusatzkosten (Items/Marken). |
-| `extendedCost` | MerchantCost[] | ✓ | Nur bei `hasExtendedCost`. |
+| `price` | number | – | Price in copper (0 for pure extended cost). |
+| `stackCount` | number | – | Quantity sold per purchase. |
+| `maxStack` | number | ✓ | Maximum purchase quantity. |
+| `numAvailable` | number | – | Available stock; `-1` = unlimited. |
+| `isPurchasable` | boolean | – | Purchasable by the character. |
+| `isUsable` | boolean | – | Usable by the character. |
+| `hasExtendedCost` | boolean | – | Additional costs (items/tokens). |
+| `extendedCost` | MerchantCost[] | ✓ | Only with `hasExtendedCost`. |
 
 ### `MerchantCost`
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `itemID` | number | ✓ | Aus `link`. |
+| `itemID` | number | ✓ | From `link`. |
 | `name` | string | ✓ | Name. |
-| `link` | string | ✓ | Item-Link. |
+| `link` | string | ✓ | Item link. |
 | `texture` | number/string | ✓ | Icon. |
-| `count` | number | – | Benötigte Anzahl. |
+| `count` | number | – | Required quantity. |
 
 ---
 
 ## 8. `LootSource`
 
-`catalog.lootSources[key]`, Schlüssel `<sourceType>:<sourceID>` bzw. nur `<sourceType>` ohne ID (z. B. `Fishing`). Aggregiert über alle Loot-Vorgänge; derselbe Loot-Container (GUID) zählt pro Sitzung nur einmal. Bei geteiltem Loot in einer Gruppe (jede Loot-Methode außer Personal Loot) meldet das Addon geöffnete Leichen-GUIDs per Addon-Nachricht (Prefix `ForeverCollect`, `L1:<guid>,<guid>…`) an die Gruppe; die anderen Addons zählen diese Leichen nicht mehr, sodass ein Kill nur vom ersten Öffner gezählt wird. Berufsfunde (Kräuter, Erz, Kürschnern, Angeln) erhalten den Berufsnamen als Präfix: `Herbalism:GameObject:1617`, `Skinning:Creature:705`, `Fishing` – erkannt am vorangegangenen Sammel-Zauber (`UNIT_SPELLCAST_SUCCEEDED`), Kürschner-Loot umgeht dabei die Container-Deduplizierung.
+`catalog.lootSources[key]`, keyed by `<sourceType>:<sourceID>`, or just `<sourceType>` without an ID (e.g. `Fishing`). Aggregated over all loot events; the same loot container (GUID) counts only once per session. With shared loot in a group (every loot method except Personal Loot), the addon reports opened corpse GUIDs to the group via addon message (prefix `ForeverCollect`, `L1:<guid>,<guid>…`); the other addons no longer count these corpses, so a kill is only counted by whoever opens it first. Profession finds (herbs, ore, skinning, fishing) get the profession name as a prefix: `Herbalism:GameObject:1617`, `Skinning:Creature:705`, `Fishing` – detected from the preceding gathering spell (`UNIT_SPELLCAST_SUCCEEDED`); skinning loot bypasses the container deduplication.
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `sourceType` | string | – | `Creature`, `GameObject`, `Fishing`, `Item` (Behälter aus dem Inventar), `Instance` (Loot ohne lesbare Quell-GUID in einer Instanz, z. B. von feindlichen Einheiten, deren GUIDs dort geheim sind), `Unknown`. |
-| `profession` | string | ✓ | `Herbalism`, `Mining`, `Skinning` oder `Fishing`, wenn der Loot aus einer Berufsaktion stammt. |
-| `gatherSpellID` | number | ✓ | Spell-ID des Sammel-Zaubers (z. B. 2366 Herb Gathering). |
-| `sourceID` | number | ✓ | Creature-/GameObject-ID aus der GUID, bei `Instance` die Instanz-ID aus `GetInstanceInfo()`. Fehlt bei `Fishing`, `Item` und `Unknown`. |
-| `name` | string | ✓ | Name der Quelle, falls sie beim Plündern das Ziel war; bei Kräuter-/Erzknoten der zuletzt angezeigte Tooltip-Titel des Knotens. |
-| `instanceID` | number | ✓ | Instanz-ID (`GetInstanceInfo()`, = Map-ID) der letzten Beobachtung in einer Instanz. Dort liefert `C_Map` keine Position, `locations` bleibt leer; die Instanz ordnet die Quelle ihrem Dungeon zu. |
-| `firstSeenAt` | number | – | Erste Beobachtung. |
-| `lastSeenAt` | number | – | Letzte Beobachtung. |
-| `lootCount` | number | – | Anzahl geöffneter Loot-Fenster. |
-| `locations` | Location[] \| CountedLocation[] | – | Spielerposition je Loot-Vorgang, dedupliziert, max. 100. Bei Berufsfunden `CountedLocation` (3.1.1), max. 500. |
-| `items` | map<number, LootItem> | – | Schlüssel `itemID`. |
-| `money` | table | – | `{ timesSeen: number, total: number }` – Geld-Drops, `total` in Kupfer. |
+| `sourceType` | string | – | `Creature`, `GameObject`, `Fishing`, `Item` (container from the inventory), `Instance` (loot without a readable source GUID inside an instance, e.g. from hostile units whose GUIDs are secret there), `Unknown`. |
+| `profession` | string | ✓ | `Herbalism`, `Mining`, `Skinning` or `Fishing` if the loot comes from a profession action. |
+| `gatherSpellID` | number | ✓ | Spell ID of the gathering spell (e.g. 2366 Herb Gathering). |
+| `sourceID` | number | ✓ | Creature/GameObject ID from the GUID; for `Instance` the instance ID from `GetInstanceInfo()`. Absent for `Fishing`, `Item` and `Unknown`. |
+| `name` | string | ✓ | Name of the source if it was the target while looting; for herb/ore nodes the most recently shown tooltip title of the node. |
+| `instanceID` | number | ✓ | Instance ID (`GetInstanceInfo()`, = map ID) of the last observation inside an instance. There `C_Map` provides no position and `locations` stays empty; the instance assigns the source to its dungeon. |
+| `firstSeenAt` | number | – | First observation. |
+| `lastSeenAt` | number | – | Last observation. |
+| `lootCount` | number | – | Number of loot windows opened. |
+| `locations` | Location[] \| CountedLocation[] | – | Player position per loot event, deduplicated, max. 100. For profession finds `CountedLocation` (3.1.1), max. 500. |
+| `items` | map<number, LootItem> | – | Keyed by `itemID`. |
+| `money` | table | – | `{ timesSeen: number, total: number }` – money drops, `total` in copper. |
 
 ### `LootItem`
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `itemID` | number | – | Item-ID. |
+| `itemID` | number | – | Item ID. |
 | `name` | string | ✓ | Name. |
-| `link` | string | – | Item-Link der letzten Beobachtung. |
-| `quality` | number | ✓ | Qualität. |
-| `isQuestItem` | boolean | – | Questgegenstand. |
-| `questID` | number | ✓ | Zugehörige Quest, falls vom Client geliefert. |
-| `timesSeen` | number | – | Anzahl Drops. |
-| `quantityTotal` | number | – | Summe der gedroppten Menge. |
-| `lastSeenAt` | number | – | Letzte Beobachtung. |
-| `locations` | Location[] \| CountedLocation[] | – | Drop-Orte dieses Items, dedupliziert, max. 20. Bei Berufsfunden `CountedLocation` (3.1.1), max. 100. |
+| `link` | string | – | Item link of the last observation. |
+| `quality` | number | ✓ | Quality. |
+| `isQuestItem` | boolean | – | Quest item. |
+| `questID` | number | ✓ | Associated quest, if provided by the client. |
+| `timesSeen` | number | – | Number of drops. |
+| `quantityTotal` | number | – | Total quantity dropped. |
+| `lastSeenAt` | number | – | Last observation. |
+| `locations` | Location[] \| CountedLocation[] | – | Drop locations of this item, deduplicated, max. 20. For profession finds `CountedLocation` (3.1.1), max. 100. |
 
 ---
 
-## 9. `TradeSkill` (entfallen)
+## 9. `TradeSkill` (removed)
 
-Wird nicht mehr geschrieben (siehe Abschnitt 13). Rezepte, Reagenzien, Werkzeuge und Cooldowns kommen aus DB2-Exporten (wow.export) über den Server-Importer.
+No longer written (see section 13). Recipes, reagents, tools and cooldowns come from DB2 exports (wow.export) via the server importer.
 
 ---
 
-## 10. `AbilitySnapshot` (entfallen)
+## 10. `AbilitySnapshot` (removed)
 
-Wird seit Schema 9.1 nicht mehr geschrieben (siehe Abschnitt 13). Der statische Zauberkatalog kommt aus DB2-Exporten (wow.export) über den Server-Importer; das Addon liefert nur noch Beobachtungen (Trainer, Talente, Quests).
+No longer written since schema 9.1 (see section 13). The static spell catalog comes from DB2 exports (wow.export) via the server importer; the addon now only provides observations (trainers, talents, quests).
 
 ---
 
@@ -374,124 +374,124 @@ Wird seit Schema 9.1 nicht mehr geschrieben (siehe Abschnitt 13). Der statische 
 
 `catalog.quests[questID]`.
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `questID` | number | – | Quest-ID. |
-| `title` | string | ✓ | Titel (aus dem zuletzt geöffneten Dialog). |
-| `observations` | QuestObservation[] | – | Dialogbeobachtungen in zeitlicher Reihenfolge. |
-| `turnIn` | table | ✓ | `{ capturedAt, xp: number?, money: number?, character: Character }` – tatsächliche Abgabe (`QUEST_TURNED_IN`). |
+| `questID` | number | – | Quest ID. |
+| `title` | string | ✓ | Title (from the most recently opened dialog). |
+| `observations` | QuestObservation[] | – | Dialog observations in chronological order. |
+| `turnIn` | table | ✓ | `{ capturedAt, xp: number?, money: number?, character: Character }` – actual turn-in (`QUEST_TURNED_IN`). |
 
 ### `QuestObservation`
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `phase` | string | – | `QUEST_DETAIL` (Annahme), `QUEST_PROGRESS` (Fortschritt), `QUEST_COMPLETE` (Abgabe). |
-| `capturedAt` | number | – | Zeitpunkt. |
-| `character` | Character | – | Charakter (Questtexte können von Klasse/Rasse/Level abhängen). |
-| `questNPC` | NPC | – | Dialogpartner mit `role` `giver`/`progress`/`turnIn` und `location`. |
-| `description` | string | ✓ | Nur `QUEST_DETAIL`: Questtext. Name, Klasse und Rasse des Spielers sind wieder durch die Platzhalter `$N`, `$C`/`$c`, `$R`/`$r` ersetzt. |
-| `objectives` | string | ✓ | Nur `QUEST_DETAIL`: Zieltext (Platzhalter wie bei `description`). |
-| `text` | string | ✓ | `QUEST_PROGRESS`: Fortschrittstext; `QUEST_COMPLETE`: Abgabetext (Platzhalter wie bei `description`). |
-| `rewards` | QuestRewards | ✓ | `QUEST_DETAIL` und `QUEST_COMPLETE`. |
-| `progress` | table | ✓ | Nur `QUEST_PROGRESS`: `{ requiredItems: QuestItem[], requiredMoney: number? }`. |
-| `tag` | table | ✓ | `QUEST_DETAIL`/`QUEST_COMPLETE`: `{ id: number, name: string? }` – Quest-Typ wie im Questlog (81 Dungeon, 62 Raid, 1 Elite, 41 PvP, 21 Klasse …; IDs wie `QuestInfo`). Fehlt bei Quests ohne Tag. |
-| `suggestedGroup` | number | ✓ | `QUEST_DETAIL`/`QUEST_COMPLETE`: empfohlene Gruppengröße (`GetSuggestedGroupSize`), nur wenn > 0. |
+| `phase` | string | – | `QUEST_DETAIL` (accept), `QUEST_PROGRESS` (progress), `QUEST_COMPLETE` (turn-in). |
+| `capturedAt` | number | – | Timestamp. |
+| `character` | Character | – | Character (quest texts can depend on class/race/level). |
+| `questNPC` | NPC | – | Dialog partner with `role` `giver`/`progress`/`turnIn` and `location`. |
+| `description` | string | ✓ | Only `QUEST_DETAIL`: quest text. The player's name, class and race are replaced back with the placeholders `$N`, `$C`/`$c`, `$R`/`$r`. |
+| `objectives` | string | ✓ | Only `QUEST_DETAIL`: objective text (placeholders as in `description`). |
+| `text` | string | ✓ | `QUEST_PROGRESS`: progress text; `QUEST_COMPLETE`: turn-in text (placeholders as in `description`). |
+| `rewards` | QuestRewards | ✓ | `QUEST_DETAIL` and `QUEST_COMPLETE`. |
+| `progress` | table | ✓ | Only `QUEST_PROGRESS`: `{ requiredItems: QuestItem[], requiredMoney: number? }`. |
+| `tag` | table | ✓ | `QUEST_DETAIL`/`QUEST_COMPLETE`: `{ id: number, name: string? }` – quest type as in the quest log (81 Dungeon, 62 Raid, 1 Elite, 41 PvP, 21 Class …; IDs as in `QuestInfo`). Absent for quests without a tag. |
+| `suggestedGroup` | number | ✓ | `QUEST_DETAIL`/`QUEST_COMPLETE`: suggested group size (`GetSuggestedGroupSize`), only if > 0. |
 
 ### `QuestRewards`
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `items` | QuestItem[] | – | Feste Belohnungen. |
-| `choices` | QuestItem[] | – | Wahlbelohnungen. |
-| `spells` | QuestSpell[] | – | Zauberbelohnungen. |
-| `money` | number | ✓ | Geld in Kupfer. |
-| `xp` | number | ✓ | Erfahrung (levelabhängig). |
+| `items` | QuestItem[] | – | Fixed rewards. |
+| `choices` | QuestItem[] | – | Choice rewards. |
+| `spells` | QuestSpell[] | – | Spell rewards. |
+| `money` | number | ✓ | Money in copper. |
+| `xp` | number | ✓ | Experience (level-dependent). |
 
 ### `QuestItem`
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
 | `index` | number | – | Position. |
-| `itemID` | number | ✓ | Aus `link`. |
+| `itemID` | number | ✓ | From `link`. |
 | `name` | string | ✓ | Name. |
-| `link` | string | ✓ | Item-Link. |
+| `link` | string | ✓ | Item link. |
 | `texture` | number/string | ✓ | Icon. |
-| `quantity` | number | ✓ | Menge. |
-| `quality` | number | ✓ | Qualität. |
-| `isUsable` | boolean | ✓ | Benutzbar durch den Charakter. |
+| `quantity` | number | ✓ | Quantity. |
+| `quality` | number | ✓ | Quality. |
+| `isUsable` | boolean | ✓ | Usable by the character. |
 
-Jedes `QuestItem` wird zusätzlich im Item-Katalog (Abschnitt 6) mit Quelle `quest:<questID>` geführt.
+Every `QuestItem` is also listed in the item catalog (section 6) with source `quest:<questID>`.
 
 ### `QuestSpell`
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `spellID` | number | ✓ | Spell-ID (fehlt beim Legacy-API-Pfad). |
+| `spellID` | number | ✓ | Spell ID (absent on the legacy API path). |
 | `name` | string | ✓ | Name. |
 | `texture` | number/string | ✓ | Icon. |
-| `isTradeskill` | boolean | ✓ | Berufszauber. |
-| `isSpellLearned` | boolean | ✓ | Bereits bekannt. |
+| `isTradeskill` | boolean | ✓ | Profession spell. |
+| `isSpellLearned` | boolean | ✓ | Already known. |
 
 ---
 
 ## 12. `npcs`
 
-Liste von `NPC` (Abschnitt 3.4). Ein NPC erscheint genau einmal; Zusammenführung erfolgt über `guid`, sonst `npcID` + `name`, sonst nur `name`. `interactionTypes` sammelt alle Rollen, `role` behält die erste. Händler-Sortiment und Trainer-Dienste liegen nicht hier, sondern in `merchantSnapshots` bzw. `trainerSnapshots` (verknüpft über den `NPCKey`).
+List of `NPC` (section 3.4). An NPC appears exactly once; merging is done via `guid`, otherwise `npcID` + `name`, otherwise just `name`. `interactionTypes` collects all roles, `role` keeps the first. Merchant inventories and trainer services are not stored here but in `merchantSnapshots` and `trainerSnapshots` respectively (linked via the `NPCKey`).
 
 ---
 
 ## 14. `spellTooltips`
 
-Map `spellID → SpellTooltip`. Auf Forever (Trait-System) liest das Addon beim Login (verzögert) und bei `/fc scan` per `GameTooltip:SetTraitEntry` (Fallback `SetSpellByID`) die Tooltips aller Ränge jedes Talent-Spells der aktiven Trait-Konfiguration. Die Baumstruktur selbst kommt nicht vom Addon, sondern aus den Trait-Tabellen des Clients; die Tooltips ergänzen dort die Werte („Increases … by 2 %“), die der Client nur als Platzhalter kennt. Ein Eintrag wird nur geschrieben, wenn der Tooltip mehr als die Namenszeile liefert (Zauberdaten laden verzögert); vorhandene Einträge werden bei jedem Scan ersetzt.
+Map `spellID → SpellTooltip`. On Forever (trait system), the addon reads the tooltips of all ranks of every talent spell in the active trait configuration at login (delayed) and on `/fc scan`, via `GameTooltip:SetTraitEntry` (fallback `SetSpellByID`). The tree structure itself does not come from the addon but from the client's trait tables; the tooltips add the values ("Increases … by 2%") that the client only knows as placeholders. An entry is only written if the tooltip provides more than the name line (spell data loads late); existing entries are replaced on every scan.
 
 ### `SpellTooltip`
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `name` | string | ✓ | Zaubername. |
-| `lines` | TooltipLine[] | | Tooltip von Rang 1 inklusive Namenszeile (Abschnitt 3.3). |
-| `ranks` | { rank: number, tooltipLines: TooltipLine[] }[] | ✓ | Tooltip je Rang. |
-| `capturedAt` | number | | Zeitpunkt des Scans. |
+| `name` | string | ✓ | Spell name. |
+| `lines` | TooltipLine[] | | Tooltip of rank 1 including the name line (section 3.3). |
+| `ranks` | { rank: number, tooltipLines: TooltipLine[] }[] | ✓ | Tooltip per rank. |
+| `capturedAt` | number | | Time of the scan. |
 
 ## 15. `encounters`
 
-Map `encounterID → Encounter`. Zwischen `ENCOUNTER_START` und `ENCOUNTER_END` sammelt das Addon die Creature-IDs der Boss-Einheiten (`boss1`…`boss8`, `INSTANCE_ENCOUNTER_ENGAGE_UNIT`). Sie verbinden eine `DungeonEncounter`-Zeile des Clients mit den Creatures, deren Loot unter `Creature:<npcID>` in `lootSources` liegt.
+Map `encounterID → Encounter`. Between `ENCOUNTER_START` and `ENCOUNTER_END`, the addon collects the creature IDs of the boss units (`boss1`…`boss8`, `INSTANCE_ENCOUNTER_ENGAGE_UNIT`). They link a client `DungeonEncounter` row to the creatures whose loot is stored under `Creature:<npcID>` in `lootSources`.
 
 ### `Encounter`
 
-| Feld | Typ | Opt. | Beschreibung |
+| Field | Type | Opt. | Description |
 |---|---|---|---|
-| `encounterID` | number | – | `DungeonEncounter.db2`-ID. |
-| `name` | string | ✓ | Name aus `ENCOUNTER_START`. |
-| `difficultyID` | number | ✓ | Schwierigkeitsgrad. |
-| `instanceID` | number | ✓ | Instanz-ID (`GetInstanceInfo()`, = Map-ID). |
-| `pulls` | number | – | Beendete Versuche. |
-| `kills` | number | – | Davon erfolgreich. |
-| `firstSeenAt`, `lastSeenAt` | number | – | Erste/letzte Beobachtung. |
-| `npcs` | { npcID: number, name?: string, via: string }[] | – | Boss-Creatures; `via = "boss"` für Boss-Einheiten, `"target"`, wenn keine Boss-Einheit sichtbar war und nach einem Sieg eine tote Creature im Ziel lag (unsicherer). |
+| `encounterID` | number | – | `DungeonEncounter.db2` ID. |
+| `name` | string | ✓ | Name from `ENCOUNTER_START`. |
+| `difficultyID` | number | ✓ | Difficulty. |
+| `instanceID` | number | ✓ | Instance ID (`GetInstanceInfo()`, = map ID). |
+| `pulls` | number | – | Finished attempts. |
+| `kills` | number | – | Of which successful. |
+| `firstSeenAt`, `lastSeenAt` | number | – | First/last observation. |
+| `npcs` | { npcID: number, name?: string, via: string }[] | – | Boss creatures; `via = "boss"` for boss units, `"target"` if no boss unit was visible and a dead creature was targeted after a win (less reliable). |
 
 ---
 
-## 13. Altlasten aus früheren Schema-Versionen
+## 13. Legacy Data from Earlier Schema Versions
 
-Beim Anheben der Schema-Version werden vorhandene Daten **nicht** bereinigt. In Katalogen, die mit Version ≤ 8 angelegt wurden, können daher zusätzlich vorkommen:
+When the schema version is raised, existing data is **not** cleaned up. Catalogs created with version ≤ 8 may therefore additionally contain:
 
-| Feld | Herkunft | Hinweis |
+| Field | Origin | Note |
 |---|---|---|
-| `catalog.skillSnapshots` | ≤ 8 | Fertigkeitslinien pro Charakter; wird nicht mehr geschrieben. |
-| `catalog.skillsScannedAt` | ≤ 8 | Zeitstempel dazu. |
-| `abilitySnapshots[*].spells` | ≤ 8 | Zauberbuch-Einträge. Gelernte Zauber sind über `trainerSnapshots` (`category = "used"`) abgebildet. |
-| `abilitySnapshots`, `abilitiesScannedAt` | ≤ 9.0 | SoD-Runen je Charakter; wird nicht mehr geschrieben und serverseitig nie importiert. |
-| `tradeSkills`, `tradeSkillsUpdatedAt` | ≤ 9.0 | Berufsrezepte aus Berufs-/Craft-Fenster; ersetzt durch DB2-Import (`SkillLineAbility`, `SpellReagents` …). Serverseitig nie importiert. |
-| `items[*].detailsLoaded`, `name`, `quality`, `itemLevel`, `requiredLevel`, `itemType`, `itemSubType`, `stackCount`, `equipLoc`, `texture`, `sellPrice`, `classID`, `subclassID`, `bindType`, `expansionID`, `setID`, `isCraftingReagent`, `spell`, `stats`, `tooltipLines`, `updatedAt` | ≤ 9.0 | Item-Details aus `GetItemInfo`/Tooltip; ersetzt durch DB2-Import (`ItemSparse`). |
-| `quests[*].observations[*].questNPC` ohne `interactionTypes`/`location.source` | ≤ 7 | Wird beim Laden normalisiert (`addon.MigrateNPCData`). |
+| `catalog.skillSnapshots` | ≤ 8 | Skill lines per character; no longer written. |
+| `catalog.skillsScannedAt` | ≤ 8 | Corresponding timestamp. |
+| `abilitySnapshots[*].spells` | ≤ 8 | Spellbook entries. Learned spells are represented via `trainerSnapshots` (`category = "used"`). |
+| `abilitySnapshots`, `abilitiesScannedAt` | ≤ 9.0 | SoD runes per character; no longer written and never imported server-side. |
+| `tradeSkills`, `tradeSkillsUpdatedAt` | ≤ 9.0 | Profession recipes from the profession/craft window; replaced by DB2 import (`SkillLineAbility`, `SpellReagents` …). Never imported server-side. |
+| `items[*].detailsLoaded`, `name`, `quality`, `itemLevel`, `requiredLevel`, `itemType`, `itemSubType`, `stackCount`, `equipLoc`, `texture`, `sellPrice`, `classID`, `subclassID`, `bindType`, `expansionID`, `setID`, `isCraftingReagent`, `spell`, `stats`, `tooltipLines`, `updatedAt` | ≤ 9.0 | Item details from `GetItemInfo`/tooltip; replaced by DB2 import (`ItemSparse`). |
+| `quests[*].observations[*].questNPC` without `interactionTypes`/`location.source` | ≤ 7 | Normalized on load (`addon.MigrateNPCData`). |
 
-Kataloge, die mit Version 9 erstmals angelegt werden, enthalten diese Felder nicht.
+Catalogs first created with version 9 do not contain these fields.
 
-## Änderungen gegenüber Version 8
+## Changes Since Version 8
 
-- Neu: `items`, `merchantSnapshots`, `lootSources`, `tradeSkills` und die Zeitstempel `itemsUpdatedAt`, `merchantScanUpdatedAt`, `lootUpdatedAt`, `tradeSkillsUpdatedAt`.
-- Neu: `trainerSnapshots` wird tatsächlich befüllt (in 8 dokumentiert, aber leer).
-- Entfernt: `skillSnapshots`, `skillsScannedAt`, `abilitySnapshots[*].spells` (siehe Abschnitt 13).
-- Später neu (ohne Versionssprung, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (Abschnitt 14); `encounters` (Abschnitt 15) und `lootSources[*].instanceID` (Addon 0.1.10); `CountedLocation` mit `count`/`firstSeenAt`/`lastSeenAt`/`times` für Berufsfunde (Addon 0.1.11).
-- Später entfernt (ohne Versionssprung, Felder waren optional): `abilitySnapshots`, `abilitiesScannedAt` – Runen-Scan gestrichen; `items[*]`-Details (`detailsLoaded` & Co.) und `tradeSkills`/`tradeSkillsUpdatedAt` – statische Zauber-, Item- und Rezeptdaten kommen aus wow.export.
+- New: `items`, `merchantSnapshots`, `lootSources`, `tradeSkills` and the timestamps `itemsUpdatedAt`, `merchantScanUpdatedAt`, `lootUpdatedAt`, `tradeSkillsUpdatedAt`.
+- New: `trainerSnapshots` is actually filled (documented in 8, but empty).
+- Removed: `skillSnapshots`, `skillsScannedAt`, `abilitySnapshots[*].spells` (see section 13).
+- Added later (without a version bump, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (section 14); `encounters` (section 15) and `lootSources[*].instanceID` (addon 0.1.10); `CountedLocation` with `count`/`firstSeenAt`/`lastSeenAt`/`times` for profession finds (addon 0.1.11).
+- Removed later (without a version bump, fields were optional): `abilitySnapshots`, `abilitiesScannedAt` – rune scan dropped; `items[*]` details (`detailsLoaded` & co.) and `tradeSkills`/`tradeSkillsUpdatedAt` – static spell, item and recipe data comes from wow.export.

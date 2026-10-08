@@ -306,4 +306,4 @@ addon:RegisterCommand("quests", function()
         observationCount,
         catalog.version
     ))
-end, "Anzahl erfasster Quests und Beobachtungen anzeigen")
+end, "Show number of captured quests and observations")

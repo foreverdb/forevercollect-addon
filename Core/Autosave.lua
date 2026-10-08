@@ -136,7 +136,7 @@ end)
 
 addon:RegisterCommand("save", function()
     save(false)
-end, "Gesammelte Daten jetzt speichern (lädt das UI neu)")
+end, "Save collected data now (reloads the UI)")
 
 addon:RegisterCommand("autosave", function(argument)
     local settings = ForeverCollectDB.settings
@@ -158,4 +158,4 @@ addon:RegisterCommand("autosave", function(argument)
     minutes = math.max(5, math.floor(minutes))
     settings.autosaveMinutes = minutes
     printMessage(string.format("Autosave every %d min: the UI reloads when nothing is in progress.", minutes))
-end, "Automatisch speichern: /fc autosave <Minuten> oder off")
+end, "Save automatically: /fc autosave <minutes> or off")

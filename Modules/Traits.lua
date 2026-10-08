@@ -229,4 +229,4 @@ addon:RegisterCommand("traits", function()
         count = count + 1
     end
     printMessage(string.format("Catalog holds tooltips of %d talents.", count))
-end, "Trait-Bäume des Clients diagnostizieren (Forever)")
+end, "Diagnose the client's trait trees (Forever)")

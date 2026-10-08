@@ -183,4 +183,4 @@ addon:RegisterCommand("talents", function()
         countTalents(catalog),
         catalog.version
     ))
-end, "Talentdaten des aktuellen Katalogs anzeigen")
+end, "Show talent data of the current catalog")

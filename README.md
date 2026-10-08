@@ -1,83 +1,79 @@
 # ForeverCollect
 
-ForeverCollect katalogisiert beobachtete Daten aus World of Warcraft Classic Era und Forever (1.60+). Die Daten werden in der SavedVariable `ForeverCollectDB` gespeichert. Die vollständige Feldreferenz des aktuellen Schemas (Version 9) steht in [SCHEMA.md](SCHEMA.md).
+ForeverCollect catalogs observed data from World of Warcraft Classic Era and Forever (1.60+). The data is stored in the SavedVariable `ForeverCollectDB`. The complete field reference for the current schema (version 9) is in [SCHEMA.md](SCHEMA.md).
 
 ## Installation
 
-Das Zip des neuesten [GitHub-Releases](https://github.com/foreverdb/forevercollect-addon/releases) nach `Interface/AddOns/` des jeweiligen Clients entpacken (es enthält den Ordner `ForeverCollect/`). Für die Entwicklung kopiert `./deploy.sh` das Arbeitsverzeichnis direkt in die installierten Clients.
+Extract the zip of the latest [GitHub release](https://github.com/foreverdb/forevercollect-addon/releases) into the client's `Interface/AddOns/` folder (it contains the `ForeverCollect/` folder).
 
 ## Release
 
-Die Version steht in `ForeverCollect.toc` (`## Version:`). Wird sie auf `main` erhöht, prüft der Workflow `.github/workflows/release.yml` die Lua-Syntax, packt `ForeverCollect-vX.Y.Z.zip` und legt Tag und Release `vX.Y.Z` mit automatischen Release-Notes an. Ein Push ohne Versionsänderung oder mit bereits vorhandenem Tag erzeugt kein Release. `check.yml` prüft bei jedem Push und Pull Request die Syntax und ob alle in der TOC gelisteten Dateien existieren.
+The version is set in `ForeverCollect.toc` (`## Version:`). When it is bumped on `main`, the workflow `.github/workflows/release.yml` checks the Lua syntax, packages `ForeverCollect-vX.Y.Z.zip` and creates the tag and release `vX.Y.Z` with automatic release notes. A push without a version change, or with a tag that already exists, does not create a release. `check.yml` checks the syntax on every push and pull request, and verifies that all files listed in the TOC exist.
 
-## Verwendung
+## Usage
 
 ```text
-/fc scan      Talente scannen (Forever: Talent-Tooltips)
-/fc talents   Talentdaten des aktuellen Katalogs anzeigen
-/fc traits    Trait-Bäume des Clients diagnostizieren (Forever)
-/fc trainer   Trainerdienste scannen und Anzahl erfasster Daten anzeigen
-/fc items     Anzahl erfasster Items anzeigen
-/fc merchants Händler-Sortimente anzeigen
-/fc loot      Loot-Quellen und -Items anzeigen
-/fc quests    Anzahl erfasster Quests und Beobachtungen anzeigen
-/fc questcache Alle Quests beim Server abfragen (stop, status, reset)
-/fc status    Katalogkontext und Scanstatus anzeigen
-/fc verbose   Meldungen bei jeder Erfassung ein-/ausschalten (Standard: an)
-/fc save      Gesammelte Daten jetzt sichern (lädt das UI neu)
-/fc autosave  Automatisch sichern: /fc autosave 30 (Minuten) oder /fc autosave off
+/fc scan      Scan talents (Forever: talent tooltips)
+/fc talents   Show talent data of the current catalog
+/fc traits    Diagnose the client's trait trees (Forever)
+/fc trainer   Scan trainer services and show number of captured entries
+/fc items     Show number of captured items
+/fc merchants Show merchant inventories
+/fc loot      Show loot sources and items
+/fc quests    Show number of captured quests and observations
+/fc questcache Query all quests from the server (stop, status, reset)
+/fc status    Show catalog context and scan status
+/fc verbose   Toggle notices for every capture (default: on)
+/fc save      Save collected data now (reloads the UI)
+/fc autosave  Save automatically: /fc autosave 30 (minutes) or /fc autosave off
 ```
 
-Jede Erfassung (Quest-Dialog, Abgabe, Loot, Händler, Trainer, Bankier, Flugmeister) wird im Chat gemeldet; `/fc verbose` schaltet diese Meldungen aus und wieder ein (Einstellung in `ForeverCollectDB.settings`, nicht Teil der Uploads).
+Every capture (quest dialog, turn-in, loot, merchant, trainer, banker, flight master) is announced in chat; `/fc verbose` turns these notices off and on again (setting in `ForeverCollectDB.settings`, not part of uploads).
 
-**Quest-Typ:** Bei jeder Annahme und Abgabe wird der Quest-Typ aus dem Questlog mitgeschrieben (`tag`: Dungeon, Raid, Elite, PvP …, plus `suggestedGroup`). Bereits erfasste Quests bekommen den Typ, sobald sie erneut angenommen oder abgegeben werden.
+**Quest type:** On every accept and turn-in, the quest type from the quest log is recorded (`tag`: Dungeon, Raid, Elite, PvP …, plus `suggestedGroup`). Quests captured earlier get their type as soon as they are accepted or turned in again.
 
-**Quest-Katalog:** Die Questdaten der Website kommen aus dem Client (`QuestV2.db2` und dem Quest-Cache `Cache/WDB/<locale>/questcache.wdb`); die Beobachtungen ergänzen NPCs, Fortschritts- und Abgabetexte. Der Cache enthält nur Quests, die der Client schon beim Server abgefragt hat. `/fc questcache` fragt alle IDs aus `Data/QuestIDs.lua` gedrosselt ab (20/s, gut 5 Minuten, fortsetzbar); danach ausloggen, damit der Client den Cache schreibt, und `foreverdb-import all` ausführen.
+**Quest catalog:** The website's quest data comes from the client (`QuestV2.db2` and the quest cache `Cache/WDB/<locale>/questcache.wdb`); the observations add NPCs, progress and turn-in texts. The cache only contains quests the client has already queried from the server. `/fc questcache` queries all IDs from `Data/QuestIDs.lua` at a throttled rate (20/s, a bit over 5 minutes, resumable); afterwards, log out so the client writes the cache, then run `foreverdb-import all`.
 
-**Speichern:** WoW schreibt Addon-Daten nur beim Ausloggen, Beenden oder `/reload` auf die Platte – alles seit dem letzten Speichern lebt nur im Speicher und geht bei einem Absturz oder abgeschossenen Prozess verloren. Das Addon zählt deshalb die Erfassungen seit dem letzten Speichern, erinnert nach 50 Erfassungen bzw. 30 Minuten mit einem Popup („Save now“ lädt das UI neu, „Later“ verschiebt) und im Chat an `/fc save` (ein UI-Reload, nie im Kampf, beim Zaubern oder mit offenem Dialog) und kann mit `/fc autosave <Minuten>` selbstständig neu laden, sobald gerade nichts läuft. `/fc status` zeigt die ungesicherten Erfassungen.
+**Saving:** WoW only writes addon data to disk on logout, exit or `/reload`. Everything since the last save lives only in memory and is lost on a crash or a killed process. The addon therefore counts captures since the last save and, after 50 captures or 30 minutes, reminds you to run `/fc save` with a popup ("Save now" reloads the UI, "Later" postpones) and in chat. `/fc save` is a UI reload and never happens in combat, while casting or with a dialog open. With `/fc autosave <minutes>`, the addon reloads on its own whenever nothing is going on. `/fc status` shows the unsaved captures.
 
-WoW schreibt die Daten nach `/reload`, Logout oder Beenden in:
+After `/reload`, logout or exit, WoW writes the data to:
 
 ```text
 WTF/Account/<ACCOUNT>/SavedVariables/ForeverCollect.lua
 ```
 
-## Skripte
+## Uploading
 
-```sh
-./deploy.sh           # kopiert das Addon in _classic_era_ und _classic_beta_ (Forever)
-```
+Uploads go through the ForeverDB Uploader (`foreverdb-client`, binary `foreverdb-uploader`): the ingress only accepts the finished JSON snapshot, and the uploader converts the SavedVariables. The former `upload.sh` could not do this and has been removed.
 
-Hochgeladen wird über den ForeverDB Uploader (`foreverdb-client`, Binary `foreverdb-uploader`): Der Ingress nimmt nur noch den fertigen JSON-Snapshot entgegen, die Umwandlung der SavedVariables passiert im Uploader. Das frühere `upload.sh` konnte das nicht leisten und ist entfallen.
+## Project Structure
 
-## Projektstruktur
-
-Die Dateien werden in der Reihenfolge aus `ForeverCollect.toc` geladen und teilen sich die Addon-Tabelle (`local _, addon = ...`). Module hängen nur das an `addon`, was andere Dateien brauchen, und registrieren ihre Events und Slash-Subcommands selbst über `addon:RegisterEvent(event, handler)` bzw. `addon:RegisterCommand(name, handler, help)`.
+Files are loaded in the order given in `ForeverCollect.toc` and share the addon table (`local _, addon = ...`). Modules attach to `addon` only what other files need, and register their own events and slash subcommands via `addon:RegisterEvent(event, handler)` and `addon:RegisterCommand(name, handler, help)`.
 
 ```text
-Core/Util.lua           Chat-Ausgabe, Tooltip-Scanner, kleine Helfer
-Core/Database.lua       ForeverCollectDB, Client-/Charakterkontext, Katalogverwaltung
-Core/Registry.lua       Event-Frame und Dispatcher für Events und Slash-Commands
-Modules/NPCs.lua        NPC-Erfassung und -Zusammenführung (Händler, Trainer, Bank, Flugmeister)
-Core/Autosave.lua       Ungesicherte Erfassungen, /fc save, /fc autosave
-Modules/Items.lua       Item-Katalog mit Quellen und Koordinaten (/fc items)
-Modules/Merchants.lua   Händler-Sortimente (/fc merchants)
-Modules/Gathering.lua   Erkennt Sammel-Zauber (Kräuter, Erz, Kürschnern, Angeln) und Knotennamen per Tooltip
-Modules/Loot.lua        Loot-Quellen und Drop-Orte (/fc loot)
-Modules/Talents.lua     Talentbäume über die Classic-API (/fc talents)
-Modules/Traits.lua      Talent-Tooltips über das Trait-System auf Forever (/fc traits)
-Modules/Trainers.lua    Trainerdienste (/fc trainer)
-Modules/Quests.lua      Questdialoge und Abgaben (/fc quests)
-Modules/QuestCache.lua  Fragt alle Quests aus Data/QuestIDs.lua beim Server ab (/fc questcache)
-Data/QuestIDs.lua       Quest-IDs aus QuestV2.db2, erzeugt mit `foreverdb-import quest-ids`
-ForeverCollect.lua      Einstieg: Laden, Login-Scan, /fc help, /fc scan, /fc status
+Core/Util.lua           Chat output, tooltip scanner, small helpers
+Core/Database.lua       ForeverCollectDB, client/character context, catalog management
+Core/Registry.lua       Event frame and dispatcher for events and slash commands
+Modules/NPCs.lua        NPC capture and merging (merchants, trainers, bankers, flight masters)
+Core/Autosave.lua       Unsaved captures, /fc save, /fc autosave
+Modules/Items.lua       Item catalog with sources and coordinates (/fc items)
+Modules/Merchants.lua   Merchant inventories (/fc merchants)
+Modules/Gathering.lua   Detects gathering spells (herbs, ore, skinning, fishing) and node names via tooltip
+Modules/Loot.lua        Loot sources and drop locations (/fc loot)
+Modules/Talents.lua     Talent trees via the Classic API (/fc talents)
+Modules/Traits.lua      Talent tooltips via the trait system on Forever (/fc traits)
+Modules/Trainers.lua    Trainer services (/fc trainer)
+Modules/Quests.lua      Quest dialogs and turn-ins (/fc quests)
+Modules/QuestCache.lua  Queries all quests from Data/QuestIDs.lua from the server (/fc questcache)
+Data/QuestIDs.lua       Quest IDs from QuestV2.db2, generated with `foreverdb-import quest-ids`
+ForeverCollect.lua      Entry point: loading, login scan, /fc help, /fc scan, /fc status
 ```
 
-## Chat-Feedback
+## Chat Feedback
 
-Wenn neue Daten erfolgreich erfasst wurden, erscheint eine Meldung mit dem Präfix `New data captured` im Chat. Wiederholte automatische Aktualisierungen ohne neue Einträge bleiben still, um Chatspam zu vermeiden. Manuelle Scans zeigen weiterhin ihre zusammenfassende Scanmeldung.
+When new data has been captured successfully, a message with the prefix `New data captured` appears in chat. Repeated automatic updates without new entries stay silent to avoid chat spam. Manual scans still show their summary scan message.
 
-## Oberste Ebene
+## Top Level
 
 ```lua
 ForeverCollectDB = {
@@ -89,29 +85,29 @@ ForeverCollectDB = {
 }
 ```
 
-| Feld | Typ | Beschreibung |
+| Field | Type | Description |
 | --- | --- | --- |
-| `schemaVersion` | number | Aktuelle Datenbankschema-Version. Zurzeit `9`. |
-| `latestCatalogKey` | string | Schlüssel des zuletzt verwendeten Katalogs. |
-| `catalogs` | table | Kataloge, nach Client- und Charakterkontext gruppiert. |
+| `schemaVersion` | number | Current database schema version. Currently `9`. |
+| `latestCatalogKey` | string | Key of the most recently used catalog. |
+| `catalogs` | table | Catalogs, grouped by client and character context. |
 
-## Katalogschlüssel
+## Catalog Key
 
-Jeder Katalog wird unter folgendem Schlüssel gespeichert:
+Each catalog is stored under the following key:
 
 ```text
 projectID:interfaceVersion:build:seasonID:locale:classID:raceID:factionFile
 ```
 
-Beispiel:
+Example:
 
 ```text
 2:11509:61987:2:enUS:8:3:Alliance
 ```
 
-Der Schlüssel trennt Talentdaten für unterschiedliche Klassen, Rassen und Fraktionen. Die Locale bleibt ebenfalls Teil des Schlüssels, weil Namen, Beschreibungen und Tooltip-Texte lokalisiert sind.
+The key separates talent data for different classes, races and factions. The locale is also part of the key because names, descriptions and tooltip texts are localized.
 
-## Katalog-Metadaten
+## Catalog Metadata
 
 ```lua
 catalog = {
@@ -145,11 +141,11 @@ catalog = {
 }
 ```
 
-`scannedAt`, `questScanUpdatedAt`, `trainerScanUpdatedAt`, `itemsUpdatedAt`, `merchantScanUpdatedAt` und `lootUpdatedAt` enthalten Unix-Zeitstempel.
+`scannedAt`, `questScanUpdatedAt`, `trainerScanUpdatedAt`, `itemsUpdatedAt`, `merchantScanUpdatedAt` and `lootUpdatedAt` contain Unix timestamps.
 
-## Talente
+## Talents
 
-`specializations` ist ein Array der Talentbäume, gelesen über die Tab/Tier-API von Classic Era (`Modules/Talents.lua`). Forever (1.60+) baut seine Talente auf dem Trait-System (`C_Traits`) auf; dort bleibt `specializations` leer – Baumstruktur, Ränge und Voraussetzungen kommen aus den Trait-Tabellen des Clients (`TraitNode`, `TraitEdge`), die der Importer einliest. Was nur das Spiel kennt, sind die Tooltip-Texte mit ihren Werten: `Modules/Traits.lua` läuft beim Login (5 s verzögert) und bei `/fc scan` über die aktive Trait-Konfiguration und legt je Talent-Spell die Tooltips aller Ränge in `spellTooltips` ab. `/fc traits` zeigt, was der Client liefert. Automatische Scans melden sich nur einmal pro Sitzung; warum auf Forever keine Bäume gescannt werden, erklärt nur `/fc scan`.
+`specializations` is an array of talent trees, read via the Classic Era tab/tier API (`Modules/Talents.lua`). Forever (1.60+) builds its talents on the trait system (`C_Traits`); there `specializations` stays empty. Tree structure, ranks and prerequisites come from the client's trait tables (`TraitNode`, `TraitEdge`), which the importer reads. What only the game knows are the tooltip texts with their values: `Modules/Traits.lua` runs at login (delayed by 5 s) and on `/fc scan`, walks the active trait configuration and stores the tooltips of all ranks for each talent spell in `spellTooltips`. `/fc traits` shows what the client provides. Automatic scans report only once per session; only `/fc scan` explains why no trees are scanned on Forever.
 
 ```lua
 specializations = {
@@ -181,25 +177,25 @@ specializations = {
 }
 ```
 
-| Feld | Beschreibung |
+| Field | Description |
 | --- | --- |
-| `specializations[].index` | Position des Talentbaums im Client. |
-| `specializations[].id` | ID des Talentbaums beziehungsweise der Spezialisierung. |
-| `talents[].talentID` | Eindeutige Talent-ID. |
-| `talents[].spellID` | Zugehörige Zauber-ID. |
-| `talents[].tier`, `column` | Position im Talentbaum. |
-| `talents[].maxRank` | Maximale Rangstufe. |
-| `tooltipLines` | Lokalisierte Tooltip-Zeilen als linke und rechte Textspalte. |
+| `specializations[].index` | Position of the talent tree in the client. |
+| `specializations[].id` | ID of the talent tree or specialization. |
+| `talents[].talentID` | Unique talent ID. |
+| `talents[].spellID` | Associated spell ID. |
+| `talents[].tier`, `column` | Position in the talent tree. |
+| `talents[].maxRank` | Maximum rank. |
+| `tooltipLines` | Localized tooltip lines as left and right text columns. |
 
-Die Talentdaten beschreiben den verfügbaren Baum. Der aktuelle Charakterkontext wird durch den Katalogschlüssel festgelegt.
+The talent data describes the available tree. The current character context is determined by the catalog key.
 
-## Trainer-Skills
+## Trainer Skills
 
-`trainerSnapshots` wird automatisch aktualisiert, sobald ein Trainer geöffnet wird (`TRAINER_SHOW`) oder sich die Trainerliste ändert (`TRAINER_UPDATE`, z. B. nach dem Erlernen). Der Schlüssel ist die NPC-GUID; falls diese nicht verfügbar ist, wird die NPC-ID zusammen mit dem Namen verwendet.
+`trainerSnapshots` is updated automatically when a trainer is opened (`TRAINER_SHOW`) or the trainer list changes (`TRAINER_UPDATE`, e.g. after learning). The key is the NPC GUID; if it is not available, the NPC ID combined with the name is used.
 
-Beim Scannen werden vorübergehend alle Filter (`available`, `unavailable`, `used`) aktiviert und alle Kategorien aufgeklappt, sodass auch bereits gelernte und noch nicht verfügbare Dienste erfasst werden. Der vorherige UI-Zustand wird danach wiederhergestellt.
+During the scan, all filters (`available`, `unavailable`, `used`) are temporarily enabled and all categories expanded, so already learned and not yet available services are captured as well. The previous UI state is restored afterwards.
 
-Das Modul unterstützt beide API-Generationen: die Classic-Liste mit Header-Zeilen (`ExpandTrainerSkillLine`) und die flache Mainline-Liste von Forever 1.60+ (`GetTrainerServiceInfo` liefert dort `name, serviceType, texture, reqLevel, subText, category`).
+The module supports both API generations: the Classic list with header rows (`ExpandTrainerSkillLine`) and the flat mainline list of Forever 1.60+ (where `GetTrainerServiceInfo` returns `name, serviceType, texture, reqLevel, subText, category`).
 
 ```lua
 trainerSnapshots = {
@@ -249,11 +245,11 @@ trainerSnapshots = {
 }
 ```
 
-`category` ist `header`, `available`, `unavailable` oder `used` (bereits gelernt). `skillLine` ist der Name der zuletzt gelesenen Kategorie-Überschrift. `spellID` wird aus `link` gelesen (`spell:` oder `enchant:`). `requirements.skill` und `requirements.level` fehlen, wenn der Dienst keine entsprechende Voraussetzung hat. Ein erneutes Öffnen desselben Trainers ersetzt den bisherigen Snapshot.
+`category` is `header`, `available`, `unavailable` or `used` (already learned). `skillLine` is the name of the most recently read category header. `spellID` is read from `link` (`spell:` or `enchant:`). `requirements.skill` and `requirements.level` are absent if the service has no such requirement. Opening the same trainer again replaces the previous snapshot.
 
 ## Items
 
-`items` ist ein deduplizierter Katalog aller beobachteten Items, Schlüssel ist die `itemID`. Er wird ausschließlich über Quellen befüllt (Händler, Quests, Loot, Rezepte); Taschen- oder Ausrüstungsinhalte werden nicht erfasst.
+`items` is a deduplicated catalog of all observed items, keyed by `itemID`. It is filled exclusively through sources (merchants, quests, loot, recipes); bag or equipment contents are not captured.
 
 ```lua
 items = {
@@ -277,22 +273,22 @@ items = {
 }
 ```
 
-Das Addon erfasst nur, **wo** ein Item gesehen wurde. Statische Item-Daten (Name, Qualität, Stats, Verkaufspreis, Bindung …) kommen aus den DB2-Tabellen des Clients (`Item`, `ItemSparse`, `ItemSearchName`) über den Server-Importer und werden nicht mehr im Spiel gelesen.
+The addon only records **where** an item was seen. Static item data (name, quality, stats, sell price, binding …) comes from the client's DB2 tables (`Item`, `ItemSparse`, `ItemSearchName`) via the server importer and is no longer read in game.
 
-`sources` verknüpft jedes Item mit seinen Fundorten. Händler- und Quest-Quellen tragen die `location` des NPCs (Format wie unter „Quest-NPC und Ort“), Loot-Quellen eine Liste `locations` mit den Spielerpositionen beim Plündern (dedupliziert auf ca. 0,1 % Kartenauflösung, maximal 20 Einträge). Rezept-Quellen haben keine Weltkoordinate.
+`sources` links each item to where it was found. Merchant and quest sources carry the NPC's `location` (format as under "Quest NPC and Location"), loot sources a `locations` list with the player positions while looting (deduplicated to about 0.1% map resolution, at most 20 entries). Recipe sources have no world coordinate.
 
-## Händler
+## Merchants
 
-Händlerdaten werden über `GetMerchantItemInfo` gelesen, auf Forever 1.60+ über `C_MerchantFrame.GetItemInfo`.
+Merchant data is read via `GetMerchantItemInfo`, on Forever 1.60+ via `C_MerchantFrame.GetItemInfo`.
 
-`merchantSnapshots` wird beim Öffnen eines Händlers (`MERCHANT_SHOW`) und bei Änderungen des Sortiments (`MERCHANT_UPDATE`) aktualisiert. Der Schlüssel ist die NPC-GUID, sonst `npcID:name`. Ein erneutes Öffnen ersetzt den Snapshot.
+`merchantSnapshots` is updated when a merchant is opened (`MERCHANT_SHOW`) and when the inventory changes (`MERCHANT_UPDATE`). The key is the NPC GUID, otherwise `npcID:name`. Opening the merchant again replaces the snapshot.
 
 ```lua
 merchantSnapshots = {
     ["Creature-0-..."] = {
         capturedAt = 0,
         character = {},
-        merchantNPC = {},          -- NPC-Objekt inkl. location
+        merchantNPC = {},          -- NPC object incl. location
         canRepair = false,
         items = {
             {
@@ -301,14 +297,14 @@ merchantSnapshots = {
                 name = "Example Item",
                 link = "...",
                 texture = 123456,
-                price = 250,          -- Kupfer
+                price = 250,          -- copper
                 stackCount = 1,
                 maxStack = 5,
-                numAvailable = -1,    -- -1 = unbegrenzt
+                numAvailable = -1,    -- -1 = unlimited
                 isPurchasable = true,
                 isUsable = true,
                 hasExtendedCost = false,
-                extendedCost = {      -- nur bei hasExtendedCost
+                extendedCost = {      -- only with hasExtendedCost
                     { itemID = 1, name = "Token", link = "...", texture = 1, count = 3 },
                 },
             },
@@ -319,18 +315,18 @@ merchantSnapshots = {
 
 ## Loot
 
-`lootSources` aggregiert Loot-Beobachtungen pro Quelle (`LOOT_OPENED`). Der Schlüssel ist `<sourceType>:<sourceID>` aus der Quell-GUID (`Creature`, `GameObject`), `Fishing` beim Angeln. In Instanzen sind die GUIDs feindlicher Einheiten geheim; solcher Loot landet unter `Instance:<instanceID>` mit dem Instanznamen als `name`. Derselbe Loot-Container zählt pro Sitzung nur einmal (ohne GUID, also bei `Instance`, lässt sich das nicht erkennen).
+`lootSources` aggregates loot observations per source (`LOOT_OPENED`). The key is `<sourceType>:<sourceID>` from the source GUID (`Creature`, `GameObject`), or `Fishing` when fishing. Inside instances, the GUIDs of hostile units are secret; such loot is stored under `Instance:<instanceID>` with the instance name as `name`. The same loot container counts only once per session (without a GUID, i.e. for `Instance`, this cannot be detected).
 
 ```lua
 lootSources = {
     ["Creature:456"] = {
         sourceType = "Creature",
         sourceID = 456,
-        name = "Mob",              -- falls die Quelle das aktuelle Ziel war
-        lootCount = 3,             -- geöffnete Loot-Fenster
+        name = "Mob",              -- if the source was the current target
+        lootCount = 3,             -- loot windows opened
         firstSeenAt = 0,
         lastSeenAt = 0,
-        locations = { {} },        -- Spielerposition je Loot-Vorgang, max. 100
+        locations = { {} },        -- player position per loot, max. 100
         items = {
             [12345] = {
                 itemID = 12345,
@@ -342,21 +338,21 @@ lootSources = {
                 timesSeen = 2,
                 quantityTotal = 3,
                 lastSeenAt = 0,
-                locations = { {} },  -- Drop-Orte dieses Items, max. 20
+                locations = { {} },  -- drop locations of this item, max. 20
             },
         },
-        money = { timesSeen = 3, total = 1234 },  -- Kupfer
+        money = { timesSeen = 3, total = 1234 },  -- copper
     },
 }
 ```
 
-## Berufe
+## Professions
 
-Rezepte werden nicht mehr im Spiel gelesen. Rezept↔Beruf, Reagenzien, Werkzeuge, Cooldowns und Lernquellen kommen aus den DB2-Tabellen (`SkillLineAbility`, `SpellReagents`, `SpellTotems`, `SpellCooldowns`, `SpellCastingRequirements`, `ItemEffect`) über den Server-Importer.
+Recipes are no longer read in game. Recipe↔profession, reagents, tools, cooldowns and learning sources come from the DB2 tables (`SkillLineAbility`, `SpellReagents`, `SpellTotems`, `SpellCooldowns`, `SpellCastingRequirements`, `ItemEffect`) via the server importer.
 
 ## Quests
 
-`quests` wird nach Quest-ID indiziert:
+`quests` is indexed by quest ID:
 
 ```lua
 quests = {
@@ -400,19 +396,19 @@ quests = {
 }
 ```
 
-### Quest-Phasen
+### Quest Phases
 
-| Phase | Erfasste Daten |
+| Phase | Captured data |
 | --- | --- |
-| `QUEST_DETAIL` | Titel, Annahmetext, Ziele und angebotene Belohnungen. |
-| `QUEST_PROGRESS` | Fortschrittstext, benötigte Items und benötigtes Geld. |
-| `QUEST_COMPLETE` | Abschlusstext und finale Belohnungen. |
-| `QUEST_ITEM_UPDATE` | Aktualisiert Itemdaten im zuletzt aktiven Dialog, wenn sie verzögert geladen wurden. |
-| `QUEST_TURNED_IN` | Tatsächlich gewährte XP und Geldbelohnung. |
+| `QUEST_DETAIL` | Title, accept text, objectives and offered rewards. |
+| `QUEST_PROGRESS` | Progress text, required items and required money. |
+| `QUEST_COMPLETE` | Completion text and final rewards. |
+| `QUEST_ITEM_UPDATE` | Updates item data in the most recently active dialog when it loaded late. |
+| `QUEST_TURNED_IN` | XP and money actually awarded. |
 
-### Quest-NPC und Ort
+### Quest NPC and Location
 
-Jede direkte Dialogbeobachtung enthält ein optionales `questNPC`-Objekt. Die Rolle ist `giver` für `QUEST_DETAIL`, `progress` für `QUEST_PROGRESS` und `turnIn` für `QUEST_COMPLETE`.
+Every direct dialog observation contains an optional `questNPC` object. The role is `giver` for `QUEST_DETAIL`, `progress` for `QUEST_PROGRESS` and `turnIn` for `QUEST_COMPLETE`.
 
 ```lua
 questNPC = {
@@ -439,11 +435,11 @@ questNPC = {
 }
 ```
 
-`guid` ist eine Zeichenkette. `objectID` und `npcID` sind numerische Client-IDs, sofern der Client sie liefert; `uiMapID`, `mapType` und `parentMapID` sind numerische Kartenwerte. `name`, `mapName`, `zone` und `subZone` sind lokalisierte Texte. `x` und `y` sind normalisierte Kartenkoordinaten des Spielers beim Öffnen des Dialogs. `worldX` und `worldY` werden mit `C_Map.GetWorldPosFromMapPos()` berechnet; `worldContinentID` identifiziert das zugehörige Welt-/Kontinent-Koordinatensystem. Alle Koordinaten sind daher eine Näherung an die NPC-Position und können fehlen, wenn der Client keine Kartendaten liefert. `QUEST_ITEM_UPDATE` erzeugt keine neue Beobachtung und ersetzt den bereits gespeicherten NPC-Ort nicht.
+`guid` is a string. `objectID` and `npcID` are numeric client IDs, if the client provides them; `uiMapID`, `mapType` and `parentMapID` are numeric map values. `name`, `mapName`, `zone` and `subZone` are localized texts. `x` and `y` are the player's normalized map coordinates when the dialog was opened. `worldX` and `worldY` are calculated with `C_Map.GetWorldPosFromMapPos()`; `worldContinentID` identifies the corresponding world/continent coordinate system. All coordinates are therefore an approximation of the NPC position and can be missing if the client provides no map data. `QUEST_ITEM_UPDATE` does not create a new observation and does not replace the NPC location already stored.
 
-### NPC-Katalog
+### NPC Catalog
 
-`npcs` enthält alle erkannten NPCs aus Questdialogen sowie aus Händler-, Trainer-, Bank-, Flugmeister- und Gastwirt-Interaktionen. Das Sortiment eines Händlers liegt in `merchantSnapshots`, die Dienste eines Trainers in `trainerSnapshots`. Ein NPC kann mehrere `interactionTypes` haben. Unterstützte Werte sind `questGiver`, `merchant`, `trainer`, `banker`, `flightMaster` und `innkeeper`.
+`npcs` contains all detected NPCs from quest dialogs as well as from merchant, trainer, banker, flight master and innkeeper interactions. A merchant's inventory is in `merchantSnapshots`, a trainer's services in `trainerSnapshots`. An NPC can have several `interactionTypes`. Supported values are `questGiver`, `merchant`, `trainer`, `banker`, `flightMaster` and `innkeeper`.
 
 ```lua
 npcs = {
@@ -462,12 +458,12 @@ npcs = {
 }
 ```
 
-Beim Laden werden bestehende `questNPC`-Einträge auf dieses gemeinsame Format normalisiert und in den NPC-Katalog übernommen. Fehlende Informationen aus älteren Beobachtungen können dabei nicht rückwirkend ergänzt werden.
-Wenn der Client keinen Kreaturentyp oder keine Klassifizierung liefert, werden dafür `"Unknown"` beziehungsweise `"unknown"` gespeichert.
+On load, existing `questNPC` entries are normalized to this common format and added to the NPC catalog. Information missing from older observations cannot be filled in retroactively.
+If the client provides no creature type or classification, `"Unknown"` or `"unknown"` is stored respectively.
 
-### Belohnungen
+### Rewards
 
-Ein `rewards`-Objekt enthält:
+A `rewards` object contains:
 
 ```lua
 rewards = {
@@ -479,10 +475,10 @@ rewards = {
 }
 ```
 
-Item-Einträge enthalten unter anderem `itemID`, `name`, `link`, `texture`, `quantity`, `quality` und `isUsable`; die Items werden zusätzlich im Item-Katalog `items` mit der Quelle `quest:<questID>` und dem Standort des Quest-NPCs eingetragen. Zauber-Einträge enthalten `spellID`, `name`, `texture`, `isTradeskill` und `isSpellLearned`.
+Item entries contain, among others, `itemID`, `name`, `link`, `texture`, `quantity`, `quality` and `isUsable`; the items are also added to the item catalog `items` with the source `quest:<questID>` and the quest NPC's location. Spell entries contain `spellID`, `name`, `texture`, `isTradeskill` and `isSpellLearned`.
 
-## Kontext und Varianten
+## Context and Variants
 
-Questdaten werden mit dem Charakterkontext der Beobachtung gespeichert, da Questtexte und Belohnungen von Klasse, Rasse, Fraktion, Level oder Charakterfortschritt abhängen können. Talentdaten werden dagegen durch den Katalogschlüssel nach Klasse, Rasse und Fraktion getrennt.
+Quest data is stored with the character context of the observation, since quest texts and rewards can depend on class, race, faction, level or character progress. Talent data, on the other hand, is separated by class, race and faction through the catalog key.
 
-Die Quelldaten sind beobachtete Clientdaten. Der Client bietet keinen vollständigen globalen Questkatalog; eine Quest wird erst gespeichert, wenn der entsprechende Dialog geöffnet wurde.
+The source data is observed client data. The client offers no complete global quest catalog; a quest is only stored once the corresponding dialog has been opened.

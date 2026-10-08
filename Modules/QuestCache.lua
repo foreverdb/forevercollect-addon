@@ -99,4 +99,4 @@ addon:RegisterCommand("questcache", function(argument)
         ))
         ticker = C_Timer.NewTicker(TICK_SECONDS, tick)
     end
-end, "Alle Quests beim Server abfragen, damit questcache.wdb sie enthält (stop, status, reset)")
+end, "Query all quests from the server so questcache.wdb contains them (stop, status, reset)")

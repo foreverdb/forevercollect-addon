@@ -107,4 +107,4 @@ addon:RegisterCommand("items", function()
         return
     end
     printMessage(string.format("Item catalog contains %d items.", countItems(catalog)))
-end, "Anzahl erfasster Items anzeigen")
+end, "Show number of captured items")

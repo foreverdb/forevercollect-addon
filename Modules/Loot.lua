@@ -147,8 +147,7 @@ local function describeSource(guid, gather)
     end
     local sourceType, sourceID = parseGUID(guid)
     -- Inside instances the target of a hostile unit is secret, so creatures
-    -- looted there stay unnamed; the importer fills those names from the
-    -- client's creature cache (creaturecache.wdb).
+    -- looted there stay unnamed.
     local name
     if guid and readable(UnitGUID("target")) == guid then
         name = readable(UnitName("target"))
@@ -391,4 +390,4 @@ addon:RegisterCommand("loot", function()
         sourceCount,
         itemCount
     ))
-end, "Loot-Quellen und -Items anzeigen")
+end, "Show loot sources and items")

@@ -187,4 +187,4 @@ addon:RegisterCommand("merchants", function()
         latest.merchantNPC.name or "Unknown",
         formatTimestamp(latest.capturedAt)
     ))
-end, "Händler-Sortimente anzeigen")
+end, "Show merchant inventories")
