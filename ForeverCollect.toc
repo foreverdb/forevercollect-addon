@@ -1,8 +1,8 @@
 ## Interface: 11509, 16001
 ## Title: ForeverCollect
-## Notes: A starting point for a Classic collection addon.
-## Author: Alex
-## Version: 0.2
+## Notes: Collects quests, NPCs, merchants, trainers, loot and talents for ForeverDB.
+## Author: Alex <alex@alexbangert.dev>
+## Version: 0.3
 ## DefaultState: enabled
 ## SavedVariables: ForeverCollectDB
 

@@ -150,15 +150,27 @@ At least one of the two fields is set; lines without text are omitted.
 
 | Field | Type | Opt. | Description |
 |---|---|---|---|
-| `role` | string | – | Role at the first observation: `giver`, `progress`, `turnIn` (quest), `merchant`, `trainer`, `banker`, `flightMaster`, `innkeeper`. |
+| `role` | string | – | Role at the first observation: `giver`, `progress`, `turnIn` (quest), otherwise the interaction type. |
 | `guid` | string | ✓ | Unit GUID. |
 | `objectType` | string | ✓ | First GUID segment, e.g. `"Creature"`, `"GameObject"`. |
 | `objectID`, `npcID` | number | ✓ | Creature ID (both identical). |
 | `name` | string | ✓ | Localized name. |
-| `interactionTypes` | string[] | – | All observed interactions: `questGiver`, `merchant`, `trainer`, `banker`, `flightMaster`, `innkeeper`. |
+| `subtitle` | string | ✓ | Title below the name from the unit tooltip, e.g. `"Warrior Trainer"`. |
+| `reaction` | number | ✓ | `UnitReaction(unit, "player")` (1 hated … 8 exalted). |
+| `interactionTypes` | string[] | – | All observed interactions: `questGiver`, `merchant`, `trainer`, `banker`, `flightMaster`, `innkeeper`, `auctioneer`, `stableMaster`, `guildMaster`, `tabardVendor`, `battlemaster`, `spiritHealer`, `gossip`. `gossip` means only the gossip window or quest greeting was seen, e.g. a trainer of another class. |
+| `gossip` | Gossip | ✓ | Last seen gossip window (see below). |
 | `creatureType` | string | – | `UnitCreatureType`, otherwise `"Unknown"`. |
 | `classification` | string | – | `UnitClassification` (`normal`, `elite`, `rare`, …), otherwise `"unknown"`. |
 | `location` | Location | – | Location (see 3.1). |
+
+`Gossip`, from `GOSSIP_SHOW` (`C_GossipInfo`) or `QUEST_GREETING`; overwritten on every visit:
+
+| Field | Type | Opt. | Description |
+|---|---|---|---|
+| `capturedAt` | number | – | Unix timestamp. |
+| `text` | string | ✓ | Gossip or greeting text. |
+| `options` | object[] | – | `{name, icon?, gossipOptionID?}` (legacy clients: `{name, type}`). |
+| `availableQuests`, `activeQuests` | object[] | ✓ | `{questID?, title}`. |
 
 ---
 
