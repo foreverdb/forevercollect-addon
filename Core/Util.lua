@@ -59,6 +59,19 @@ function addon.AddUniqueValue(values, value)
     values[#values + 1] = value
 end
 
+-- Copies plain data tables (no metatables, no cycles), so a table stored in
+-- one place of the database is never shared with another.
+function addon.CopyTable(value)
+    if type(value) ~= "table" then
+        return value
+    end
+    local copy = {}
+    for key, inner in pairs(value) do
+        copy[key] = addon.CopyTable(inner)
+    end
+    return copy
+end
+
 local function locationKey(location)
     return string.format(
         "%d:%d:%d",

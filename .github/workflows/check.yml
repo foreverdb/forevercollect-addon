@@ -15,7 +15,9 @@ jobs:
       - name: Install Lua 5.1
         run: sudo apt-get update -qq && sudo apt-get install -y -qq lua5.1
       - name: Check Lua syntax
-        run: luac5.1 -p ForeverCollect.lua Core/*.lua Modules/*.lua
+        run: luac5.1 -p ForeverCollect.lua Core/*.lua Modules/*.lua tests/*.lua
+      - name: Unit tests
+        run: for test in tests/*_test.lua; do lua5.1 "$test" || exit 1; done
       - name: Check TOC
         run: |
           grep -q '^## Version: ' ForeverCollect.toc || { echo "::error::ForeverCollect.toc has no Version"; exit 1; }

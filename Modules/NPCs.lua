@@ -1,6 +1,7 @@
 local _, addon = ...
 
 local addUniqueValue = addon.AddUniqueValue
+local copyTable = addon.CopyTable
 local getClientInfo = addon.GetClientInfo
 local getOrCreateCatalog = addon.GetOrCreateCatalog
 local initializeDatabase = addon.InitializeDatabase
@@ -188,14 +189,17 @@ local function mergeNPC(catalog, npc)
                 if value ~= nil and key ~= "interactionTypes"
                     and (key ~= "role" or existing.role == nil)
                 then
-                    existing[key] = value
+                    existing[key] = copyTable(value)
                 end
             end
             return existing
         end
     end
-    catalog.npcs[#catalog.npcs + 1] = npc
-    return npc
+    -- Stored as a copy: callers pass tables that live on elsewhere (a quest
+    -- observation's questNPC), and later merges must not rewrite those.
+    local stored = copyTable(npc)
+    catalog.npcs[#catalog.npcs + 1] = stored
+    return stored
 end
 addon.MergeNPC = mergeNPC
 
