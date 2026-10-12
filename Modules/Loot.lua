@@ -147,15 +147,22 @@ local function describeSource(guid, gather)
     end
     local sourceType, sourceID = parseGUID(guid)
     -- Inside instances the target of a hostile unit is secret, so creatures
-    -- looted there stay unnamed.
-    local name
+    -- looted there stay unnamed and untyped.
+    local name, unit
     if guid and readable(UnitGUID("target")) == guid then
         name = readable(UnitName("target"))
+        if sourceType == "Creature" then
+            unit = {
+                creatureType = UnitCreatureType and readable(UnitCreatureType("target")) or nil,
+                creatureFamily = UnitCreatureFamily and readable(UnitCreatureFamily("target")) or nil,
+                classification = UnitClassification and readable(UnitClassification("target")) or nil,
+            }
+        end
     end
-    return sourceType or "Unknown", sourceID, name
+    return sourceType or "Unknown", sourceID, name, unit
 end
 
-local function getOrCreateSource(catalog, sourceType, sourceID, name, now, gather)
+local function getOrCreateSource(catalog, sourceType, sourceID, name, now, gather, unit)
     local profession = gather and gather.profession or nil
     local key = getSourceKey(sourceType, sourceID, profession)
     local source = catalog.lootSources[key]
@@ -176,6 +183,11 @@ local function getOrCreateSource(catalog, sourceType, sourceID, name, now, gathe
         source.gatherSpellID = gather.spellID
     end
     source.name = name or source.name
+    if unit then
+        source.creatureType = unit.creatureType or source.creatureType
+        source.creatureFamily = unit.creatureFamily or source.creatureFamily
+        source.classification = unit.classification or source.classification
+    end
     -- Positions are unavailable inside instances, so the instance ties the
     -- source (bosses and trash alike) to its dungeon.
     source.instanceID = getInstance() or source.instanceID
@@ -225,11 +237,11 @@ local function scanLoot()
             if guid and seenLootGUIDs[guid] and not gather then
                 -- already counted this container
             else
-                local sourceType, sourceID, sourceName = describeSource(guid or nil, gather)
+                local sourceType, sourceID, sourceName, unit = describeSource(guid or nil, gather)
                 if gather and not sourceName then
                     sourceName = gather.nodeName
                 end
-                local source = getOrCreateSource(catalog, sourceType, sourceID, sourceName, now, gather)
+                local source = getOrCreateSource(catalog, sourceType, sourceID, sourceName, now, gather, unit)
                 local sourceKey = getSourceKey(sourceType, sourceID, gather and gather.profession)
                 if not countedSources[sourceKey] then
                     countedSources[sourceKey] = true

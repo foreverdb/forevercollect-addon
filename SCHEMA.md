@@ -345,6 +345,9 @@ Replaced when a merchant is opened and on `MERCHANT_UPDATE`.
 | `gatherSpellID` | number | ✓ | Spell ID of the gathering spell (e.g. 2366 Herb Gathering). |
 | `sourceID` | number | ✓ | Creature/GameObject ID from the GUID; for `Instance` the instance ID from `GetInstanceInfo()`. Absent for `Fishing`, `Item` and `Unknown`. |
 | `name` | string | ✓ | Name of the source if it was the target while looting; for herb/ore nodes the most recently shown tooltip title of the node. |
+| `creatureType` | string | ✓ | `UnitCreatureType` of a `Creature` source that was the target while looting (e.g. `Beast`). Absent inside instances, where the unit is secret. |
+| `creatureFamily` | string | ✓ | `UnitCreatureFamily` under the same condition (e.g. `Spider`); beasts and demons only. |
+| `classification` | string | ✓ | `UnitClassification` under the same condition (`normal`, `elite`, `rare`, …). |
 | `instanceID` | number | ✓ | Instance ID (`GetInstanceInfo()`, = map ID) of the last observation inside an instance. There `C_Map` provides no position and `locations` stays empty; the instance assigns the source to its dungeon. |
 | `firstSeenAt` | number | – | First observation. |
 | `lastSeenAt` | number | – | Last observation. |
@@ -505,5 +508,5 @@ Catalogs first created with version 9 do not contain these fields.
 - New: `items`, `merchantSnapshots`, `lootSources`, `tradeSkills` and the timestamps `itemsUpdatedAt`, `merchantScanUpdatedAt`, `lootUpdatedAt`, `tradeSkillsUpdatedAt`.
 - New: `trainerSnapshots` is actually filled (documented in 8, but empty).
 - Removed: `skillSnapshots`, `skillsScannedAt`, `abilitySnapshots[*].spells` (see section 13).
-- Added later (without a version bump, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (section 14); `encounters` (section 15) and `lootSources[*].instanceID` (addon 0.1.10); `CountedLocation` with `count`/`firstSeenAt`/`lastSeenAt`/`times` for profession finds (addon 0.1.11).
+- Added later (without a version bump, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (section 14); `encounters` (section 15) and `lootSources[*].instanceID` (addon 0.1.10); `CountedLocation` with `count`/`firstSeenAt`/`lastSeenAt`/`times` for profession finds (addon 0.1.11); `lootSources[*].creatureType`/`creatureFamily`/`classification` (after addon 0.3.1).
 - Removed later (without a version bump, fields were optional): `abilitySnapshots`, `abilitiesScannedAt` – rune scan dropped; `items[*]` details (`detailsLoaded` & co.) and `tradeSkills`/`tradeSkillsUpdatedAt` – static spell, item and recipe data comes from wow.export.
