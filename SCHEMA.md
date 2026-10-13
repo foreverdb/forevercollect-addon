@@ -25,10 +25,10 @@ This document fully describes the structure of the SavedVariable `ForeverCollect
 ### Catalog Key
 
 ```
-<projectID>:<interfaceVersion>:<seasonID>:<locale>:<classID>:<raceID>:<factionFile>
+<projectID>:<interfaceVersion>:<build>:<seasonID>:<locale>:<classID>:<raceID>:<factionFile>
 ```
 
-Example: `2:11509:2:enUS:5:8:Horde`. A catalog is thus separate per client project, interface version, season, language, class, race and faction. Several characters with the same combination share one catalog.
+Example: `2:11509:69722:2:enUS:5:8:Horde`. A catalog is thus separate per client project, interface version, build, season, language, class, race and faction; every client patch starts a fresh catalog. Several characters with the same combination share one catalog.
 
 ---
 
