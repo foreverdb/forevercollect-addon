@@ -495,7 +495,7 @@ Map `CharacterKey → CharacterSnapshot`, the latest state of each own character
 | Field | Type | Opt. | Description |
 |---|---|---|---|
 | `capturedAt` | number | – | Time of the snapshot. |
-| `character` | Character | – | Section 3.2, plus `guid` (player GUID), `guild`, `guildRank` and `pvpRank` (Classic honor rank, only if > 0), each optional. |
+| `character` | Character | – | Section 3.2, plus `guid` (player GUID), `surname` (Forever: last name, second return of `UnitName`; `name` is the first name), `guild`, `guildRank` and `pvpRank` (Classic honor rank, only if > 0), each optional. |
 | `equipment` | EquippedItem[] | – | Equipped items, ordered by slot; empty slots are missing. |
 | `talents` | { tab, index, talentID?, rank }[] | ✓ | Classic Era: learned talents (rank > 0) by talent tab and talent index (`GetTalentInfo` order). Absent on Forever. |
 | `traits` | { configID, treeIDs: number[], nodes: { nodeID, entryID?, rank }[] } | ✓ | Forever: purchased trait nodes of the active configuration. Absent on Classic Era. |

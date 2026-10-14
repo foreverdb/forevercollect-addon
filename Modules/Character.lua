@@ -207,6 +207,10 @@ end
 local function buildSnapshot()
     local character = getCharacterContext()
     character.guid = UnitGUID("player")
+    -- Forever has first and last names: UnitName returns the last name where other units
+    -- return their realm. Classic Era returns nothing there for the own character.
+    local _, surname = UnitName("player")
+    character.surname = surname ~= "" and surname or nil
     local guildName, guildRank = call(GetGuildInfo, "player")
     character.guild = guildName
     character.guildRank = guildRank
