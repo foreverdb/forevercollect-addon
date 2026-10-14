@@ -18,7 +18,7 @@ This document fully describes the structure of the SavedVariable `ForeverCollect
 | Field | Type | Opt. | Description |
 |---|---|---|---|
 | `schemaVersion` | number | – | Schema version of the file; raised to at least 9 on load. |
-| `settings` | table | ✓ | Addon settings, e.g. `verbose` (chat notice per capture, default `true`) and `questCacheCrawl` (`{ build, nextIndex }`, position of `/fc questcache`). Ignored by the server. |
+| `settings` | table | ✓ | Addon settings, e.g. `verbose` (chat notice per capture, default `true`) `questCacheCrawl` (`{ build, nextIndex }`, position of `/fc questcache`) and `armory` (`true` after `/fc armory on`; `characters` stays empty without it). Ignored by the server. |
 | `latestCatalogKey` | string | ✓ | Key of the most recently used catalog in `catalogs`. Absent until a catalog has been created. |
 | `catalogs` | map<string, Catalog> | – | All catalogs; see below for the key. |
 
@@ -77,8 +77,9 @@ Example: `2:11509:69722:2:enUS:5:8:Horde`. A catalog is thus separate per client
 | `quests` | map<number, Quest> | Quests, keyed by `questID` | 11 |
 | `npcs` | NPC[] | NPC catalog | 12 |
 | `spellTooltips` | map<number, SpellTooltip> | Tooltips of the class's talent rank spells, keyed by `spellID` | 14 |
+| `characters` | map<CharacterKey, CharacterSnapshot> | Armory snapshot of the own characters (opt-in) | 16 |
 
-All collections are always present (possibly empty); `spellTooltips` and `encounters` were added without a version bump and are missing in older catalogs.
+All collections are always present (possibly empty); `spellTooltips`, `encounters` and `characters` were added without a version bump and are missing in older catalogs.
 
 **`NPCKey`**: GUID of the NPC (`"Creature-0-…"`); if no GUID is available, `"<npcID>:<name>"` (`addon.GetNPCKey`).
 **`CharacterKey`**: Player GUID (`"Player-…"`), alternatively `"<Name>-<Realm>"`.
@@ -485,6 +486,42 @@ Map `encounterID → Encounter`. Between `ENCOUNTER_START` and `ENCOUNTER_END`, 
 | `firstSeenAt`, `lastSeenAt` | number | – | First/last observation. |
 | `npcs` | { npcID: number, name?: string, via: string }[] | – | Boss creatures; `via = "boss"` for boss units, `"target"` if no boss unit was visible and a dead creature was targeted after a win (less reliable). |
 
+## 16. `characters`
+
+Map `CharacterKey → CharacterSnapshot`, the latest state of each own character of the catalog for its public ForeverDB profile (Armory). **Opt-in:** only written after `/fc armory on` (`settings.armory`); `/fc armory off` empties `characters` in every catalog. The snapshot is taken 5 s after entering the world, 2 s after equipment, talent, level, skill, guild or trait changes and on logout. It is only replaced when `character`, `equipment`, `talents`, `traits` or `professions` changed; `stats` and `capturedAt` refresh together with such a change.
+
+### `CharacterSnapshot`
+
+| Field | Type | Opt. | Description |
+|---|---|---|---|
+| `capturedAt` | number | – | Time of the snapshot. |
+| `character` | Character | – | Section 3.2, plus `guid` (player GUID), `guild`, `guildRank` and `pvpRank` (Classic honor rank, only if > 0), each optional. |
+| `equipment` | EquippedItem[] | – | Equipped items, ordered by slot; empty slots are missing. |
+| `talents` | { tab, index, talentID?, rank }[] | ✓ | Classic Era: learned talents (rank > 0) by talent tab and talent index (`GetTalentInfo` order). Absent on Forever. |
+| `traits` | { configID, treeIDs: number[], nodes: { nodeID, entryID?, rank }[] } | ✓ | Forever: purchased trait nodes of the active configuration. Absent on Classic Era. |
+| `professions` | Profession[] | ✓ | Skill lines; see below. |
+| `stats` | table | – | Character sheet values at `capturedAt`, active buffs included: `primary[1..5]` (`{ base, effective }`, Strength…Spirit), `armor` (`{ base, effective }`), `resistances[1..6]` (`{ base, total }`, Holy…Arcane), `health`, `powerType`, `power` (max), `attackPower`, `rangedAttackPower`, `critChance`, `rangedCritChance`, `spellCritChance`, `bonusHealing`, `dodgeChance`, `parryChance`, `blockChance`. Every value is optional. |
+
+### `EquippedItem`
+
+| Field | Type | Opt. | Description |
+|---|---|---|---|
+| `slot` | number | – | Inventory slot, `0` (ammo) … `19` (tabard). |
+| `itemID` | number | – | Item ID. |
+| `enchantID` | number | ✓ | `SpellItemEnchantment` ID of the permanent enchant. |
+| `suffixID` | number | ✓ | Random property/suffix ID ("of the Bear"); negative values are random suffixes. |
+| `link` | string | – | Item link as returned by `GetInventoryItemLink`. |
+
+### `Profession`
+
+| Field | Type | Opt. | Description |
+|---|---|---|---|
+| `name` | string | – | Localized skill name. |
+| `skillLineID` | number | ✓ | `SkillLine` ID (Forever, via `GetProfessionInfo`). |
+| `header` | string | ✓ | Classic Era: the skill frame's category header (localized, e.g. "Professions", "Weapon Skills"). All expanded lines are stored; the server picks the professions. |
+| `rank`, `maxRank` | number | ✓ | Current and maximum skill. |
+| `modifier` | number | ✓ | Classic Era: temporary skill bonus, only if not 0. |
+
 ---
 
 ## 13. Legacy Data from Earlier Schema Versions
@@ -508,5 +545,5 @@ Catalogs first created with version 9 do not contain these fields.
 - New: `items`, `merchantSnapshots`, `lootSources`, `tradeSkills` and the timestamps `itemsUpdatedAt`, `merchantScanUpdatedAt`, `lootUpdatedAt`, `tradeSkillsUpdatedAt`.
 - New: `trainerSnapshots` is actually filled (documented in 8, but empty).
 - Removed: `skillSnapshots`, `skillsScannedAt`, `abilitySnapshots[*].spells` (see section 13).
-- Added later (without a version bump, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (section 14); `encounters` (section 15) and `lootSources[*].instanceID` (addon 0.1.10); `CountedLocation` with `count`/`firstSeenAt`/`lastSeenAt`/`times` for profession finds (addon 0.1.11); `lootSources[*].creatureType`/`creatureFamily`/`classification` (after addon 0.3.1).
+- Added later (without a version bump, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (section 14); `encounters` (section 15) and `lootSources[*].instanceID` (addon 0.1.10); `CountedLocation` with `count`/`firstSeenAt`/`lastSeenAt`/`times` for profession finds (addon 0.1.11); `lootSources[*].creatureType`/`creatureFamily`/`classification` (after addon 0.3.1); `characters` and `settings.armory` (section 16, after addon 0.3.2).
 - Removed later (without a version bump, fields were optional): `abilitySnapshots`, `abilitiesScannedAt` – rune scan dropped; `items[*]` details (`detailsLoaded` & co.) and `tradeSkills`/`tradeSkillsUpdatedAt` – static spell, item and recipe data comes from wow.export.

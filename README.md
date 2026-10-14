@@ -26,6 +26,7 @@ The version is set in `ForeverCollect.toc` (`## Version:`). When it is bumped on
 /fc verbose   Toggle notices for every capture (default: on)
 /fc save      Save collected data now (reloads the UI)
 /fc autosave  Save automatically: /fc autosave 30 (minutes) or /fc autosave off
+/fc armory    Public character profile: /fc armory on or off (default: off)
 ```
 
 Every capture (quest dialog, turn-in, loot, merchant, trainer, banker, flight master) is announced in chat; `/fc verbose` turns these notices off and on again (setting in `ForeverCollectDB.settings`, not part of uploads).
@@ -33,6 +34,8 @@ Every capture (quest dialog, turn-in, loot, merchant, trainer, banker, flight ma
 **Quest type:** On every accept and turn-in, the quest type from the quest log is recorded (`tag`: Dungeon, Raid, Elite, PvP …, plus `suggestedGroup`). Quests captured earlier get their type as soon as they are accepted or turned in again.
 
 **Quest catalog:** The website's quest data comes from the client (`QuestV2.db2` and the quest cache `Cache/WDB/<locale>/questcache.wdb`); the observations add NPCs, progress and turn-in texts. The cache only contains quests the client has already queried from the server. `/fc questcache` queries all IDs from `Data/QuestIDs.lua` at a throttled rate (20/s, a bit over 5 minutes, resumable); afterwards, log out so the client writes the cache, then run `foreverdb-import all`.
+
+**Armory (opt-in):** With `/fc armory on`, the addon keeps a snapshot of the own character per catalog in `characters`: name, realm, guild, equipped items (with enchant and random suffix), spent talents (Classic) or purchased trait nodes (Forever), skill lines and the character sheet values. The upload gives the character a public profile on ForeverDB. It is off by default because name and realm otherwise never leave the computer; `/fc armory off` removes all stored snapshots (written with the next `/reload` or logout). Details: `SCHEMA.md` section 16.
 
 **Saving:** WoW only writes addon data to disk on logout, exit or `/reload`. Everything since the last save lives only in memory and is lost on a crash or a killed process. The addon therefore counts captures since the last save and, after 50 captures or 30 minutes, reminds you to run `/fc save` with a popup ("Save now" reloads the UI, "Later" postpones) and in chat. `/fc save` is a UI reload and never happens in combat, while casting or with a dialog open. With `/fc autosave <minutes>`, the addon reloads on its own whenever nothing is going on. `/fc status` shows the unsaved captures.
 
@@ -62,6 +65,7 @@ Modules/Gathering.lua   Detects gathering spells (herbs, ore, skinning, fishing)
 Modules/Loot.lua        Loot sources and drop locations (/fc loot)
 Modules/Talents.lua     Talent trees via the Classic API (/fc talents)
 Modules/Traits.lua      Talent tooltips via the trait system on Forever (/fc traits)
+Modules/Character.lua   Opt-in Armory snapshot of the own character (/fc armory)
 Modules/Trainers.lua    Trainer services (/fc trainer)
 Modules/Quests.lua      Quest dialogs and turn-ins (/fc quests)
 Modules/QuestCache.lua  Queries all quests from Data/QuestIDs.lua from the server (/fc questcache)
@@ -249,7 +253,7 @@ trainerSnapshots = {
 
 ## Items
 
-`items` is a deduplicated catalog of all observed items, keyed by `itemID`. It is filled exclusively through sources (merchants, quests, loot, recipes); bag or equipment contents are not captured.
+`items` is a deduplicated catalog of all observed items, keyed by `itemID`. It is filled exclusively through sources (merchants, quests, loot, recipes); bag contents are not captured, equipment only in the opt-in Armory snapshot (`characters`, see below).
 
 ```lua
 items = {
