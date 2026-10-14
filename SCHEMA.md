@@ -488,7 +488,7 @@ Map `encounterID → Encounter`. Between `ENCOUNTER_START` and `ENCOUNTER_END`, 
 
 ## 16. `characters`
 
-Map `CharacterKey → CharacterSnapshot`, the latest state of each own character of the catalog for its public ForeverDB profile (Armory). **Opt-in:** only written after `/fc armory on` (`settings.armory`); `/fc armory off` empties `characters` in every catalog. The snapshot is taken 5 s after entering the world, 2 s after equipment, talent, level, skill, guild or trait changes and on logout. It is only replaced when `character`, `equipment`, `talents`, `traits` or `professions` changed; `stats` and `capturedAt` refresh together with such a change.
+Map `CharacterKey → CharacterSnapshot`, the latest state of each own character of the catalog for its public ForeverDB profile (Armory). **Opt-in:** only written after `/fc armory on` (`settings.armory`); `/fc armory off` empties `characters` in every catalog. The snapshot is taken 5 s after entering the world, 2 s after equipment, talent, level, skill, guild or trait changes and on logout. It is only replaced when `character`, `equipment`, `talents`, `traits` or `professions` changed; `stats` and `capturedAt` refresh together with such a change. If a session ends up where it started (e.g. an item taken off and put on again), the snapshot loaded at login is kept unchanged.
 
 ### `CharacterSnapshot`
 

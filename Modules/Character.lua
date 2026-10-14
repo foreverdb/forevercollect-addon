@@ -22,6 +22,10 @@ local DEBOUNCE_SECONDS = 2
 local FIRST_SLOT, LAST_SLOT = 0, 19
 
 local pending
+-- Per character key: the snapshot the file held at login (false: none). A gear swap passes
+-- through intermediate states; when it ends where the session started, the stored snapshot is
+-- put back unchanged, so the upload deduplicates instead of adding a copy with a new time.
+local savedSnapshots = {}
 
 local function isEnabled()
     local settings = ForeverCollectDB and ForeverCollectDB.settings
@@ -269,7 +273,15 @@ local function capture()
     local snapshot = buildSnapshot()
     local catalog = getOrCreateCatalog(client)
     local key = getCharacterKey()
+    if savedSnapshots[key] == nil then
+        savedSnapshots[key] = catalog.characters[key] or false
+    end
     if sameContent(snapshot, catalog.characters[key]) then
+        return
+    end
+    local saved = savedSnapshots[key]
+    if saved and sameContent(snapshot, saved) then
+        catalog.characters[key] = saved
         return
     end
     snapshot.capturedAt = time()
@@ -321,6 +333,7 @@ local function removeSnapshots()
         end
         catalog.characters = {}
     end
+    savedSnapshots = {}
     return removed
 end
 
