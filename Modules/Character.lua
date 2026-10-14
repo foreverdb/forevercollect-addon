@@ -45,9 +45,12 @@ local function parseItemLink(link)
     if not itemString then
         return nil
     end
-    local fields = {}
+    -- Mainline-engine links (Forever) leave unused fields empty ("item:154::::::::11:..."),
+    -- so the position counts, not the number of values.
+    local fields, index = {}, 0
     for value in string.gmatch(itemString .. ":", "([^:]*):") do
-        fields[#fields + 1] = tonumber(value)
+        index = index + 1
+        fields[index] = tonumber(value)
     end
     local function positive(value)
         return value and value ~= 0 and value or nil
