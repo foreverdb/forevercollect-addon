@@ -270,6 +270,11 @@ local function capture()
     if not isSupportedClient(client) then
         return
     end
+    -- Without max health the unit data is not loaded yet or already torn down (Forever clears
+    -- gear and stats before PLAYER_LOGOUT); such a snapshot would replace the good one empty.
+    if (call(UnitHealthMax, "player") or 0) <= 0 then
+        return
+    end
     local snapshot = buildSnapshot()
     local catalog = getOrCreateCatalog(client)
     local key = getCharacterKey()
@@ -318,9 +323,10 @@ for _, event in ipairs({
         scheduleCapture()
     end)
 end
--- The SavedVariables are written right after logout: catch the final state.
+-- The SavedVariables are written right after logout: flush a debounced capture that has not
+-- fired yet. Everything else is already stored from the session.
 addon:RegisterEvent("PLAYER_LOGOUT", function()
-    if isEnabled() then
+    if pending and isEnabled() then
         capture()
     end
 end)
