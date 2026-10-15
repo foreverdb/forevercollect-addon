@@ -134,12 +134,13 @@ local function scanMerchant(silent)
     catalog.merchantScanUpdatedAt = snapshot.capturedAt
 
     if not silent or not hasAnnouncedMerchant then
-        hasAnnouncedMerchant = true
-        addon.Announce(string.format(
+        addon.AnnounceSettled("merchant", string.format(
             "Captured %d merchant items from %s.",
             #items,
             npc.name or "unknown merchant"
-        ))
+        ), function()
+            hasAnnouncedMerchant = true
+        end)
     end
     return snapshot
 end

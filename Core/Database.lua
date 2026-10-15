@@ -13,7 +13,19 @@ local SEASON_NAMES = {
 
 local function initializeDatabase()
     ForeverCollectDB = ForeverCollectDB or {}
-    ForeverCollectDB.settings = ForeverCollectDB.settings or {}
+    -- Settings live in their own global: the uploader clears ForeverCollectDB
+    -- after an upload and keeps every other global in the file.
+    ForeverCollectSettings = ForeverCollectSettings or {}
+    if type(ForeverCollectDB.settings) == "table" then
+        for key, value in pairs(ForeverCollectDB.settings) do
+            if ForeverCollectSettings[key] == nil then
+                ForeverCollectSettings[key] = value
+            end
+        end
+    end
+    ForeverCollectDB.settings = nil
+    -- Autosave (timed /reload) was removed; drop its leftover setting.
+    ForeverCollectSettings.autosaveMinutes = nil
     if not ForeverCollectDB.schemaVersion or ForeverCollectDB.schemaVersion < DATABASE_SCHEMA_VERSION then
         ForeverCollectDB.schemaVersion = DATABASE_SCHEMA_VERSION
     end

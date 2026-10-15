@@ -13,20 +13,49 @@ function addon.PrintMessage(message)
 end
 
 -- Capture notices ("Quest captured: ...") can be silenced with /fc verbose;
--- the flag lives outside the catalogs so uploads never carry it.
+-- the flag lives in ForeverCollectSettings, which uploads never carry and the
+-- uploader keeps when it clears ForeverCollectDB.
 function addon.IsVerbose()
-    local settings = ForeverCollectDB and ForeverCollectDB.settings
+    local settings = ForeverCollectSettings
     return not settings or settings.verbose ~= false
 end
 
+function addon.SetVerbose(enabled)
+    ForeverCollectSettings.verbose = enabled
+    addon.PrintMessage(enabled and "Capture notices enabled." or "Capture notices disabled.")
+end
+
 -- Every module announces a successful capture through here, which also feeds the
--- unsaved-captures counter in Core/Autosave.lua.
+-- unsaved-captures counter in Core/SaveReminder.lua.
 function addon.Announce(message)
     if addon.NoteCapture then
-        addon.NoteCapture()
+        addon.NoteCapture(message)
     end
     if addon.IsVerbose() then
         addon.PrintMessage(message)
+    end
+end
+
+-- Merchant and trainer lists arrive in several updates after the window opens. Each
+-- scan restarts the delay, so only the final numbers are announced, once.
+local SETTLE_SECONDS = 1
+local settleTokens = {}
+function addon.AnnounceSettled(key, message, onAnnounced)
+    local token = (settleTokens[key] or 0) + 1
+    settleTokens[key] = token
+    local function announce()
+        if settleTokens[key] ~= token then
+            return
+        end
+        addon.Announce(message)
+        if onAnnounced then
+            onAnnounced()
+        end
+    end
+    if C_Timer and C_Timer.After then
+        C_Timer.After(SETTLE_SECONDS, announce)
+    else
+        announce()
     end
 end
 

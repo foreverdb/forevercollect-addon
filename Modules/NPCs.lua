@@ -170,6 +170,16 @@ local function normalizeNPC(npc)
             npc.interactionTypes[1] = npc.role
         end
     end
+    -- Trainers open their gossip window before the trainer list, so "gossip" would
+    -- otherwise stick as their role.
+    if npc.role == "gossip" then
+        for _, interactionType in ipairs(npc.interactionTypes) do
+            if interactionType == "trainer" then
+                npc.role = "trainer"
+                break
+            end
+        end
+    end
     npc.location = npc.location or { source = "playerAtInteraction" }
     npc.location.source = npc.location.source or "playerAtInteraction"
     npc.creatureType = npc.creatureType or "Unknown"
@@ -186,8 +196,11 @@ local function mergeNPC(catalog, npc)
                 addUniqueValue(existing.interactionTypes, interactionType)
             end
             for key, value in pairs(npc) do
+                -- The role is the first one seen, except that "trainer"
+                -- replaces "gossip".
                 if value ~= nil and key ~= "interactionTypes"
-                    and (key ~= "role" or existing.role == nil)
+                    and (key ~= "role" or existing.role == nil
+                        or (existing.role == "gossip" and value == "trainer"))
                 then
                     existing[key] = copyTable(value)
                 end

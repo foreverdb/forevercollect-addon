@@ -28,7 +28,7 @@ local pending
 local savedSnapshots = {}
 
 local function isEnabled()
-    local settings = ForeverCollectDB and ForeverCollectDB.settings
+    local settings = ForeverCollectSettings
     return settings and settings.armory == true or false
 end
 
@@ -291,7 +291,6 @@ local function capture()
     end
     snapshot.capturedAt = time()
     catalog.characters[key] = snapshot
-    addon.NoteCapture()
     addon.Announce(string.format(
         "Armory: captured %s (%d items).",
         tostring(snapshot.character.name),
@@ -343,21 +342,28 @@ local function removeSnapshots()
     return removed
 end
 
-addon:RegisterCommand("armory", function(argument)
+addon.IsArmoryEnabled = isEnabled
+
+function addon.SetArmory(enabled)
     initializeDatabase()
-    local settings = ForeverCollectDB.settings
-    if argument == "on" then
-        settings.armory = true
+    if enabled then
+        ForeverCollectSettings.armory = true
         printMessage("Armory on: your character (name, realm, gear, talents, professions, stats) is uploaded and gets a public profile on ForeverDB. /fc armory off removes it from the upload.")
         capture()
-    elseif argument == "off" then
-        settings.armory = nil
+    else
+        ForeverCollectSettings.armory = nil
         local removed = removeSnapshots()
-        addon.NoteCapture()
+        addon.NoteCapture("Armory: stored snapshots removed.")
         printMessage(string.format(
             "Armory off: %d stored character snapshot(s) removed. /reload or log out so the file is written without them.",
             removed
         ))
+    end
+end
+
+addon:RegisterCommand("armory", function(argument)
+    if argument == "on" or argument == "off" then
+        addon.SetArmory(argument == "on")
     else
         printMessage(isEnabled()
             and "Armory is on. /fc armory off stops it and removes the stored snapshots."

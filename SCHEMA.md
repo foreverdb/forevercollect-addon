@@ -18,9 +18,16 @@ This document fully describes the structure of the SavedVariable `ForeverCollect
 | Field | Type | Opt. | Description |
 |---|---|---|---|
 | `schemaVersion` | number | – | Schema version of the file; raised to at least 9 on load. |
-| `settings` | table | ✓ | Addon settings, e.g. `verbose` (chat notice per capture, default `true`) `questCacheCrawl` (`{ build, nextIndex }`, position of `/fc questcache`) and `armory` (`true` after `/fc armory on`; `characters` stays empty without it). Ignored by the server. |
 | `latestCatalogKey` | string | ✓ | Key of the most recently used catalog in `catalogs`. Absent until a catalog has been created. |
 | `catalogs` | map<string, Catalog> | – | All catalogs; see below for the key. |
+
+The file holds a second global, `ForeverCollectSettings`, with the addon settings. It is not part of the upload, and the uploader keeps it when it clears `ForeverCollectDB` after an upload. Files written before the split carried the settings in `ForeverCollectDB.settings`; the addon moves them over on load.
+
+| Field | Type | Opt. | Description |
+|---|---|---|---|
+| `verbose` | boolean | ✓ | Chat notice per capture; only `false` turns it off. |
+| `armory` | boolean | ✓ | `true` after `/fc armory on`; `characters` stays empty without it. |
+| `questCacheCrawl` | table | ✓ | `{ build, nextIndex }`, position of `/fc questcache`. |
 
 ### Catalog Key
 
@@ -151,7 +158,7 @@ At least one of the two fields is set; lines without text are omitted.
 
 | Field | Type | Opt. | Description |
 |---|---|---|---|
-| `role` | string | – | Role at the first observation: `giver`, `progress`, `turnIn` (quest), otherwise the interaction type. |
+| `role` | string | – | Role at the first observation: `giver`, `progress`, `turnIn` (quest), otherwise the interaction type. A later `trainer` replaces `gossip`, because trainers show their gossip window first. |
 | `guid` | string | ✓ | Unit GUID. |
 | `objectType` | string | ✓ | First GUID segment, e.g. `"Creature"`, `"GameObject"`. |
 | `objectID`, `npcID` | number | ✓ | Creature ID (both identical). |
@@ -452,7 +459,7 @@ Every `QuestItem` is also listed in the item catalog (section 6) with source `qu
 
 ## 12. `npcs`
 
-List of `NPC` (section 3.4). An NPC appears exactly once; merging is done via `guid`, otherwise `npcID` + `name`, otherwise just `name`. `interactionTypes` collects all roles, `role` keeps the first. Merchant inventories and trainer services are not stored here but in `merchantSnapshots` and `trainerSnapshots` respectively (linked via the `NPCKey`).
+List of `NPC` (section 3.4). An NPC appears exactly once; merging is done via `guid`, otherwise `npcID` + `name`, otherwise just `name`. `interactionTypes` collects all roles, `role` keeps the first (a later `trainer` replaces `gossip`). Merchant inventories and trainer services are not stored here but in `merchantSnapshots` and `trainerSnapshots` respectively (linked via the `NPCKey`).
 
 ---
 
@@ -488,7 +495,7 @@ Map `encounterID → Encounter`. Between `ENCOUNTER_START` and `ENCOUNTER_END`, 
 
 ## 16. `characters`
 
-Map `CharacterKey → CharacterSnapshot`, the latest state of each own character of the catalog for its public ForeverDB profile (Armory). **Opt-in:** only written after `/fc armory on` (`settings.armory`); `/fc armory off` empties `characters` in every catalog. The snapshot is taken 5 s after entering the world, 2 s after equipment, talent, level, skill, guild or trait changes, and on logout only if such a delayed capture is still pending. Without max health (`UnitHealthMax`) the unit data is not loaded yet or already torn down, and no snapshot is written. It is only replaced when `character`, `equipment`, `talents`, `traits` or `professions` changed; `stats` and `capturedAt` refresh together with such a change. If a session ends up where it started (e.g. an item taken off and put on again), the snapshot loaded at login is kept unchanged.
+Map `CharacterKey → CharacterSnapshot`, the latest state of each own character of the catalog for its public ForeverDB profile (Armory). **Opt-in:** only written after `/fc armory on` (`ForeverCollectSettings.armory`); `/fc armory off` empties `characters` in every catalog. The snapshot is taken 5 s after entering the world, 2 s after equipment, talent, level, skill, guild or trait changes, and on logout only if such a delayed capture is still pending. Without max health (`UnitHealthMax`) the unit data is not loaded yet or already torn down, and no snapshot is written. It is only replaced when `character`, `equipment`, `talents`, `traits` or `professions` changed; `stats` and `capturedAt` refresh together with such a change. If a session ends up where it started (e.g. an item taken off and put on again), the snapshot loaded at login is kept unchanged.
 
 ### `CharacterSnapshot`
 

@@ -39,9 +39,7 @@ addon:RegisterCommand("help", function()
 end, "Show this help")
 
 addon:RegisterCommand("verbose", function()
-    local settings = ForeverCollectDB.settings
-    settings.verbose = not addon.IsVerbose()
-    printMessage(settings.verbose and "Capture notices enabled." or "Capture notices disabled.")
+    addon.SetVerbose(not addon.IsVerbose())
 end, "Toggle notices for every capture")
 
 addon:RegisterCommand("scan", function()

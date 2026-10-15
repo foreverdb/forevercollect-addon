@@ -15,7 +15,7 @@ local ticker
 local loaded, failed = 0, 0
 
 local function getState()
-    local settings = ForeverCollectDB.settings
+    local settings = ForeverCollectSettings
     local build = select(2, GetBuildInfo())
     local state = settings.questCacheCrawl
     if not state or state.build ~= build then

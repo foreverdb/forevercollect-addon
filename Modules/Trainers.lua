@@ -274,7 +274,6 @@ local function scanTrainerServices(silent)
     catalog.trainerScanUpdatedAt = snapshot.capturedAt
 
     if not silent or not hasAnnouncedTrainer then
-        hasAnnouncedTrainer = true
         local serviceCount, missingSpellIDs = 0, 0
         for _, service in ipairs(snapshot.services) do
             if not service.isHeader then
@@ -284,14 +283,16 @@ local function scanTrainerServices(silent)
                 end
             end
         end
-        addon.Announce(string.format(
+        addon.AnnounceSettled("trainer", string.format(
             "Captured %d trainer services from %s%s.",
             serviceCount,
             npc.name or "unknown trainer",
             missingSpellIDs > 0
                 and string.format(" (%d without spell ID)", missingSpellIDs)
                 or ""
-        ))
+        ), function()
+            hasAnnouncedTrainer = true
+        end)
     end
     return snapshot
 end
