@@ -46,54 +46,62 @@ addon:RegisterCommand("scan", function()
     scanAll()
 end, "Scan talents (Forever: talent tooltips)")
 
-addon:RegisterCommand("status", function()
+-- Catalog context and capture counts, for /fc status and the settings page.
+function addon.StatusLines()
+    local lines = {}
     local catalog = getLatestCatalog()
     if not catalog then
-        printMessage("No catalog stored yet. Open a quest or use /fc scan.")
-        return
-    end
+        lines[1] = "No catalog stored yet. Open a quest or use /fc scan."
+    else
+        lines[#lines + 1] = string.format(
+            "Catalog: %s, build %s, interface %d, project %s.",
+            catalog.version,
+            catalog.build,
+            catalog.interfaceVersion,
+            tostring(catalog.projectID)
+        )
+        lines[#lines + 1] = string.format(
+            "Season: %s (ID %d), locale: %s.",
+            catalog.seasonName or "Unknown",
+            catalog.seasonID or 0,
+            catalog.locale
+        )
+        lines[#lines + 1] = string.format(
+            "Character context: %s (%s), race: %s (%s), faction: %s.",
+            catalog.className or catalog.classFile or "Unknown",
+            catalog.classFile or "Unknown",
+            catalog.raceName or catalog.raceFile or "Unknown",
+            catalog.raceFile or "Unknown",
+            catalog.factionName or catalog.factionFile or "Unknown"
+        )
 
-    printMessage(string.format(
-        "Catalog: %s, build %s, interface %d, project %s.",
-        catalog.version,
-        catalog.build,
-        catalog.interfaceVersion,
-        tostring(catalog.projectID)
-    ))
-    printMessage(string.format(
-        "Season: %s (ID %d), locale: %s.",
-        catalog.seasonName or "Unknown",
-        catalog.seasonID or 0,
-        catalog.locale
-    ))
-    printMessage(string.format(
-        "Character context: %s (%s), race: %s (%s), faction: %s.",
-        catalog.className or catalog.classFile or "Unknown",
-        catalog.classFile or "Unknown",
-        catalog.raceName or catalog.raceFile or "Unknown",
-        catalog.raceFile or "Unknown",
-        catalog.factionName or catalog.factionFile or "Unknown"
-    ))
-
-    local itemCount = addon.CountItems(catalog)
-    local merchantCount = 0
-    for _ in pairs(catalog.merchantSnapshots or {}) do
-        merchantCount = merchantCount + 1
+        local itemCount = addon.CountItems(catalog)
+        local merchantCount = 0
+        for _ in pairs(catalog.merchantSnapshots or {}) do
+            merchantCount = merchantCount + 1
+        end
+        local lootSourceCount, lootItemCount = addon.CountLoot(catalog)
+        lines[#lines + 1] = string.format(
+            "Items: %d, merchants: %d, loot sources: %d (%d items).",
+            itemCount,
+            merchantCount,
+            lootSourceCount,
+            lootItemCount
+        )
     end
-    local lootSourceCount, lootItemCount = addon.CountLoot(catalog)
-    printMessage(string.format(
-        "Items: %d, merchants: %d, loot sources: %d (%d items).",
-        itemCount,
-        merchantCount,
-        lootSourceCount,
-        lootItemCount
-    ))
     local unsaved, seconds = addon.UnsavedCaptures()
-    printMessage(string.format(
+    lines[#lines + 1] = string.format(
         "Unsaved captures: %d (%d min since the last save; /fc save writes them).",
         unsaved,
         math.floor(seconds / 60)
-    ))
+    )
+    return lines
+end
+
+addon:RegisterCommand("status", function()
+    for _, line in ipairs(addon.StatusLines()) do
+        printMessage(line)
+    end
 end, "Show catalog context and scan status")
 
 SLASH_FOREVERCOLLECT1 = "/forevercollect"

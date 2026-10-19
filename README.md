@@ -13,6 +13,8 @@ The version is set in `ForeverCollect.toc` (`## Version:`). When it is bumped on
 ## Usage
 
 ```text
+/fc           Open the settings page
+/fc help      List all commands
 /fc scan      Scan talents (Forever: talent tooltips)
 /fc talents   Show talent data of the current catalog
 /fc traits    Diagnose the client's trait trees (Forever)
@@ -31,7 +33,7 @@ The version is set in `ForeverCollect.toc` (`## Version:`). When it is bumped on
 
 Every capture (quest dialog, turn-in, loot, merchant, trainer, banker, flight master) is announced in chat; `/fc verbose` turns these notices off and on again (setting in `ForeverCollectSettings`, not part of uploads).
 
-**Settings page:** Options → AddOns → ForeverCollect (or `/fc options`) has checkboxes for capture notices and Armory and a "Save now" button. They do the same as `/fc verbose`, `/fc armory on/off` and `/fc save`. Below them, the page lists every capture since the last save with its time, so you can see what the next `/reload` or logout writes.
+**Settings page:** Options → AddOns → ForeverCollect (or `/fc` / `/fc options`) has checkboxes for capture notices and Armory, a "Save now" button, "Scan talents", and Start/Stop/Reset for the quest cache with its progress. They do the same as `/fc verbose`, `/fc armory on/off`, `/fc save`, `/fc scan` and `/fc questcache`. Below them, the page shows the catalog status of `/fc status` and lists every capture since the last save with its time, so you can see what the next `/reload` or logout writes. The page scrolls when the window is too small.
 
 **Quest type:** On every accept and turn-in, the quest type from the quest log is recorded (`tag`: Dungeon, Raid, Elite, PvP …, plus `suggestedGroup`). Quests captured earlier get their type as soon as they are accepted or turned in again.
 
@@ -70,7 +72,7 @@ Modules/Loot.lua        Loot sources and drop locations (/fc loot)
 Modules/Talents.lua     Talent trees via the Classic API (/fc talents)
 Modules/Traits.lua      Talent tooltips via the trait system on Forever (/fc traits)
 Modules/Character.lua   Opt-in Armory snapshot of the own character (/fc armory)
-Core/Options.lua        Settings page under Options -> AddOns (/fc options)
+Core/Options.lua        Settings page under Options -> AddOns (/fc, /fc options)
 Modules/Trainers.lua    Trainer services (/fc trainer)
 Modules/Quests.lua      Quest dialogs and turn-ins (/fc quests)
 Modules/QuestCache.lua  Queries all quests from Data/QuestIDs.lua from the server (/fc questcache)

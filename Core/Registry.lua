@@ -44,13 +44,15 @@ function addon:HandleSlashCommand(message)
     local trimmed = string.gsub(message or "", "^%s*(.-)%s*$", "%1")
     local command, argument = string.match(trimmed, "^(%S+)%s*(.-)$")
     command = string.lower(command or "")
+    -- A bare /fc opens the settings page; /fc help lists the commands.
     if command == "" then
-        command = "help"
+        command = "options"
     end
 
     local entry = commands[command]
     if entry then
-        entry.handler(argument ~= "" and string.lower(argument) or nil)
+        -- A bare "/fc" matches nothing, so argument is nil as well as "".
+        entry.handler(argument and argument ~= "" and string.lower(argument) or nil)
     else
         printMessage("Unknown command. Use /fc help.")
     end

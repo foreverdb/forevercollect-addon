@@ -2,34 +2,45 @@ local _, addon = ...
 
 local printMessage = addon.PrintMessage
 
--- Settings page under Options -> AddOns. It is a plain canvas frame: the canvas API is
--- the same on every Classic build, the vertical-layout helpers are not. The values are
--- read again on every show, so changes made through /fc commands appear here too.
--- Below the settings, the page lists what was captured since the last save.
+-- Settings page under Options -> AddOns, also opened by a bare /fc. It is a plain canvas
+-- frame: the canvas API is the same on every Classic build, the vertical-layout helpers
+-- are not. The values are read again on every show, so changes made through /fc commands
+-- appear here too. The page holds the settings, the actions behind the /fc commands, the
+-- catalog status and what was captured since the last save; it scrolls when the window
+-- is too small for all of it.
 
 local PADDING = 16
 local TEXT_WIDTH = 560
+local STATUS_REFRESH_SECONDS = 1
 
 local panel = CreateFrame("Frame", "ForeverCollectOptionsPanel")
 panel.name = "ForeverCollect"
 
-local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+local scroll = CreateFrame("ScrollFrame", "ForeverCollectOptionsScroll", panel, "UIPanelScrollFrameTemplate")
+scroll:SetPoint("TOPLEFT", 0, -4)
+scroll:SetPoint("BOTTOMRIGHT", -28, 4)
+-- Every control lives on this frame; the page itself only holds the scroll frame.
+local content = CreateFrame("Frame", nil, scroll)
+content:SetSize(TEXT_WIDTH + 2 * PADDING, 1)
+scroll:SetScrollChild(content)
+
+local title = content:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
 title:SetPoint("TOPLEFT", PADDING, -PADDING)
 title:SetText("ForeverCollect")
 
-local subtitle = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+local subtitle = content:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
 subtitle:SetWidth(TEXT_WIDTH)
 subtitle:SetJustifyH("LEFT")
 subtitle:SetText("Collects game data for ForeverDB. The ForeverDB Uploader sends it after you log out.")
 
 local function createCheckbox(anchor, label, description, onClick)
-    local checkbox = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+    local checkbox = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
     checkbox:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -16)
     local text = checkbox:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     text:SetPoint("LEFT", checkbox, "RIGHT", 4, 0)
     text:SetText(label)
-    local hint = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    local hint = content:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     hint:SetPoint("TOPLEFT", checkbox, "BOTTOMLEFT", 30, -2)
     hint:SetWidth(TEXT_WIDTH - 30)
     hint:SetJustifyH("LEFT")
@@ -38,7 +49,7 @@ local function createCheckbox(anchor, label, description, onClick)
         onClick(self:GetChecked() and true or false)
     end)
     -- The next control anchors below the hint, but at the checkbox's left edge.
-    local bottom = CreateFrame("Frame", nil, panel)
+    local bottom = CreateFrame("Frame", nil, content)
     bottom:SetSize(1, 1)
     bottom:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", -30, 0)
     return checkbox, bottom
@@ -63,24 +74,81 @@ local armory, afterArmory = createCheckbox(
     end
 )
 
-local saveButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-saveButton:SetPoint("TOPLEFT", afterArmory, "BOTTOMLEFT", 0, -20)
-saveButton:SetSize(180, 24)
-saveButton:SetText("Save now (reload UI)")
-saveButton:SetScript("OnClick", function()
+local function createHeading(anchor, text)
+    local heading = content:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    heading:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -24)
+    heading:SetText(text)
+    return heading
+end
+
+local function createButton(text, width, onClick)
+    local button = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+    button:SetSize(width, 24)
+    button:SetText(text)
+    button:SetScript("OnClick", onClick)
+    return button
+end
+
+local function createNote(anchor, offset)
+    local note = content:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    note:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, offset or -6)
+    note:SetWidth(TEXT_WIDTH)
+    note:SetJustifyH("LEFT")
+    return note
+end
+
+local refreshStatus
+
+-- Runs a /fc command, so the page and the chat do exactly the same.
+local function runCommand(command)
+    addon:HandleSlashCommand(command)
+    refreshStatus()
+end
+
+local saveHeading = createHeading(afterArmory, "Save")
+local saveButton = createButton("Save now (reload UI)", 180, function()
     addon.Save(false)
 end)
+saveButton:SetPoint("TOPLEFT", saveHeading, "BOTTOMLEFT", 0, -10)
 
-local saveHint = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-saveHint:SetPoint("TOPLEFT", saveButton, "BOTTOMLEFT", 0, -6)
-saveHint:SetWidth(TEXT_WIDTH)
-saveHint:SetJustifyH("LEFT")
+local saveHint = createNote(saveButton)
 saveHint:SetText("The game writes addon data only on logout or /reload. Same as /fc save.")
 
-local listTitle = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-listTitle:SetPoint("TOPLEFT", saveHint, "BOTTOMLEFT", 0, -20)
+local scanHeading = createHeading(saveHint, "Talents")
+local scanButton = createButton("Scan talents", 180, function()
+    runCommand("scan")
+end)
+scanButton:SetPoint("TOPLEFT", scanHeading, "BOTTOMLEFT", 0, -10)
 
-local list = CreateFrame("ScrollingMessageFrame", nil, panel)
+local scanHint = createNote(scanButton)
+scanHint:SetText("Captures the talents of your class; happens on every login as well. Same as /fc scan.")
+
+local questCacheHeading = createHeading(scanHint, "Quest cache")
+local questCacheStart = createButton("Start", 100, function()
+    runCommand("questcache start")
+end)
+questCacheStart:SetPoint("TOPLEFT", questCacheHeading, "BOTTOMLEFT", 0, -10)
+local questCacheStop = createButton("Stop", 100, function()
+    runCommand("questcache stop")
+end)
+questCacheStop:SetPoint("LEFT", questCacheStart, "RIGHT", 8, 0)
+local questCacheReset = createButton("Reset", 100, function()
+    runCommand("questcache reset")
+end)
+questCacheReset:SetPoint("LEFT", questCacheStop, "RIGHT", 8, 0)
+
+local questCacheStatus = createNote(questCacheStart)
+local questCacheHint = createNote(questCacheStatus, -4)
+questCacheHint:SetText("Asks the server for every quest of this client so its quest cache holds them all; "
+    .. "continues after a reload. Same as /fc questcache (stop, reset).")
+
+local statusHeading = createHeading(questCacheHint, "Status")
+local statusText = createNote(statusHeading, -10)
+
+local listTitle = content:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+listTitle:SetPoint("TOPLEFT", statusText, "BOTTOMLEFT", 0, -20)
+
+local list = CreateFrame("ScrollingMessageFrame", nil, content)
 list:SetPoint("TOPLEFT", listTitle, "BOTTOMLEFT", 0, -6)
 list:SetSize(TEXT_WIDTH, 260)
 list:SetFontObject(GameFontHighlightSmall)
@@ -137,11 +205,43 @@ addon.OnCapture = function(entry)
     end
 end
 
+refreshStatus = function()
+    local lines = addon.StatusLines and addon.StatusLines() or {}
+    -- The last line is the unsaved-captures count, which the list title shows.
+    lines[#lines] = nil
+    statusText:SetText(table.concat(lines, "\n"))
+
+    local questCache, running = addon.QuestCacheStatus()
+    local supported = questCache ~= nil
+    questCacheStatus:SetText(questCache or "This client cannot query quests from the server.")
+    questCacheStart:SetEnabled(supported and not running)
+    questCacheStop:SetEnabled(supported and running)
+    questCacheReset:SetEnabled(supported)
+    updateListTitle()
+    -- The scroll range follows the laid-out text; positions are unknown before the first draw.
+    local top, bottom = content:GetTop(), list:GetBottom()
+    if top and bottom then
+        content:SetHeight(top - bottom + PADDING)
+    end
+end
+
+-- The quest cache counts up while it runs; follow it while the page is open.
+local sinceRefresh = 0
+panel:SetScript("OnUpdate", function(_, elapsed)
+    sinceRefresh = sinceRefresh + elapsed
+    if sinceRefresh >= STATUS_REFRESH_SECONDS then
+        sinceRefresh = 0
+        refreshStatus()
+    end
+end)
+
 panel:SetScript("OnShow", function()
     verbose:SetChecked(addon.IsVerbose())
     armory:SetChecked(addon.IsArmoryEnabled())
     fillList()
+    refreshStatus()
 end)
+
 
 local category
 if Settings and Settings.RegisterCanvasLayoutCategory then

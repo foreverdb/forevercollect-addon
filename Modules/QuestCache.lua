@@ -71,6 +71,21 @@ addon:RegisterEvent("QUEST_DATA_LOAD_RESULT", function(_, success)
     end
 end)
 
+local function statusText(state, total)
+    return string.format(
+        "Quest cache: %d/%d requested for build %s%s.",
+        math.min(state.nextIndex - 1, total), total, state.build, ticker and " (running)" or ""
+    )
+end
+
+-- For the settings page: nil when the client cannot crawl.
+function addon.QuestCacheStatus()
+    if not isSupported() then
+        return nil
+    end
+    return statusText(getState(), #addon.QuestIDs), ticker ~= nil
+end
+
 addon:RegisterCommand("questcache", function(argument)
     if not isSupported() then
         printMessage("Quest cache: this client has no C_QuestLog.RequestLoadQuestByID or no Data/QuestIDs.lua.")
@@ -85,10 +100,7 @@ addon:RegisterCommand("questcache", function(argument)
         state.nextIndex = 1
         printMessage("Quest cache: position reset, /fc questcache starts from the first quest.")
     elseif argument == "status" then
-        printMessage(string.format(
-            "Quest cache: %d/%d requested for build %s%s.",
-            math.min(state.nextIndex - 1, total), total, state.build, ticker and " (running)" or ""
-        ))
+        printMessage(statusText(state, total))
     elseif ticker then
         printMessage("Quest cache: already running (/fc questcache stop).")
     else
