@@ -1,8 +1,8 @@
 ## Interface: 11509, 16001
 ## Title: ForeverCollect
 ## Notes: Collects quests, NPCs, merchants, trainers, loot, talents and (opt-in) your character for ForeverDB.
-## Author: Alex <alex@alexbangert.dev>
-## Version: 0.6
+## Author: Alex <info@foreverdb.app>
+## Version: 0.6.1
 ## DefaultState: enabled
 ## SavedVariables: ForeverCollectDB, ForeverCollectSettings
 

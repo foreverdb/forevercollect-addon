@@ -352,7 +352,7 @@ Replaced when a merchant is opened and on `MERCHANT_UPDATE`.
 | `profession` | string | ✓ | `Herbalism`, `Mining`, `Skinning` or `Fishing` if the loot comes from a profession action. |
 | `gatherSpellID` | number | ✓ | Spell ID of the gathering spell (e.g. 2366 Herb Gathering). |
 | `sourceID` | number | ✓ | Creature/GameObject ID from the GUID; for `Instance` the instance ID from `GetInstanceInfo()`. Absent for `Fishing`, `Item` and `Unknown`. |
-| `name` | string | ✓ | Name of the source if it was the target while looting; for herb/ore nodes the most recently shown tooltip title of the node. |
+| `name` | string | ✓ | Name of the source if it was the target while looting; for herb/ore nodes the most recently shown tooltip title of the node. Creatures looted inside instances (secret target name) are named from the client's creature cache via a `unit:Creature-0-0-0-0-<npcID>-…` hyperlink tooltip, at loot time or, if that is not readable there, after leaving the instance (addon 0.6.1). |
 | `creatureType` | string | ✓ | `UnitCreatureType` of a `Creature` source that was the target while looting (e.g. `Beast`). Absent inside instances, where the unit is secret. |
 | `creatureFamily` | string | ✓ | `UnitCreatureFamily` under the same condition (e.g. `Spider`); beasts and demons only. |
 | `classification` | string | ✓ | `UnitClassification` under the same condition (`normal`, `elite`, `rare`, …). |

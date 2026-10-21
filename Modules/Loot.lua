@@ -15,6 +15,7 @@ local recordItem = addon.RecordItem
 local consumePendingGather = addon.ConsumePendingGather
 local readable = addon.Readable
 local getInstance = addon.GetInstance
+local getCreatureName = addon.GetCreatureName
 
 local LOOT_SLOT_ITEM = LOOT_SLOT_ITEM or 1
 local LOOT_SLOT_MONEY = LOOT_SLOT_MONEY or 2
@@ -147,7 +148,8 @@ local function describeSource(guid, gather)
     end
     local sourceType, sourceID = parseGUID(guid)
     -- Inside instances the target of a hostile unit is secret, so creatures
-    -- looted there stay unnamed and untyped.
+    -- looted there stay untyped; their name comes from the creature cache, now
+    -- or once the instance is left (fillCreatureNames).
     local name, unit
     if guid and readable(UnitGUID("target")) == guid then
         name = readable(UnitName("target"))
@@ -158,6 +160,9 @@ local function describeSource(guid, gather)
                 classification = UnitClassification and readable(UnitClassification("target")) or nil,
             }
         end
+    end
+    if not name and not gather and (sourceType == "Creature" or sourceType == "Vehicle") then
+        name = getCreatureName(sourceID)
     end
     return sourceType or "Unknown", sourceID, name, unit
 end
@@ -389,6 +394,55 @@ local function countLoot(catalog)
     return sourceCount, itemCount
 end
 addon.CountLoot = countLoot
+
+-- Names the creatures looted without a readable name (inside instances) from
+-- the creature cache. Returns how many got a name.
+local function fillCreatureNames(catalog)
+    local named = 0
+    for _, source in pairs(catalog.lootSources or {}) do
+        if source.sourceType == "Creature" and source.sourceID and not source.name and not source.profession then
+            source.name = getCreatureName(source.sourceID)
+            if source.name then
+                named = named + 1
+            end
+        end
+    end
+    return named
+end
+addon.FillCreatureNames = fillCreatureNames
+
+-- The cache may not be readable inside the instance, so names are filled in
+-- once outside; a second pass catches the entries the server answers late.
+local CREATURE_NAME_RETRY_SECONDS = 2
+
+local function fillAllCreatureNames()
+    if getInstance() or not ForeverCollectDB or not ForeverCollectDB.catalogs then
+        return
+    end
+    local named = 0
+    for _, catalog in pairs(ForeverCollectDB.catalogs) do
+        named = named + fillCreatureNames(catalog)
+    end
+    if named > 0 then
+        announce(string.format("Named %d creature(s) looted in instances.", named))
+    end
+end
+
+local function onLeftInstance()
+    local ok, err = pcall(fillAllCreatureNames)
+    if not ok then
+        printMessage("Creature names failed: " .. tostring(err))
+        return
+    end
+    if C_Timer and C_Timer.After then
+        C_Timer.After(CREATURE_NAME_RETRY_SECONDS, function()
+            pcall(fillAllCreatureNames)
+        end)
+    end
+end
+
+addon:RegisterEvent("PLAYER_ENTERING_WORLD", onLeftInstance)
+addon:RegisterEvent("ZONE_CHANGED_NEW_AREA", onLeftInstance)
 
 addon:RegisterCommand("loot", function()
     local catalog = getLatestCatalog()

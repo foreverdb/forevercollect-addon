@@ -273,3 +273,38 @@ function addon.ReadTooltipLines(populate)
     scanningTooltip:Hide()
     return lines, spellID
 end
+
+local function readableCreatureName(text)
+    text = addon.Readable(text)
+    if type(text) ~= "string" then
+        return nil
+    end
+    text = strtrim and strtrim(text) or string.match(text, "^%s*(.-)%s*$")
+    if text == "" or text == UNKNOWNOBJECT or text == UNKNOWN or text == RETRIEVING_DATA then
+        return nil
+    end
+    return text
+end
+
+-- The name the client's creature cache holds for `npcID`, read from a unit
+-- hyperlink tooltip; nil when the creature is not cached (yet) or the text is
+-- secret. Inside instances the target's name is secret, but whoever looted the
+-- corpse has just seen the creature, so the cache knows it.
+function addon.GetCreatureName(npcID)
+    if type(npcID) ~= "number" or npcID <= 0 then
+        return nil
+    end
+    local link = string.format("unit:Creature-0-0-0-0-%d-0000000000", npcID)
+    if C_TooltipInfo and C_TooltipInfo.GetHyperlink then
+        local ok, data = pcall(C_TooltipInfo.GetHyperlink, link)
+        local line = ok and type(data) == "table" and type(data.lines) == "table" and data.lines[1]
+        local name = line and readableCreatureName(line.leftText)
+        if name then
+            return name
+        end
+    end
+    local ok, lines = pcall(addon.ReadTooltipLines, function(tooltip)
+        tooltip:SetHyperlink(link)
+    end)
+    return ok and lines and lines[1] and readableCreatureName(lines[1].leftText) or nil
+end
