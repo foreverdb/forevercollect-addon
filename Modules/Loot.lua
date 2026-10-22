@@ -225,12 +225,17 @@ local function scanLoot()
         return
     end
     lootWindowScanned = true
+    local gather = consumePendingGather()
+    -- The window stays marked as scanned, so a paused gather is not recorded
+    -- as plain loot by the LOOT_OPENED fallback either.
+    if not addon.IsCapturing(gather and "gathering" or "loot") then
+        return
+    end
 
     local catalog = getOrCreateCatalog(getClientInfo())
     local now = time()
     local location = getPlayerLocation()
     local countedSources = {}
-    local gather = consumePendingGather()
     local summary = { items = 0, money = 0, sources = {}, sourceNames = {}, itemNames = {} }
 
     for slot = 1, numSlots do

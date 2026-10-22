@@ -26,6 +26,16 @@ local function initializeDatabase()
     ForeverCollectDB.settings = nil
     -- Autosave (timed /reload) was removed; drop its leftover setting.
     ForeverCollectSettings.autosaveMinutes = nil
+    -- Pause and Armory are per character, in a file of each character's own that the
+    -- uploader never reads. The account-wide pause (addon 0.6.3) is dropped; the
+    -- account-wide Armory opt-in carries over to every character on its first login,
+    -- as it covered all of them, and is announced there (Modules/Character.lua).
+    ForeverCollectCharacterSettings = ForeverCollectCharacterSettings or {}
+    ForeverCollectSettings.paused = nil
+    if ForeverCollectCharacterSettings.armory == nil and ForeverCollectSettings.armory then
+        ForeverCollectCharacterSettings.armory = true
+        addon.ArmoryInherited = true
+    end
     if not ForeverCollectDB.schemaVersion or ForeverCollectDB.schemaVersion < DATABASE_SCHEMA_VERSION then
         ForeverCollectDB.schemaVersion = DATABASE_SCHEMA_VERSION
     end

@@ -43,6 +43,7 @@ local function load(path)
     local chunk = assert(loadfile(path))
     chunk("ForeverCollect", addon)
 end
+StaticPopupDialogs = {}
 load("Core/Util.lua")
 
 local catalog = { lootSources = {} }
@@ -58,7 +59,14 @@ addon.GetClientInfo = function() return {} end
 addon.GetOrCreateCatalog = function() return catalog end
 addon.GetLatestCatalog = function() return catalog end
 addon.RecordItem = function() end
-addon.ConsumePendingGather = function() return nil end
+local pendingGather
+addon.ConsumePendingGather = function()
+    local gather = pendingGather
+    pendingGather = nil
+    return gather
+end
+ForeverCollectCharacterSettings = {}
+load("Core/Pause.lua")
 load("Modules/Loot.lua")
 
 local function check(name, condition)
@@ -104,3 +112,30 @@ fire("LOOT_OPENED", true)
 fire("LOOT_CLOSED")
 check("LOOT_OPENED scans when LOOT_READY saw no slots", catalog.lootSources["Creature:113"].items[769])
 check("still no scan errors", #errors == 0)
+
+-- Paused kinds record nothing; a paused gather is not recorded as loot either.
+local deer = "Creature-0-1-0-1-883-0000000003"
+ForeverCollectCharacterSettings.paused = { loot = true }
+slots = { item(2672, deer) }
+fire("LOOT_READY", true)
+fire("LOOT_OPENED", true)
+fire("LOOT_CLOSED")
+check("paused loot is not recorded", catalog.lootSources["Creature:883"] == nil)
+
+fishing = true
+slots = { item(6358) }
+pendingGather = { profession = "Fishing", spellID = 7620 }
+fire("LOOT_READY", true)
+fire("LOOT_CLOSED")
+check("gathering still records while loot is paused", catalog.lootSources["Fishing"].items[6358])
+
+ForeverCollectCharacterSettings.paused = { gathering = true }
+slots = { item(6359) }
+pendingGather = { profession = "Fishing", spellID = 7620 }
+fire("LOOT_READY", true)
+fire("LOOT_OPENED", true)
+fire("LOOT_CLOSED")
+check("paused gather is not recorded", catalog.lootSources["Fishing"].items[6359] == nil)
+fishing = false
+ForeverCollectCharacterSettings.paused = nil
+check("no scan errors while paused", #errors == 0)

@@ -10,8 +10,8 @@ local initializeDatabase = addon.InitializeDatabase
 
 -- Armory: a snapshot of the own character (equipment, spent talents, professions,
 -- stats) for its public profile on ForeverDB. Name and realm leave the computer
--- only with this snapshot, so it is opt-in (/fc armory on) and turning it off
--- removes every stored snapshot again.
+-- only with this snapshot, so it is opt-in per character (/fc armory on) and
+-- turning it off removes that character's stored snapshots again.
 
 -- Talent and trait data load lazily after login.
 local CAPTURE_DELAY = 5
@@ -28,7 +28,7 @@ local pending
 local savedSnapshots = {}
 
 local function isEnabled()
-    local settings = ForeverCollectSettings
+    local settings = ForeverCollectCharacterSettings
     return settings and settings.armory == true or false
 end
 
@@ -307,6 +307,11 @@ local function scheduleCapture(delay)
 end
 
 addon:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+    if addon.ArmoryInherited then
+        addon.ArmoryInherited = nil
+        printMessage("Armory is now set per character and stays on for this one, as it was for the account. "
+            .. "/fc armory off removes this character from the upload.")
+    end
     scheduleCapture(CAPTURE_DELAY)
 end)
 for _, event in ipairs({
@@ -330,15 +335,17 @@ addon:RegisterEvent("PLAYER_LOGOUT", function()
     end
 end)
 
+-- Only the own character: the others keep their Armory setting and snapshots.
 local function removeSnapshots()
+    local key = getCharacterKey()
     local removed = 0
     for _, catalog in pairs(ForeverCollectDB.catalogs or {}) do
-        for _ in pairs(catalog.characters or {}) do
+        if catalog.characters and catalog.characters[key] then
+            catalog.characters[key] = nil
             removed = removed + 1
         end
-        catalog.characters = {}
     end
-    savedSnapshots = {}
+    savedSnapshots[key] = nil
     return removed
 end
 
@@ -346,16 +353,18 @@ addon.IsArmoryEnabled = isEnabled
 
 function addon.SetArmory(enabled)
     initializeDatabase()
+    -- The account-wide flag only seeds characters until the first explicit choice;
+    -- from then on characters created later start with Armory off.
+    ForeverCollectSettings.armory = nil
+    ForeverCollectCharacterSettings.armory = enabled
     if enabled then
-        ForeverCollectSettings.armory = true
         printMessage("Armory on: your character (name, realm, gear, talents, professions, stats) is uploaded and gets a public profile on ForeverDB. /fc armory off removes it from the upload.")
         capture()
     else
-        ForeverCollectSettings.armory = nil
         local removed = removeSnapshots()
         addon.NoteCapture("Armory: stored snapshots removed.")
         printMessage(string.format(
-            "Armory off: %d stored character snapshot(s) removed. /reload or log out so the file is written without them.",
+            "Armory off for this character: %d stored snapshot(s) removed. /reload or log out so the file is written without them.",
             removed
         ))
     end
@@ -366,7 +375,7 @@ addon:RegisterCommand("armory", function(argument)
         addon.SetArmory(argument == "on")
     else
         printMessage(isEnabled()
-            and "Armory is on. /fc armory off stops it and removes the stored snapshots."
-            or "Armory is off. /fc armory on uploads your character for a public profile on ForeverDB.")
+            and "Armory is on for this character. /fc armory off stops it and removes its stored snapshots."
+            or "Armory is off for this character. /fc armory on uploads it for a public profile on ForeverDB.")
     end
-end, "Public character profile: /fc armory on or off")
+end, "Public profile of this character: /fc armory on or off")

@@ -253,6 +253,9 @@ end
 addon.CaptureNPCInteraction = captureNPCInteraction
 
 local function announceNPC(interactionType, details)
+    if not addon.IsCapturing("npcs") then
+        return
+    end
     local npc = captureNPCInteraction(interactionType)
     if npc then
         for key, value in pairs(details or {}) do

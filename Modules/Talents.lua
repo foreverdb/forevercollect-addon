@@ -166,7 +166,9 @@ addon.ScanTalentCatalog = scanTalentCatalog
 
 if hasClassicTalentAPI() then
     addon:RegisterEvent("PLAYER_TALENT_UPDATE", function()
-        scanTalentCatalog({ silent = true })
+        if addon.IsCapturing("talents") then
+            scanTalentCatalog({ silent = true })
+        end
     end)
 end
 

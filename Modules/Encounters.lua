@@ -105,7 +105,7 @@ end
 
 addon:RegisterEvent("ENCOUNTER_END", function(encounterID, _, _, _, success)
     encounterID = readable(encounterID)
-    if not current or current.encounterID ~= encounterID then
+    if not current or current.encounterID ~= encounterID or not addon.IsCapturing("encounters") then
         current = nil
         return
     end

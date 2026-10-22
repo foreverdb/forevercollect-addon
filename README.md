@@ -28,18 +28,22 @@ The version is set in `ForeverCollect.toc` (`## Version:`). When it is bumped on
 /fc verbose   Toggle notices for every capture (default: on)
 /fc save      Save collected data now (reloads the UI)
 /fc options   Open the settings page (Options -> AddOns -> ForeverCollect)
-/fc armory    Public character profile: /fc armory on or off (default: off)
+/fc armory    Public profile of this character: /fc armory on or off (default: off)
+/fc pause     Pause capture: /fc pause (all) or /fc pause <kind>
+/fc resume    Resume capture: /fc resume (all) or /fc resume <kind>
 ```
 
 Every capture (quest dialog, turn-in, loot, merchant, trainer, banker, flight master) is announced in chat; `/fc verbose` turns these notices off and on again (setting in `ForeverCollectSettings`, not part of uploads).
 
-**Settings page:** Options → AddOns → ForeverCollect (or `/fc` / `/fc options`) has checkboxes for capture notices and Armory, a "Save now" button, "Scan talents", and Start/Stop/Reset for the quest cache with its progress. They do the same as `/fc verbose`, `/fc armory on/off`, `/fc save`, `/fc scan` and `/fc questcache`. Below them, the page shows the catalog status of `/fc status` and lists every capture since the last save with its time, so you can see what the next `/reload` or logout writes. The page scrolls when the window is too small.
+**Pausing capture:** `/fc pause` stops every automatic capture, `/fc pause <kind>` only one kind: `quests`, `npcs`, `merchants`, `trainers`, `loot`, `gathering`, `encounters`, `talents`. `/fc resume <kind>` resumes one kind, a bare `/fc resume` resumes everything. Explicit actions (`/fc scan`, `/fc merchants`, `/fc trainer`, the quest cache, Armory) still run. The pause applies to the current character only and is kept across reloads; while anything is paused, every login and `/reload` prints a reminder and shows a popup with "Resume all", and `/fc status` lists the paused kinds.
+
+**Settings page:** Options → AddOns → ForeverCollect (or `/fc` / `/fc options`) has checkboxes for capture notices, Armory and pausing capture (all, or per kind; Armory and pause apply to the current character), a "Save now" button, "Scan talents", and Start/Stop/Reset for the quest cache with its progress. They do the same as `/fc verbose`, `/fc armory on/off`, `/fc pause`/`/fc resume`, `/fc save`, `/fc scan` and `/fc questcache`. Below them, the page shows the catalog status of `/fc status` and lists every capture since the last save with its time, so you can see what the next `/reload` or logout writes. The page scrolls when the window is too small.
 
 **Quest type:** On every accept and turn-in, the quest type from the quest log is recorded (`tag`: Dungeon, Raid, Elite, PvP …, plus `suggestedGroup`). Quests captured earlier get their type as soon as they are accepted or turned in again.
 
 **Quest catalog:** The website's quest data comes from the client (`QuestV2.db2` and the quest cache `Cache/WDB/<locale>/questcache.wdb`); the observations add NPCs, progress and turn-in texts. The cache only contains quests the client has already queried from the server. `/fc questcache` queries all IDs from `Data/QuestIDs.lua` at a throttled rate (20/s, a bit over 5 minutes, resumable); afterwards, log out so the client writes the cache, then run `foreverdb-import all`.
 
-**Armory (opt-in):** With `/fc armory on`, the addon keeps a snapshot of the own character per catalog in `characters`: name, realm, guild, equipped items (with enchant and random suffix), spent talents (Classic) or purchased trait nodes (Forever), skill lines and the character sheet values. The upload gives the character a public profile on ForeverDB. It is off by default because name and realm otherwise never leave the computer; `/fc armory off` removes all stored snapshots (written with the next `/reload` or logout). Details: `SCHEMA.md` section 16.
+**Armory (opt-in):** With `/fc armory on`, the addon keeps a snapshot of the own character per catalog in `characters`: name, realm, guild, equipped items (with enchant and random suffix), spent talents (Classic) or purchased trait nodes (Forever), skill lines and the character sheet values. The upload gives the character a public profile on ForeverDB. It is set per character and off by default because name and realm otherwise never leave the computer; `/fc armory off` removes that character's stored snapshots (written with the next `/reload` or logout), other characters keep theirs. Before addon 0.6.4 Armory was account-wide: that opt-in carries over to each character on its first login (with a chat notice) until Armory is switched on or off explicitly for any character; characters logging in for the first time after that start with Armory off. Details: `SCHEMA.md` section 16.
 
 **Saving:** WoW only writes addon data to disk on logout, exit or `/reload`. Everything since the last save lives only in memory and is lost on a crash or a killed process. The addon therefore counts captures since the last save and, after 50 captures or 30 minutes, reminds you to run `/fc save` with a popup ("Save now" reloads the UI, "Later" postpones) and in chat. `/fc save` is a UI reload and never happens in combat, while casting or with a dialog open. The addon never reloads on its own: the game blocks reloads in many situations, and an unexpected reload interrupts play. `/fc status` shows the unsaved captures.
 
@@ -49,7 +53,7 @@ After `/reload`, logout or exit, WoW writes the data to:
 WTF/Account/<ACCOUNT>/SavedVariables/ForeverCollect.lua
 ```
 
-The file holds two globals: `ForeverCollectDB` (the collected data) and `ForeverCollectSettings` (`/fc verbose`, `/fc armory`, the `/fc questcache` position). After an upload the uploader removes only `ForeverCollectDB`, so the next session starts with empty catalogs and the settings stay.
+The file holds two globals: `ForeverCollectDB` (the collected data) and `ForeverCollectSettings` (`/fc verbose`, the `/fc questcache` position). After an upload the uploader removes only `ForeverCollectDB`, so the next session starts with empty catalogs and the settings stay. Per-character settings (`/fc armory`, the `/fc pause` flags) are in `ForeverCollectCharacterSettings`, which the game writes to each character's own file (`WTF/Account/<ACCOUNT>/<Realm>/<Character>/SavedVariables/ForeverCollect.lua`); the uploader never reads it.
 
 ## Uploading
 
@@ -65,13 +69,14 @@ Core/Database.lua       ForeverCollectDB, client/character context, catalog mana
 Core/Registry.lua       Event frame and dispatcher for events and slash commands
 Modules/NPCs.lua        NPC capture and merging (merchants, trainers, bankers, flight masters)
 Core/SaveReminder.lua   Unsaved captures, save reminder, /fc save
+Core/Pause.lua          Capture pause, all or per kind, with login reminder (/fc pause, /fc resume)
 Modules/Items.lua       Item catalog with sources and coordinates (/fc items)
 Modules/Merchants.lua   Merchant inventories (/fc merchants)
 Modules/Gathering.lua   Detects gathering spells (herbs, ore, skinning, fishing) and node names via tooltip
 Modules/Loot.lua        Loot sources and drop locations (/fc loot)
 Modules/Talents.lua     Talent trees via the Classic API (/fc talents)
 Modules/Traits.lua      Talent tooltips via the trait system on Forever (/fc traits)
-Modules/Character.lua   Opt-in Armory snapshot of the own character (/fc armory)
+Modules/Character.lua   Opt-in Armory snapshot of the own character, per character (/fc armory)
 Core/Options.lua        Settings page under Options -> AddOns (/fc, /fc options)
 Modules/Trainers.lua    Trainer services (/fc trainer)
 Modules/Quests.lua      Quest dialogs and turn-ins (/fc quests)

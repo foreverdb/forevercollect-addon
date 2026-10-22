@@ -300,7 +300,9 @@ addon.ScanTrainerServices = scanTrainerServices
 
 addon:RegisterEvent("TRAINER_SHOW", function()
     hasAnnouncedTrainer = nil
-    scanTrainerServices(false)
+    if addon.IsCapturing("trainers") then
+        scanTrainerServices(false)
+    end
 end)
 
 addon:RegisterEvent("TRAINER_CLOSED", function()
@@ -311,7 +313,7 @@ end)
 -- Re-scan when the list actually changes (data arriving after TRAINER_SHOW,
 -- learning a skill), but not for the updates caused by our own filter changes.
 addon:RegisterEvent("TRAINER_UPDATE", function()
-    if isScanningTrainer or getListSignature() == lastListSignature then
+    if not addon.IsCapturing("trainers") or isScanningTrainer or getListSignature() == lastListSignature then
         return
     end
     scanTrainerServices(true)

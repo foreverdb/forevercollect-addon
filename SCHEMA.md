@@ -21,12 +21,12 @@ This document fully describes the structure of the SavedVariable `ForeverCollect
 | `latestCatalogKey` | string | ✓ | Key of the most recently used catalog in `catalogs`. Absent until a catalog has been created. |
 | `catalogs` | map<string, Catalog> | – | All catalogs; see below for the key. |
 
-The file holds a second global, `ForeverCollectSettings`, with the addon settings. It is not part of the upload, and the uploader keeps it when it clears `ForeverCollectDB` after an upload. Files written before the split carried the settings in `ForeverCollectDB.settings`; the addon moves them over on load.
+The file holds a second global, `ForeverCollectSettings`, with the addon settings. It is not part of the upload, and the uploader keeps it when it clears `ForeverCollectDB` after an upload. Files written before the split carried the settings in `ForeverCollectDB.settings`; the addon moves them over on load. Per-character settings (Armory, capture pause) are in `ForeverCollectCharacterSettings` in each character's own file and never reach the uploader.
 
 | Field | Type | Opt. | Description |
 |---|---|---|---|
 | `verbose` | boolean | ✓ | Chat notice per capture; only `false` turns it off. |
-| `armory` | boolean | ✓ | `true` after `/fc armory on`; `characters` stays empty without it. |
+| `armory` | boolean | ✓ | Account-wide Armory opt-in from before addon 0.6.4; only seeds `ForeverCollectCharacterSettings.armory` of characters without a choice of their own and is removed on the first `/fc armory on/off`. |
 | `questCacheCrawl` | table | ✓ | `{ build, nextIndex }`, position of `/fc questcache`. |
 
 ### Catalog Key
@@ -495,7 +495,7 @@ Map `encounterID → Encounter`. Between `ENCOUNTER_START` and `ENCOUNTER_END`, 
 
 ## 16. `characters`
 
-Map `CharacterKey → CharacterSnapshot`, the latest state of each own character of the catalog for its public ForeverDB profile (Armory). **Opt-in:** only written after `/fc armory on` (`ForeverCollectSettings.armory`); `/fc armory off` empties `characters` in every catalog. The snapshot is taken 5 s after entering the world, 2 s after equipment, talent, level, skill, guild or trait changes, and on logout only if such a delayed capture is still pending. Without max health (`UnitHealthMax`) the unit data is not loaded yet or already torn down, and no snapshot is written. It is only replaced when `character`, `equipment`, `talents`, `traits` or `professions` changed; `stats` and `capturedAt` refresh together with such a change. If a session ends up where it started (e.g. an item taken off and put on again), the snapshot loaded at login is kept unchanged.
+Map `CharacterKey → CharacterSnapshot`, the latest state of each own character of the catalog for its public ForeverDB profile (Armory). **Opt-in per character:** only written for characters with `/fc armory on` (`ForeverCollectCharacterSettings.armory`); `/fc armory off` removes that character's entry from every catalog, other characters keep theirs. The snapshot is taken 5 s after entering the world, 2 s after equipment, talent, level, skill, guild or trait changes, and on logout only if such a delayed capture is still pending. Without max health (`UnitHealthMax`) the unit data is not loaded yet or already torn down, and no snapshot is written. It is only replaced when `character`, `equipment`, `talents`, `traits` or `professions` changed; `stats` and `capturedAt` refresh together with such a change. If a session ends up where it started (e.g. an item taken off and put on again), the snapshot loaded at login is kept unchanged.
 
 ### `CharacterSnapshot`
 

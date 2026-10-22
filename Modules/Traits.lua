@@ -199,7 +199,9 @@ addon.ScanTraitCatalog = scanTraitCatalog
 if hasTraitAPI() then
     addon:RegisterEvent("PLAYER_LOGIN", function()
         C_Timer.After(LOGIN_SCAN_DELAY, function()
-            scanTraitCatalog({ silent = true })
+            if addon.IsCapturing("talents") then
+                scanTraitCatalog({ silent = true })
+            end
         end)
     end)
 end

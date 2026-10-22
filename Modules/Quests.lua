@@ -280,12 +280,16 @@ for _, event in ipairs({
     "QUEST_ITEM_UPDATE",
 }) do
     addon:RegisterEvent(event, function()
-        captureQuest(event)
+        if addon.IsCapturing("quests") then
+            captureQuest(event)
+        end
     end)
 end
 
 addon:RegisterEvent("QUEST_TURNED_IN", function(questID, xpReward, moneyReward)
-    recordQuestTurnIn(questID, xpReward, moneyReward)
+    if addon.IsCapturing("quests") then
+        recordQuestTurnIn(questID, xpReward, moneyReward)
+    end
 end)
 
 addon:RegisterEvent("QUEST_FINISHED", function()

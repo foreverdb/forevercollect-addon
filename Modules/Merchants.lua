@@ -148,13 +148,17 @@ addon.ScanMerchant = scanMerchant
 
 addon:RegisterEvent("MERCHANT_SHOW", function()
     hasAnnouncedMerchant = nil
-    scanMerchant(false)
+    if addon.IsCapturing("merchants") then
+        scanMerchant(false)
+    end
 end)
 
 -- Fires when stock changes (e.g. after buying a limited item) and when the
 -- item list arrives after MERCHANT_SHOW.
 addon:RegisterEvent("MERCHANT_UPDATE", function()
-    scanMerchant(true)
+    if addon.IsCapturing("merchants") then
+        scanMerchant(true)
+    end
 end)
 
 addon:RegisterEvent("MERCHANT_CLOSED", function()

@@ -25,7 +25,9 @@ addon:RegisterEvent("ADDON_LOADED", function(loadedAddonName)
 end)
 
 addon:RegisterEvent("PLAYER_LOGIN", function()
-    scanAll({ silent = true })
+    if addon.IsCapturing("talents") then
+        scanAll({ silent = true })
+    end
 end)
 
 addon:RegisterCommand("help", function()
@@ -88,6 +90,10 @@ function addon.StatusLines()
             lootSourceCount,
             lootItemCount
         )
+    end
+    local paused = addon.PausedLabels()
+    if #paused > 0 then
+        lines[#lines + 1] = "Capture paused: " .. table.concat(paused, ", ") .. " (/fc resume)."
     end
     local unsaved, seconds = addon.UnsavedCaptures()
     lines[#lines + 1] = string.format(

@@ -66,9 +66,9 @@ local verbose, afterVerbose = createCheckbox(
 
 local armory, afterArmory = createCheckbox(
     afterVerbose,
-    "Armory (public character profile)",
-    "Uploads your character (name, realm, gear, talents, professions, stats) for a public profile on ForeverDB. "
-        .. "Turning it off removes every stored snapshot. Same as /fc armory on/off.",
+    "Armory (public profile of this character)",
+    "Uploads this character (name, realm, gear, talents, professions, stats) for a public profile on ForeverDB. "
+        .. "Set per character; turning it off removes this character's stored snapshots. Same as /fc armory on/off.",
     function(enabled)
         addon.SetArmory(enabled)
     end
@@ -105,7 +105,46 @@ local function runCommand(command)
     refreshStatus()
 end
 
-local saveHeading = createHeading(afterArmory, "Save")
+-- Pausing: one master switch, then one box per kind (checked = captured). The kind
+-- boxes are disabled while everything is paused, since their state then has no effect.
+local captureHeading = createHeading(afterArmory, "Capture (this character)")
+local refreshCapture
+
+local pauseAll, afterCapture = createCheckbox(
+    captureHeading,
+    "Pause all capture",
+    "Stops every automatic capture on this character until resumed; login and /reload remind you while it is on. "
+        .. "Same as /fc pause and /fc resume.",
+    function(enabled)
+        addon.SetPaused("all", enabled)
+        refreshCapture()
+    end
+)
+
+local kindBoxes = {}
+for _, kind in ipairs(addon.CAPTURE_KINDS) do
+    local checkbox
+    checkbox, afterCapture = createCheckbox(
+        afterCapture,
+        kind.label,
+        kind.hint .. " Same as /fc pause " .. kind.key .. " and /fc resume " .. kind.key .. ".",
+        function(enabled)
+            addon.SetPaused(kind.key, not enabled)
+        end
+    )
+    kindBoxes[kind.key] = checkbox
+end
+
+refreshCapture = function()
+    local allPaused = addon.IsPaused("all")
+    pauseAll:SetChecked(allPaused)
+    for key, checkbox in pairs(kindBoxes) do
+        checkbox:SetChecked(not addon.IsPaused(key))
+        checkbox:SetEnabled(not allPaused)
+    end
+end
+
+local saveHeading = createHeading(afterCapture, "Save")
 local saveButton = createButton("Save now (reload UI)", 180, function()
     addon.Save(false)
 end)
@@ -217,6 +256,8 @@ refreshStatus = function()
     questCacheStart:SetEnabled(supported and not running)
     questCacheStop:SetEnabled(supported and running)
     questCacheReset:SetEnabled(supported)
+    -- /fc pause and the login popup change the pause state while the page is open.
+    refreshCapture()
     updateListTitle()
     -- The scroll range follows the laid-out text; positions are unknown before the first draw.
     local top, bottom = content:GetTop(), list:GetBottom()
