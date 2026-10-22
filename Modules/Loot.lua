@@ -31,6 +31,11 @@ local GATHER_LOCATION_TIMES_CAP = 20
 -- reopening the same loot window does not inflate the counters.
 local seenLootGUIDs = {}
 
+-- Set once the open loot window was scanned. Loot is scanned on LOOT_READY,
+-- before fast-autoloot addons (Leatrix Plus) empty the slots, and again on
+-- LOOT_OPENED as a fallback; this keeps one window from being counted twice.
+local lootWindowScanned = false
+
 -- With shared loot, every group member opens the same corpse. The first
 -- opener tells the group's addons, which then skip that corpse, so it is
 -- counted once and never from a window others have already partly looted.
@@ -219,6 +224,7 @@ local function scanLoot()
     if numSlots == 0 then
         return
     end
+    lootWindowScanned = true
 
     local catalog = getOrCreateCatalog(getClientInfo())
     local now = time()
@@ -364,11 +370,20 @@ local function scanLoot()
     end
 end
 
-addon:RegisterEvent("LOOT_OPENED", function()
+local function onLootEvent()
+    if lootWindowScanned then
+        return
+    end
     local ok, err = pcall(scanLoot)
     if not ok then
         printMessage("Loot scan failed: " .. tostring(err))
     end
+end
+
+addon:RegisterEvent("LOOT_READY", onLootEvent)
+addon:RegisterEvent("LOOT_OPENED", onLootEvent)
+addon:RegisterEvent("LOOT_CLOSED", function()
+    lootWindowScanned = false
 end)
 
 addon:RegisterEvent("CHAT_MSG_ADDON", function(prefix, message)

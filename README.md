@@ -326,7 +326,7 @@ merchantSnapshots = {
 
 ## Loot
 
-`lootSources` aggregates loot observations per source (`LOOT_OPENED`). The key is `<sourceType>:<sourceID>` from the source GUID (`Creature`, `GameObject`), or `Fishing` when fishing. Inside instances, the GUIDs of hostile units are secret; such loot is stored under `Instance:<instanceID>` with the instance name as `name`. The same loot container counts only once per session (without a GUID, i.e. for `Instance`, this cannot be detected).
+`lootSources` aggregates loot observations per source (`LOOT_READY`, with `LOOT_OPENED` as fallback, so fast-autoloot addons such as Leatrix Plus do not empty the window first; each loot window is scanned once). The key is `<sourceType>:<sourceID>` from the source GUID (`Creature`, `GameObject`), or `Fishing` when fishing. Inside instances, the GUIDs of hostile units are secret; such loot is stored under `Instance:<instanceID>` with the instance name as `name`. The same loot container counts only once per session (without a GUID, i.e. for `Instance`, this cannot be detected).
 
 ```lua
 lootSources = {
