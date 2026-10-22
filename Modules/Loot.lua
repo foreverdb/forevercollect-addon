@@ -13,6 +13,7 @@ local getOrCreateCatalog = addon.GetOrCreateCatalog
 local getLatestCatalog = addon.GetLatestCatalog
 local recordItem = addon.RecordItem
 local consumePendingGather = addon.ConsumePendingGather
+local consumeObjectName = addon.ConsumeObjectName
 local readable = addon.Readable
 local getInstance = addon.GetInstance
 local getCreatureName = addon.GetCreatureName
@@ -226,6 +227,7 @@ local function scanLoot()
     end
     lootWindowScanned = true
     local gather = consumePendingGather()
+    local objectName = not gather and consumeObjectName and consumeObjectName() or nil
     -- The window stays marked as scanned, so a paused gather is not recorded
     -- as plain loot by the LOOT_OPENED fallback either.
     if not addon.IsCapturing(gather and "gathering" or "loot") then
@@ -256,6 +258,8 @@ local function scanLoot()
                 local sourceType, sourceID, sourceName, unit = describeSource(guid or nil, gather)
                 if gather and not sourceName then
                     sourceName = gather.nodeName
+                elseif sourceType == "GameObject" and not sourceName then
+                    sourceName = objectName
                 end
                 local source = getOrCreateSource(catalog, sourceType, sourceID, sourceName, now, gather, unit)
                 local sourceKey = getSourceKey(sourceType, sourceID, gather and gather.profession)

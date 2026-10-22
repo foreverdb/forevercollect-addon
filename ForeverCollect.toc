@@ -2,7 +2,7 @@
 ## Title: ForeverCollect
 ## Notes: Collects quests, NPCs, merchants, trainers, loot, talents and (opt-in) your character for ForeverDB.
 ## Author: Alex <info@foreverdb.app>
-## Version: 0.7
+## Version: 0.7.1
 ## DefaultState: enabled
 ## SavedVariables: ForeverCollectDB, ForeverCollectSettings
 ## SavedVariablesPerCharacter: ForeverCollectCharacterSettings
