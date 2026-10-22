@@ -29,6 +29,7 @@ The version is set in `ForeverCollect.toc` (`## Version:`). When it is bumped on
 /fc save      Save collected data now (reloads the UI)
 /fc options   Open the settings page (Options -> AddOns -> ForeverCollect)
 /fc armory    Public profile of this character: /fc armory on or off (default: off)
+/fc combatlog Combat log in dungeons and raids for boss detection: on or off (default: on)
 /fc pause     Pause capture: /fc pause (all) or /fc pause <kind>
 /fc resume    Resume capture: /fc resume (all) or /fc resume <kind>
 ```
@@ -37,11 +38,13 @@ Every capture (quest dialog, turn-in, loot, merchant, trainer, banker, flight ma
 
 **Pausing capture:** `/fc pause` stops every automatic capture, `/fc pause <kind>` only one kind: `quests`, `npcs`, `merchants`, `trainers`, `loot`, `gathering`, `encounters`, `talents`. `/fc resume <kind>` resumes one kind, a bare `/fc resume` resumes everything. Explicit actions (`/fc scan`, `/fc merchants`, `/fc trainer`, the quest cache, Armory) still run. The pause applies to the current character only and is kept across reloads; while anything is paused, every login and `/reload` prints a reminder and shows a popup with "Resume all", and `/fc status` lists the paused kinds.
 
-**Settings page:** Options → AddOns → ForeverCollect (or `/fc` / `/fc options`) has checkboxes for capture notices, Armory and pausing capture (all, or per kind; Armory and pause apply to the current character), a "Save now" button, "Scan talents", and Start/Stop/Reset for the quest cache with its progress. They do the same as `/fc verbose`, `/fc armory on/off`, `/fc pause`/`/fc resume`, `/fc save`, `/fc scan` and `/fc questcache`. Below them, the page shows the catalog status of `/fc status` and lists every capture since the last save with its time, so you can see what the next `/reload` or logout writes. The page scrolls when the window is too small.
+**Settings page:** Options → AddOns → ForeverCollect (or `/fc` / `/fc options`) has checkboxes for capture notices, Armory, combat log and pausing capture (all, or per kind; Armory, combat log and pause apply to the current character), a "Save now" button, "Scan talents", and Start/Stop/Reset for the quest cache with its progress. They do the same as `/fc verbose`, `/fc armory on/off`, `/fc combatlog on/off`, `/fc pause`/`/fc resume`, `/fc save`, `/fc scan` and `/fc questcache`. Below them, the page shows the catalog status of `/fc status` and lists every capture since the last save with its time, so you can see what the next `/reload` or logout writes. The page scrolls when the window is too small.
 
 **Quest type:** On every accept and turn-in, the quest type from the quest log is recorded (`tag`: Dungeon, Raid, Elite, PvP …, plus `suggestedGroup`). Quests captured earlier get their type as soon as they are accepted or turned in again.
 
 **Quest catalog:** The website's quest data comes from the client (`QuestV2.db2` and the quest cache `Cache/WDB/<locale>/questcache.wdb`); the observations add NPCs, progress and turn-in texts. The cache only contains quests the client has already queried from the server. `/fc questcache` queries all IDs from `Data/QuestIDs.lua` at a throttled rate (20/s, a bit over 5 minutes, resumable); afterwards, log out so the client writes the cache, then run `foreverdb-import all`.
+
+**Combat log:** Inside dungeons and raids the game hides the GUIDs of hostile units from addons, so the addon cannot see which creature an encounter's boss is. The game's own combat log file still has them: the addon turns combat logging on when entering a dungeon or raid and off again when leaving (only logging it started itself; logging started with `/combatlog` or by another addon stays on). The uploader reads `Logs/WoWCombatLog*.txt` and sends the creatures that died during each successful encounter with the upload; nothing else from the log (no player names, no raw lines) leaves the computer. Per character, on by default, `/fc combatlog off` or the settings page turns it off. The log files stay in `Logs/`; WoW starts a new one per session and never deletes old ones.
 
 **Armory (opt-in):** With `/fc armory on`, the addon keeps a snapshot of the own character per catalog in `characters`: name, realm, guild, equipped items (with enchant and random suffix), spent talents (Classic) or purchased trait nodes (Forever), skill lines and the character sheet values. The upload gives the character a public profile on ForeverDB. It is set per character and off by default because name and realm otherwise never leave the computer; `/fc armory off` removes that character's stored snapshots (written with the next `/reload` or logout), other characters keep theirs. Before addon 0.6.4 Armory was account-wide: that opt-in carries over to each character on its first login (with a chat notice) until Armory is switched on or off explicitly for any character; characters logging in for the first time after that start with Armory off. Details: `SCHEMA.md` section 16.
 
@@ -53,7 +56,7 @@ After `/reload`, logout or exit, WoW writes the data to:
 WTF/Account/<ACCOUNT>/SavedVariables/ForeverCollect.lua
 ```
 
-The file holds two globals: `ForeverCollectDB` (the collected data) and `ForeverCollectSettings` (`/fc verbose`, the `/fc questcache` position). After an upload the uploader removes only `ForeverCollectDB`, so the next session starts with empty catalogs and the settings stay. Per-character settings (`/fc armory`, the `/fc pause` flags) are in `ForeverCollectCharacterSettings`, which the game writes to each character's own file (`WTF/Account/<ACCOUNT>/<Realm>/<Character>/SavedVariables/ForeverCollect.lua`); the uploader never reads it.
+The file holds two globals: `ForeverCollectDB` (the collected data) and `ForeverCollectSettings` (`/fc verbose`, the `/fc questcache` position). After an upload the uploader removes only `ForeverCollectDB`, so the next session starts with empty catalogs and the settings stay. Per-character settings (`/fc armory`, `/fc combatlog`, the `/fc pause` flags) are in `ForeverCollectCharacterSettings`, which the game writes to each character's own file (`WTF/Account/<ACCOUNT>/<Realm>/<Character>/SavedVariables/ForeverCollect.lua`); the uploader never reads it.
 
 ## Uploading
 
@@ -74,6 +77,8 @@ Modules/Items.lua       Item catalog with sources and coordinates (/fc items)
 Modules/Merchants.lua   Merchant inventories (/fc merchants)
 Modules/Gathering.lua   Detects gathering spells (herbs, ore, skinning, fishing) and node names via tooltip
 Modules/Loot.lua        Loot sources and drop locations (/fc loot)
+Modules/Encounters.lua  Boss encounters: pulls, kills, boss units, diagnostics, loot after the kill
+Modules/CombatLog.lua   Turns combat logging on in dungeons and raids for boss detection (/fc combatlog)
 Modules/Talents.lua     Talent trees via the Classic API (/fc talents)
 Modules/Traits.lua      Talent tooltips via the trait system on Forever (/fc traits)
 Modules/Character.lua   Opt-in Armory snapshot of the own character, per character (/fc armory)

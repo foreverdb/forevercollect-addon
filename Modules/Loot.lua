@@ -273,6 +273,9 @@ local function scanLoot()
                     end
                     summary.sources[#summary.sources + 1] = sourceKey
                     summary.sourceNames[#summary.sourceNames + 1] = source.name or sourceKey
+                    if not gather and (sourceType == "Creature" or sourceType == "Vehicle") and addon.NoteCreatureLooted then
+                        addon.NoteCreatureLooted(sourceID, now)
+                    end
                 end
 
                 if slotType == LOOT_SLOT_MONEY then

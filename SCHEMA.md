@@ -20,6 +20,7 @@ This document fully describes the structure of the SavedVariable `ForeverCollect
 | `schemaVersion` | number | – | Schema version of the file; raised to at least 9 on load. |
 | `latestCatalogKey` | string | ✓ | Key of the most recently used catalog in `catalogs`. Absent until a catalog has been created. |
 | `catalogs` | map<string, Catalog> | – | All catalogs; see below for the key. |
+| `combatLog` | { kills: CombatLogKill[] } | ✓ | Never in the SavedVariables: the uploader adds it to the upload, next to the catalogs (section 15). |
 
 The file holds a second global, `ForeverCollectSettings`, with the addon settings. It is not part of the upload, and the uploader keeps it when it clears `ForeverCollectDB` after an upload. Files written before the split carried the settings in `ForeverCollectDB.settings`; the addon moves them over on load. Per-character settings (Armory, capture pause) are in `ForeverCollectCharacterSettings` in each character's own file and never reach the uploader.
 
@@ -478,7 +479,7 @@ Map `spellID → SpellTooltip`. On Forever (trait system), the addon reads the t
 
 ## 15. `encounters`
 
-Map `encounterID → Encounter`. Between `ENCOUNTER_START` and `ENCOUNTER_END`, the addon collects the creature IDs of the boss units (`boss1`…`boss8`, `INSTANCE_ENCOUNTER_ENGAGE_UNIT`). They link a client `DungeonEncounter` row to the creatures whose loot is stored under `Creature:<npcID>` in `lootSources`.
+Map `encounterID → Encounter`. Between `ENCOUNTER_START` and `ENCOUNTER_END`, the addon collects the creature IDs of the boss units (`boss1`…`boss8`, `INSTANCE_ENCOUNTER_ENGAGE_UNIT`). They link a client `DungeonEncounter` row to the creatures whose loot is stored under `Creature:<npcID>` in `lootSources`. Inside dungeons and raids the boss and target GUIDs are secret on the mainline engine (Forever), so `npcs` stays empty there; the uploader then reads the creatures that died during each kill from the game's combat log, which the addon turns on in instances (`/fc combatlog`, addon 0.8.0), and uploads them as the root's `combatLog` (see `CombatLogKill`). The server matches each kill to a catalog of the same client version for game version and season.
 
 ### `Encounter`
 
@@ -492,6 +493,24 @@ Map `encounterID → Encounter`. Between `ENCOUNTER_START` and `ENCOUNTER_END`, 
 | `kills` | number | – | Of which successful. |
 | `firstSeenAt`, `lastSeenAt` | number | – | First/last observation. |
 | `npcs` | { npcID: number, name?: string, via: string }[] | – | Boss creatures; `via = "boss"` for boss units, `"target"` if no boss unit was visible and a dead creature was targeted after a win (less reliable). |
+| `probe` | table | ✓ | What the client let the addon see on the last pull: `capturedAt`, `success`, `bossUnits` (most `boss1`…`boss8` units at once), `bossGUIDSecret`, `targetGUIDSecret` (GUID was a secret value), `combatLog` (`"started"` by the addon, `"already"` on, `"off"`, `"blocked"` by the client). Diagnostics, stored raw. |
+| `lootedAfterKill` | { npcID: number, count: number, minDelay: number }[] | ✓ | Creatures looted (`lootSources` key `Creature:<npcID>`) in the same instance within 300 s after a kill of this encounter, with the number of loot windows and the shortest delay in seconds. Raw candidates, not classified as bosses. |
+| `lootReceived` | { itemID: number, count: number }[] | ✓ | Items of `ENCOUNTER_LOOT_RECEIVED` for this encounter (group or personal loot handed out by the client). |
+
+### `CombatLogKill`
+
+Written by the uploader, never by the addon: one successful kill read from `Logs/WoWCombatLog*.txt`, in `combatLog.kills` of the upload's root.
+
+| Field | Type | Opt. | Description |
+|---|---|---|---|
+| `encounterID` | number | – | `DungeonEncounter.db2` ID from `ENCOUNTER_START`. |
+| `name` | string | ✓ | Encounter name from `ENCOUNTER_START`. |
+| `version` | string | ✓ | `BUILD_VERSION` of the log's `COMBAT_LOG_VERSION` line, e.g. `1.60.1`; compared with the catalogs' `version`. Without it the kill cannot be matched. |
+| `projectID` | number | ✓ | `PROJECT_ID` of the same line; compared with the catalogs' `projectID`. |
+| `at` | number | – | Time of `ENCOUNTER_END` (Unix seconds, local clock of the log). |
+| `difficultyID` | number | ✓ | Difficulty from `ENCOUNTER_START`. |
+| `instanceID` | number | ✓ | Instance map ID from `ENCOUNTER_START`. |
+| `deaths` | { npcID: number, name?: string, secondsBeforeEnd: number }[] | – | Every creature (`Creature-`/`Vehicle-` GUID) that died between `ENCOUNTER_START` and `ENCOUNTER_END`, the last death per NPC ID. No player data. |
 
 ## 16. `characters`
 
@@ -552,5 +571,5 @@ Catalogs first created with version 9 do not contain these fields.
 - New: `items`, `merchantSnapshots`, `lootSources`, `tradeSkills` and the timestamps `itemsUpdatedAt`, `merchantScanUpdatedAt`, `lootUpdatedAt`, `tradeSkillsUpdatedAt`.
 - New: `trainerSnapshots` is actually filled (documented in 8, but empty).
 - Removed: `skillSnapshots`, `skillsScannedAt`, `abilitySnapshots[*].spells` (see section 13).
-- Added later (without a version bump, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (section 14); `encounters` (section 15) and `lootSources[*].instanceID` (addon 0.1.10); `CountedLocation` with `count`/`firstSeenAt`/`lastSeenAt`/`times` for profession finds (addon 0.1.11); `lootSources[*].creatureType`/`creatureFamily`/`classification` (after addon 0.3.1); `characters` and `settings.armory` (section 16, after addon 0.3.2).
+- Added later (without a version bump, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (section 14); `encounters` (section 15) and `lootSources[*].instanceID` (addon 0.1.10); `CountedLocation` with `count`/`firstSeenAt`/`lastSeenAt`/`times` for profession finds (addon 0.1.11); `lootSources[*].creatureType`/`creatureFamily`/`classification` (after addon 0.3.1); `characters` and `settings.armory` (section 16, after addon 0.3.2); `encounters[*].probe`/`lootedAfterKill`/`lootReceived` (addon 0.8.0) and the root's `combatLog` (uploader, never in the SavedVariables).
 - Removed later (without a version bump, fields were optional): `abilitySnapshots`, `abilitiesScannedAt` – rune scan dropped; `items[*]` details (`detailsLoaded` & co.) and `tradeSkills`/`tradeSkillsUpdatedAt` – static spell, item and recipe data comes from wow.export.

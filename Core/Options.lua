@@ -74,6 +74,17 @@ local armory, afterArmory = createCheckbox(
     end
 )
 
+local combatLog, afterCombatLog = createCheckbox(
+    afterArmory,
+    "Combat log in dungeons and raids",
+    "Turns on the game's combat log inside instances, so the uploader can tell which creatures are an encounter's bosses "
+        .. "(their IDs are hidden from addons there). Only logging started by ForeverCollect is stopped again. "
+        .. "Set per character. Same as /fc combatlog on/off.",
+    function(enabled)
+        addon.SetCombatLog(enabled)
+    end
+)
+
 local function createHeading(anchor, text)
     local heading = content:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
     heading:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -24)
@@ -107,7 +118,7 @@ end
 
 -- Pausing: one master switch, then one box per kind (checked = captured). The kind
 -- boxes are disabled while everything is paused, since their state then has no effect.
-local captureHeading = createHeading(afterArmory, "Capture (this character)")
+local captureHeading = createHeading(afterCombatLog, "Capture (this character)")
 local refreshCapture
 
 local pauseAll, afterCapture = createCheckbox(
@@ -279,6 +290,7 @@ end)
 panel:SetScript("OnShow", function()
     verbose:SetChecked(addon.IsVerbose())
     armory:SetChecked(addon.IsArmoryEnabled())
+    combatLog:SetChecked(addon.IsCombatLogEnabled())
     fillList()
     refreshStatus()
 end)
