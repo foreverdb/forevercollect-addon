@@ -173,26 +173,46 @@ scanButton:SetPoint("TOPLEFT", scanHeading, "BOTTOMLEFT", 0, -10)
 local scanHint = createNote(scanButton)
 scanHint:SetText("Captures the talents of your class; happens on every login as well. Same as /fc scan.")
 
-local questCacheHeading = createHeading(scanHint, "Quest cache")
-local questCacheStart = createButton("Start", 100, function()
-    runCommand("questcache start")
-end)
-questCacheStart:SetPoint("TOPLEFT", questCacheHeading, "BOTTOMLEFT", 0, -10)
-local questCacheStop = createButton("Stop", 100, function()
-    runCommand("questcache stop")
-end)
-questCacheStop:SetPoint("LEFT", questCacheStart, "RIGHT", 8, 0)
-local questCacheReset = createButton("Reset", 100, function()
-    runCommand("questcache reset")
-end)
-questCacheReset:SetPoint("LEFT", questCacheStop, "RIGHT", 8, 0)
+-- Start/Stop/Reset plus progress for one of the cache crawls (Core/CacheCrawl.lua).
+local function createCrawlSection(anchor, title, command, units, status, hint)
+    local heading = createHeading(anchor, title)
+    local start = createButton("Start", 100, function()
+        runCommand(command .. " start")
+    end)
+    start:SetPoint("TOPLEFT", heading, "BOTTOMLEFT", 0, -10)
+    local stop = createButton("Stop", 100, function()
+        runCommand(command .. " stop")
+    end)
+    stop:SetPoint("LEFT", start, "RIGHT", 8, 0)
+    local reset = createButton("Reset", 100, function()
+        runCommand(command .. " reset")
+    end)
+    reset:SetPoint("LEFT", stop, "RIGHT", 8, 0)
 
-local questCacheStatus = createNote(questCacheStart)
-local questCacheHint = createNote(questCacheStatus, -4)
-questCacheHint:SetText("Asks the server for every quest of this client so its quest cache holds them all; "
-    .. "continues after a reload. Same as /fc questcache (stop, reset).")
+    local statusNote = createNote(start)
+    local hintNote = createNote(statusNote, -4)
+    hintNote:SetText(hint)
 
-local statusHeading = createHeading(questCacheHint, "Status")
+    local section = { last = hintNote }
+    function section.refresh()
+        local text, running = status()
+        local supported = text ~= nil
+        statusNote:SetText(text or ("This client cannot query " .. units .. " from the server."))
+        start:SetEnabled(supported and not running)
+        stop:SetEnabled(supported and running)
+        reset:SetEnabled(supported)
+    end
+    return section
+end
+
+local questCache = createCrawlSection(scanHint, "Quest cache", "questcache", "quests", addon.QuestCacheStatus,
+    "Asks the server for every quest of this client so its quest cache holds them all; "
+        .. "continues after a reload. Same as /fc questcache (stop, reset).")
+local itemCache = createCrawlSection(questCache.last, "Item cache", "itemcache", "items", addon.ItemCacheStatus,
+    "Asks the server for every item this client has no data for, so DBCache.bin holds them; "
+        .. "continues after a reload. Same as /fc itemcache (stop, reset).")
+
+local statusHeading = createHeading(itemCache.last, "Status")
 local statusText = createNote(statusHeading, -10)
 
 local listTitle = content:CreateFontString(nil, "ARTWORK", "GameFontNormal")
@@ -261,12 +281,8 @@ refreshStatus = function()
     lines[#lines] = nil
     statusText:SetText(table.concat(lines, "\n"))
 
-    local questCache, running = addon.QuestCacheStatus()
-    local supported = questCache ~= nil
-    questCacheStatus:SetText(questCache or "This client cannot query quests from the server.")
-    questCacheStart:SetEnabled(supported and not running)
-    questCacheStop:SetEnabled(supported and running)
-    questCacheReset:SetEnabled(supported)
+    questCache.refresh()
+    itemCache.refresh()
     -- /fc pause and the login popup change the pause state while the page is open.
     refreshCapture()
     updateListTitle()

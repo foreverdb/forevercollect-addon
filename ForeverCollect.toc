@@ -12,6 +12,7 @@ Core/Database.lua
 Core/Registry.lua
 Core/SaveReminder.lua
 Core/Pause.lua
+Core/CacheCrawl.lua
 Modules/NPCs.lua
 Modules/Items.lua
 Modules/Merchants.lua
@@ -26,5 +27,7 @@ Modules/Trainers.lua
 Modules/Quests.lua
 Data/QuestIDs.lua
 Modules/QuestCache.lua
+Data/ItemIDs.lua
+Modules/ItemCache.lua
 Core/Options.lua
 ForeverCollect.lua
