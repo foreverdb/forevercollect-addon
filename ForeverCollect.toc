@@ -25,9 +25,7 @@ Modules/Traits.lua
 Modules/Character.lua
 Modules/Trainers.lua
 Modules/Quests.lua
-Data/QuestIDs.lua
 Modules/QuestCache.lua
-Data/ItemIDs.lua
 Modules/ItemCache.lua
 Core/Options.lua
 ForeverCollect.lua
