@@ -31,8 +31,13 @@ function addon.NewCacheCrawl(config)
         return state
     end
 
+    -- Clients without the request API may not know its result event either (Classic Era has
+    -- no QUEST_DATA_LOAD_RESULT), and registering an unknown event throws. Checked first, so
+    -- the client does not report it; pcall covers clients without C_EventUtils.
+    local eventKnown
+
     local function isSupported()
-        return config.isSupported() and config.ids() ~= nil
+        return eventKnown and config.isSupported() and config.ids() ~= nil
     end
 
     local function stop(message)
@@ -66,7 +71,8 @@ function addon.NewCacheCrawl(config)
         end
     end
 
-    addon:RegisterEvent(config.resultEvent, function(_, success)
+    local valid = not (C_EventUtils and C_EventUtils.IsEventValid) or C_EventUtils.IsEventValid(config.resultEvent)
+    eventKnown = valid and pcall(addon.RegisterEvent, addon, config.resultEvent, function(_, success)
         if not ticker then
             return
         end

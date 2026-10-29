@@ -4,6 +4,12 @@ local frame = setmetatable({
     SetScript = function(_, _, handler)
         onEvent = handler
     end,
+    -- like the client: an event it does not know throws
+    RegisterEvent = function(_, event)
+        if event == "UNKNOWN_EVENT" then
+            error('Frame:RegisterEvent(): Attempt to register unknown event "' .. event .. '"')
+        end
+    end,
 }, { __index = function() return function() end end })
 CreateFrame = function() return frame end
 
@@ -108,3 +114,46 @@ local missing = addon.NewCacheCrawl({
 })
 addon:HandleSlashCommand("questcache")
 check("without an id list the command explains why", last() == "Quest cache: no list" and missing() == nil)
+
+-- A client without the result event: loading does not fail, the crawl is unsupported.
+local unknownStatus = addon.NewCacheCrawl({
+    command = "questcache",
+    label = "Quest cache",
+    unit = "quest",
+    cacheFile = "questcache.wdb",
+    settingsKey = "questCacheCrawl",
+    ids = function() return ids end,
+    request = function() end,
+    resultEvent = "UNKNOWN_EVENT",
+    isSupported = function() return true end,
+    unsupported = "Quest cache: unsupported.",
+})
+check("unknown result event: status function exists", type(unknownStatus) == "function")
+check("unknown result event: unsupported", unknownStatus() == nil)
+addon:HandleSlashCommand("questcache")
+check("unknown result event: command says unsupported", last() == "Quest cache: unsupported." and ticker == nil)
+
+-- C_EventUtils knows the event is missing: no registration attempt at all.
+local attempted = false
+frame.RegisterEvent = function(_, event)
+    if event == "OTHER_UNKNOWN_EVENT" then
+        attempted = true
+        error("unknown event")
+    end
+end
+C_EventUtils = { IsEventValid = function(event) return event ~= "OTHER_UNKNOWN_EVENT" end }
+local checkedStatus = addon.NewCacheCrawl({
+    command = "othercache",
+    label = "Other cache",
+    unit = "thing",
+    cacheFile = "other",
+    settingsKey = "otherCacheCrawl",
+    ids = function() return ids end,
+    request = function() end,
+    resultEvent = "OTHER_UNKNOWN_EVENT",
+    isSupported = function() return true end,
+    unsupported = "Other cache: unsupported.",
+})
+check("invalid per C_EventUtils: not registered", not attempted)
+check("invalid per C_EventUtils: unsupported", checkedStatus() == nil)
+C_EventUtils = nil
