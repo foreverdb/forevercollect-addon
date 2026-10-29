@@ -1,11 +1,13 @@
 local _, addon = ...
 
--- Inside dungeons and raids the GUIDs of hostile units are secret to addons, but
--- the game's own combat log file (Logs/WoWCombatLog*.txt) keeps them. The addon
--- turns logging on there, and the uploader reads which creatures died during
--- each encounter. Logging the addon started is stopped again on leaving the
--- instance; logging started by the player or another addon is left alone.
--- Per character, on by default (ForeverCollectCharacterSettings.combatLog).
+-- Addons get no combat data (hostile GUIDs are secret in dungeons and raids, and
+-- casts are hidden everywhere), but the game's own combat log file
+-- (Logs/WoWCombatLog*.txt) keeps it. The addon turns logging on, and the uploader
+-- reads which creatures died during each encounter and which spells creatures
+-- used. Logging the addon started is stopped again where it is no longer wanted;
+-- logging started by the player or another addon is left alone.
+-- Per character, on by default (ForeverCollectCharacterSettings.combatLog), in
+-- dungeons and raids only unless combatLogScope is "everywhere".
 
 local printMessage = addon.PrintMessage
 local readable = addon.Readable
@@ -18,6 +20,11 @@ local startedByAddon = false
 local function isEnabled()
     local settings = ForeverCollectCharacterSettings
     return not settings or settings.combatLog ~= false
+end
+
+local function scope()
+    local settings = ForeverCollectCharacterSettings
+    return settings and settings.combatLogScope == "everywhere" and "everywhere" or "instances"
 end
 
 local function isLogging()
@@ -45,7 +52,7 @@ local function update()
         state = "blocked"
         return
     end
-    if not isEnabled() or not inGroupInstance() then
+    if not isEnabled() or (scope() ~= "everywhere" and not inGroupInstance()) then
         stopOwnLogging()
         state = isLogging() and "already" or "off"
         return
@@ -71,13 +78,30 @@ function addon.CombatLogState()
 end
 
 addon.IsCombatLogEnabled = isEnabled
+addon.CombatLogScope = scope
+
+local function describe()
+    if not isEnabled() then
+        return "Combat log is off. /fc combatlog on logs dungeons and raids for bosses and creature abilities."
+    end
+    if scope() == "everywhere" then
+        return "Combat log is on everywhere: bosses and creature abilities are logged. "
+            .. "/fc combatlog instances limits it to dungeons and raids, /fc combatlog off stops it."
+    end
+    return "Combat log is on in dungeons and raids: bosses and creature abilities are logged. "
+        .. "/fc combatlog everywhere also logs outside, /fc combatlog off stops it."
+end
 
 function addon.SetCombatLog(enabled)
     ForeverCollectCharacterSettings.combatLog = enabled
     update()
-    printMessage(enabled
-        and "Combat log on: dungeons and raids are logged so the uploader can tell which creatures are the bosses."
-        or "Combat log off: the addon no longer turns on combat logging in dungeons and raids.")
+    printMessage(describe())
+end
+
+function addon.SetCombatLogScope(value)
+    ForeverCollectCharacterSettings.combatLogScope = value == "everywhere" and "everywhere" or nil
+    update()
+    printMessage(describe())
 end
 
 addon:RegisterEvent("PLAYER_ENTERING_WORLD", update)
@@ -86,9 +110,9 @@ addon:RegisterEvent("ZONE_CHANGED_NEW_AREA", update)
 addon:RegisterCommand("combatlog", function(argument)
     if argument == "on" or argument == "off" then
         addon.SetCombatLog(argument == "on")
+    elseif argument == "instances" or argument == "everywhere" then
+        addon.SetCombatLogScope(argument)
     else
-        printMessage(isEnabled()
-            and "Combat log is on: dungeons and raids are logged for boss detection. /fc combatlog off stops it."
-            or "Combat log is off. /fc combatlog on logs dungeons and raids for boss detection.")
+        printMessage(describe())
     end
-end, "Combat log in dungeons and raids for boss detection: /fc combatlog on or off")
+end, "Combat log for bosses and creature abilities: /fc combatlog on, off, instances (default) or everywhere")

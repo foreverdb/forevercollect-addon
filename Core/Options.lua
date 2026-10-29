@@ -74,14 +74,27 @@ local armory, afterArmory = createCheckbox(
     end
 )
 
-local combatLog, afterCombatLog = createCheckbox(
+local combatLogScope
+local combatLog, afterCombatLogToggle = createCheckbox(
     afterArmory,
-    "Combat log in dungeons and raids",
-    "Turns on the game's combat log inside instances, so the uploader can tell which creatures are an encounter's bosses "
-        .. "(their IDs are hidden from addons there). Only logging started by ForeverCollect is stopped again. "
+    "Combat log for bosses and abilities",
+    "Turns on the game's combat log in dungeons and raids, so the uploader can tell which creatures are an encounter's bosses "
+        .. "and which spells creatures use (addons get no combat data). Only logging started by ForeverCollect is stopped again. "
         .. "Set per character. Same as /fc combatlog on/off.",
     function(enabled)
         addon.SetCombatLog(enabled)
+        combatLogScope:SetEnabled(enabled)
+    end
+)
+
+local afterCombatLog
+combatLogScope, afterCombatLog = createCheckbox(
+    afterCombatLogToggle,
+    "Also outside dungeons and raids",
+    "Logs everywhere, for the abilities of creatures in the open world. The log files grow by about 1 MB per hour of play. "
+        .. "Set per character. Same as /fc combatlog everywhere/instances.",
+    function(enabled)
+        addon.SetCombatLogScope(enabled and "everywhere" or "instances")
     end
 )
 
@@ -307,6 +320,8 @@ panel:SetScript("OnShow", function()
     verbose:SetChecked(addon.IsVerbose())
     armory:SetChecked(addon.IsArmoryEnabled())
     combatLog:SetChecked(addon.IsCombatLogEnabled())
+    combatLogScope:SetChecked(addon.CombatLogScope() == "everywhere")
+    combatLogScope:SetEnabled(addon.IsCombatLogEnabled())
     fillList()
     refreshStatus()
 end)

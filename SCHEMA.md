@@ -20,7 +20,7 @@ This document fully describes the structure of the SavedVariable `ForeverCollect
 | `schemaVersion` | number | – | Schema version of the file; raised to at least 9 on load. |
 | `latestCatalogKey` | string | ✓ | Key of the most recently used catalog in `catalogs`. Absent until a catalog has been created. |
 | `catalogs` | map<string, Catalog> | – | All catalogs; see below for the key. |
-| `combatLog` | { kills: CombatLogKill[] } | ✓ | Never in the SavedVariables: the uploader adds it to the upload, next to the catalogs (section 15). |
+| `combatLog` | { kills?: CombatLogKill[], abilities?: CombatLogAbility[] } | ✓ | Never in the SavedVariables: the uploader adds it to the upload, next to the catalogs (section 15). |
 
 The file holds a second global, `ForeverCollectSettings`, with the addon settings. It is not part of the upload, and the uploader keeps it when it clears `ForeverCollectDB` after an upload. Files written before the split carried the settings in `ForeverCollectDB.settings`; the addon moves them over on load. Per-character settings (Armory, capture pause) are in `ForeverCollectCharacterSettings` in each character's own file and never reach the uploader.
 
@@ -513,6 +513,19 @@ Written by the uploader, never by the addon: one successful kill read from `Logs
 | `instanceID` | number | ✓ | Instance map ID from `ENCOUNTER_START`. |
 | `deaths` | { npcID: number, name?: string, secondsBeforeEnd: number }[] | – | Every creature (`Creature-`/`Vehicle-` GUID) that died between `ENCOUNTER_START` and `ENCOUNTER_END`, the last death per NPC ID. No player data. |
 
+### `CombatLogAbility`
+
+Written by the uploader, never by the addon: a spell a creature used, read from the whole log (in dungeons and raids, or everywhere with `/fc combatlog everywhere`), in `combatLog.abilities` of the upload's root. One entry per client version, creature and spell, with no counts. The source must be a `Creature-`/`Vehicle-` GUID that is NPC-controlled and hostile or neutral, so player pets and friendly NPCs are left out. Counted events: every `SPELL_*` except `SPELL_ABSORBED`, `SPELL_AURA_REMOVED*`, `SPELL_AURA_REFRESH` and `SPELL_AURA_BROKEN*`, plus `RANGE_*` and `DAMAGE_SHIELD*`.
+
+| Field | Type | Opt. | Description |
+|---|---|---|---|
+| `npcID` | number | – | NPC ID from the source GUID. |
+| `spellID` | number | – | Spell ID of the event. |
+| `name` | string | ✓ | Source name as logged. |
+| `version` | string | ✓ | As in `CombatLogKill`. |
+| `projectID` | number | ✓ | As in `CombatLogKill`. |
+| `events` | string[] | – | The event kinds the pair was seen with, sorted (e.g. `SPELL_CAST_SUCCESS`, `SPELL_DAMAGE`); raw, to tell cast from passive or triggered spells later. |
+
 ## 16. `characters`
 
 Map `CharacterKey → CharacterSnapshot`, the latest state of each own character of the catalog for its public ForeverDB profile (Armory). **Opt-in per character:** only written for characters with `/fc armory on` (`ForeverCollectCharacterSettings.armory`); `/fc armory off` removes that character's entry from every catalog, other characters keep theirs. The snapshot is taken 5 s after entering the world, 2 s after equipment, talent, level, skill, guild or trait changes, and on logout only if such a delayed capture is still pending. Without max health (`UnitHealthMax`) the unit data is not loaded yet or already torn down, and no snapshot is written. It is only replaced when `character`, `equipment`, `talents`, `traits` or `professions` changed; `stats` and `capturedAt` refresh together with such a change. If a session ends up where it started (e.g. an item taken off and put on again), the snapshot loaded at login is kept unchanged.
@@ -572,5 +585,5 @@ Catalogs first created with version 9 do not contain these fields.
 - New: `items`, `merchantSnapshots`, `lootSources`, `tradeSkills` and the timestamps `itemsUpdatedAt`, `merchantScanUpdatedAt`, `lootUpdatedAt`, `tradeSkillsUpdatedAt`.
 - New: `trainerSnapshots` is actually filled (documented in 8, but empty).
 - Removed: `skillSnapshots`, `skillsScannedAt`, `abilitySnapshots[*].spells` (see section 13).
-- Added later (without a version bump, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (section 14); `encounters` (section 15) and `lootSources[*].instanceID` (addon 0.1.10); `CountedLocation` with `count`/`firstSeenAt`/`lastSeenAt`/`times` for profession finds (addon 0.1.11); `lootSources[*].creatureType`/`creatureFamily`/`classification` (after addon 0.3.1); `characters` and `settings.armory` (section 16, after addon 0.3.2); `encounters[*].probe`/`lootedAfterKill`/`lootReceived` (addon 0.8.0) and the root's `combatLog` (uploader, never in the SavedVariables).
+- Added later (without a version bump, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (section 14); `encounters` (section 15) and `lootSources[*].instanceID` (addon 0.1.10); `CountedLocation` with `count`/`firstSeenAt`/`lastSeenAt`/`times` for profession finds (addon 0.1.11); `lootSources[*].creatureType`/`creatureFamily`/`classification` (after addon 0.3.1); `characters` and `settings.armory` (section 16, after addon 0.3.2); `encounters[*].probe`/`lootedAfterKill`/`lootReceived` (addon 0.8.0) and the root's `combatLog` (uploader, never in the SavedVariables); `combatLog.abilities` (uploader, with addon 0.9.0).
 - Removed later (without a version bump, fields were optional): `abilitySnapshots`, `abilitiesScannedAt` – rune scan dropped; `items[*]` details (`detailsLoaded` & co.) and `tradeSkills`/`tradeSkillsUpdatedAt` – static spell, item and recipe data comes from wow.export.

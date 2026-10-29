@@ -1,6 +1,6 @@
 -- Run: luajit tests/combat_log_test.lua (or lua5.1)
--- Combat logging is turned on in dungeons and raids and only the addon's own
--- logging is turned off again.
+-- Combat logging is turned on in dungeons and raids (or everywhere) and only the
+-- addon's own logging is turned off again.
 local stubFrame = setmetatable({}, { __index = function() return function() end end })
 CreateFrame = function() return stubFrame end
 WorldFrame = {}
@@ -91,3 +91,28 @@ ForeverCollectCharacterSettings.combatLog = nil
 refuse = true
 fire("PLAYER_ENTERING_WORLD")
 check("refused: blocked", logging == false and addon.CombatLogState() == "blocked")
+
+refuse = false
+
+-- Everywhere: the open world is logged too.
+ForeverCollectCharacterSettings.combatLog = nil
+instanceType = "none"
+commands.combatlog("everywhere")
+check("everywhere: open world logged", logging == true and addon.CombatLogState() == "started")
+check("everywhere: stored", ForeverCollectCharacterSettings.combatLogScope == "everywhere")
+instanceType = "party"
+fire("PLAYER_ENTERING_WORLD")
+check("everywhere: dungeon keeps logging", logging == true and addon.CombatLogState() == "started")
+instanceType = "none"
+fire("ZONE_CHANGED_NEW_AREA")
+check("everywhere: leaving keeps logging", logging == true)
+
+-- Back to instances only: the open world stops.
+commands.combatlog("instances")
+check("instances: own logging stopped", logging == false and addon.CombatLogState() == "off")
+check("instances: default again", ForeverCollectCharacterSettings.combatLogScope == nil)
+
+-- Off wins over everywhere.
+commands.combatlog("everywhere")
+commands.combatlog("off")
+check("off with everywhere: no logging", logging == false)
