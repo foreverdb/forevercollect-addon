@@ -1,13 +1,14 @@
 name: Release
 
-# Packages the addon and publishes a GitHub release whenever the version in
-# ForeverCollect.toc changes on main. Can also be run by hand for a version whose
-# tag does not exist yet.
+# Packages the addon and publishes a GitHub release whenever main carries a
+# ForeverCollect.toc version whose tag does not exist yet. The tag is the only
+# gate, so a version bump followed by more commits in the same push still
+# releases. Can also be run by hand.
 
 on:
   push:
     branches: [main]
-    paths: [ForeverCollect.toc]
+    paths: [ForeverCollect.toc, .github/workflows/release.yml]
   workflow_dispatch:
 
 permissions:
@@ -22,8 +23,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
 
       - name: Read version
         id: version
@@ -33,28 +32,16 @@ jobs:
             echo "::error file=ForeverCollect.toc::no '## Version:' line found"
             exit 1
           fi
-          previous=""
-          if git rev-parse --verify --quiet HEAD~1 >/dev/null; then
-            previous="$(git show HEAD~1:ForeverCollect.toc 2>/dev/null | sed -n 's/^## Version: *//p' | tr -d '\r' | head -n 1 || true)"
-          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "previous=$previous" >> "$GITHUB_OUTPUT"
-          echo "Version: $version (previous commit: ${previous:-none})"
+          echo "Version: $version"
 
       - name: Decide whether to release
         id: decide
         env:
           VERSION: ${{ steps.version.outputs.version }}
-          PREVIOUS: ${{ steps.version.outputs.previous }}
-          EVENT: ${{ github.event_name }}
         run: |
-          if [[ "$EVENT" != "workflow_dispatch" && "$VERSION" == "$PREVIOUS" ]]; then
-            echo "Version unchanged ($VERSION); nothing to release."
-            echo "release=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
           if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
-            echo "::warning::tag v$VERSION already exists; not releasing again."
+            echo "Tag v$VERSION already exists; nothing to release."
             echo "release=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
