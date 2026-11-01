@@ -23,7 +23,7 @@ local function countTalents(catalog)
 end
 
 -- Classic Era exposes the tab/tier talent API; Forever (1.60+) builds its trees
--- on the trait system, which Modules/Traits.lua scans instead.
+-- on the trait system, whose trees and tooltips come from the client data.
 local function hasClassicTalentAPI()
     return C_SpecializationInfo
         and C_SpecializationInfo.GetTalentInfo
@@ -81,7 +81,7 @@ local function scanTalentCatalog(options)
 
     if not hasClassicTalentAPI() then
         if not options.silent then
-            printMessage("This client has no Classic talent API; the talent trees come from the client data, /fc scan reads their tooltips (see /fc traits).")
+            printMessage("This client has no Classic talent API; its talent trees and tooltips come from the client data, nothing to scan.")
         end
         return nil
     end

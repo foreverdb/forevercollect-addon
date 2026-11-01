@@ -5,12 +5,10 @@ addon.name = addonName
 local printMessage = addon.PrintMessage
 local getLatestCatalog = addon.GetLatestCatalog
 
+-- Forever's talent trees and their tooltips come from the client data (importer);
+-- only Classic Era's talent API is scanned.
 local function scanAll(options)
-    if addon.HasClassicTalentAPI() then
-        addon.ScanTalentCatalog(options)
-    else
-        addon.ScanTraitCatalog(options)
-    end
+    addon.ScanTalentCatalog(options)
 end
 
 addon:RegisterEvent("ADDON_LOADED", function(loadedAddonName)
@@ -46,7 +44,7 @@ end, "Toggle notices for every capture")
 
 addon:RegisterCommand("scan", function()
     scanAll()
-end, "Scan talents (Forever: talent tooltips)")
+end, "Scan talents (Classic Era)")
 
 -- Catalog context and capture counts, for /fc status and the settings page.
 function addon.StatusLines()

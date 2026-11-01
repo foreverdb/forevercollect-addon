@@ -15,9 +15,8 @@ The version is set in `ForeverCollect.toc` (`## Version:`). When it is bumped on
 ```text
 /fc           Open the settings page
 /fc help      List all commands
-/fc scan      Scan talents (Forever: talent tooltips)
+/fc scan      Scan talents (Classic Era)
 /fc talents   Show talent data of the current catalog
-/fc traits    Diagnose the client's trait trees (Forever)
 /fc trainer   Scan trainer services and show number of captured entries
 /fc items     Show number of captured items
 /fc merchants Show merchant inventories
@@ -83,7 +82,6 @@ Modules/Loot.lua        Loot sources and drop locations (/fc loot)
 Modules/Encounters.lua  Boss encounters: pulls, kills, boss units, diagnostics, loot after the kill
 Modules/CombatLog.lua   Turns combat logging on for bosses and creature abilities (/fc combatlog)
 Modules/Talents.lua     Talent trees via the Classic API (/fc talents)
-Modules/Traits.lua      Talent tooltips via the trait system on Forever (/fc traits)
 Modules/Character.lua   Opt-in Armory snapshot of the own character, per character (/fc armory)
 Core/Options.lua        Settings page under Options -> AddOns (/fc, /fc options)
 Modules/Trainers.lua    Trainer services (/fc trainer)
@@ -170,7 +168,7 @@ catalog = {
 
 ## Talents
 
-`specializations` is an array of talent trees, read via the Classic Era tab/tier API (`Modules/Talents.lua`). Forever (1.60+) builds its talents on the trait system (`C_Traits`); there `specializations` stays empty. Tree structure, ranks and prerequisites come from the client's trait tables (`TraitNode`, `TraitEdge`), which the importer reads. What only the game knows are the tooltip texts with their values: `Modules/Traits.lua` runs at login (delayed by 5 s) and on `/fc scan`, walks the active trait configuration and stores the tooltips of all ranks for each talent spell in `spellTooltips`. `/fc traits` shows what the client provides. Automatic scans report only once per session; only `/fc scan` explains why no trees are scanned on Forever.
+`specializations` is an array of talent trees, read via the Classic Era tab/tier API (`Modules/Talents.lua`). Forever (1.60+) builds its talents on the trait system (`C_Traits`); there `specializations` stays empty. Tree structure, ranks and prerequisites come from the client's trait tables (`TraitNode`, `TraitEdge`), which the importer reads. The tooltip texts with their values per rank are computed by the website from the client data as well, including Blizzard's hotfixes; the addon scans nothing on Forever (until 0.9.0 it stored the tooltips in `spellTooltips`, which went stale after hotfixes).
 
 ```lua
 specializations = {

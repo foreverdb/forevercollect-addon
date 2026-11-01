@@ -106,7 +106,7 @@ end
 
 -- Forever: purchased ranks of the active trait configuration.
 local function captureTraits()
-    if not (addon.HasTraitAPI and addon.HasTraitAPI()) then
+    if not (C_Traits and C_Traits.GetConfigInfo and C_Traits.GetTreeNodes and C_Traits.GetNodeInfo) then
         return nil
     end
     local configID = C_ClassTalents and call(C_ClassTalents.GetActiveConfigID)

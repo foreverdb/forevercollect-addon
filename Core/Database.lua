@@ -135,7 +135,6 @@ function addon.GetOrCreateCatalog(client)
             merchantSnapshots = {},
             lootSources = {},
             encounters = {},
-            spellTooltips = {},
             characters = {},
         }
         ForeverCollectDB.catalogs[key] = catalog
@@ -157,7 +156,10 @@ function addon.GetOrCreateCatalog(client)
         catalog.merchantSnapshots = catalog.merchantSnapshots or {}
         catalog.lootSources = catalog.lootSources or {}
         catalog.encounters = catalog.encounters or {}
-        catalog.spellTooltips = catalog.spellTooltips or {}
+        -- Forever's talent tooltips used to be scanned (spellTooltips); the website now
+        -- computes them from the client data, so stale scans must not be uploaded again.
+        catalog.spellTooltips = nil
+        catalog.spellTooltipsUpdatedAt = nil
         catalog.characters = catalog.characters or {}
     end
 

@@ -186,7 +186,7 @@ At least one of the two fields is set; lines without text are omitted.
 
 ## 4. `Specialization` (Talent Trees)
 
-`catalog.specializations` is replaced completely on every talent scan (Classic Era tab/tier API). On Forever it stays empty; there the client provides the trees (trait tables, imported server-side) and the addon only the tooltips (section 14).
+`catalog.specializations` is replaced completely on every talent scan (Classic Era tab/tier API). On Forever it stays empty; there the client data provide the trees and their tooltips (trait tables, imported server-side).
 
 | Field | Type | Opt. | Description |
 |---|---|---|---|
@@ -465,18 +465,11 @@ List of `NPC` (section 3.4). An NPC appears exactly once; merging is done via `g
 
 ---
 
-## 14. `spellTooltips`
+## 14. `spellTooltips` (removed)
 
-Map `spellID → SpellTooltip`. On Forever (trait system), the addon reads the tooltips of all ranks of every talent spell in the active trait configuration at login (delayed) and on `/fc scan`, via `GameTooltip:SetTraitEntry` (fallback `SetSpellByID`). The tree structure itself does not come from the addon but from the client's trait tables; the tooltips add the values ("Increases … by 2%") that the client only knows as placeholders. An entry is only written if the tooltip provides more than the name line (spell data loads late); existing entries are replaced on every scan.
+No longer written since addon 0.9.1, and dropped from existing catalogs on load (see section 13). On Forever the website computes the talent tooltips per rank from the client data, Blizzard's hotfixes included; the scanned texts went stale after a hotfix and overrode the current values.
 
-### `SpellTooltip`
-
-| Field | Type | Opt. | Description |
-|---|---|---|---|
-| `name` | string | ✓ | Spell name. |
-| `lines` | TooltipLine[] | | Tooltip of rank 1 including the name line (section 3.3). |
-| `ranks` | { rank: number, tooltipLines: TooltipLine[] }[] | ✓ | Tooltip per rank. |
-| `capturedAt` | number | | Time of the scan. |
+---
 
 ## 15. `encounters`
 
@@ -576,6 +569,7 @@ When the schema version is raised, existing data is **not** cleaned up. Catalogs
 | `abilitySnapshots`, `abilitiesScannedAt` | ≤ 9.0 | SoD runes per character; no longer written and never imported server-side. |
 | `tradeSkills`, `tradeSkillsUpdatedAt` | ≤ 9.0 | Profession recipes from the profession/craft window; replaced by DB2 import (`SkillLineAbility`, `SpellReagents` …). Never imported server-side. |
 | `items[*].detailsLoaded`, `name`, `quality`, `itemLevel`, `requiredLevel`, `itemType`, `itemSubType`, `stackCount`, `equipLoc`, `texture`, `sellPrice`, `classID`, `subclassID`, `bindType`, `expansionID`, `setID`, `isCraftingReagent`, `spell`, `stats`, `tooltipLines`, `updatedAt` | ≤ 9.0 | Item details from `GetItemInfo`/tooltip; replaced by DB2 import (`ItemSparse`). |
+| `spellTooltips`, `spellTooltipsUpdatedAt` | ≤ 0.9.0 (addon) | Forever talent tooltips; unlike the other fields here they are **removed** on load, so stale scans are not uploaded again. |
 | `quests[*].observations[*].questNPC` without `interactionTypes`/`location.source` | ≤ 7 | Normalized on load (`addon.MigrateNPCData`). |
 
 Catalogs first created with version 9 do not contain these fields.
@@ -586,4 +580,4 @@ Catalogs first created with version 9 do not contain these fields.
 - New: `trainerSnapshots` is actually filled (documented in 8, but empty).
 - Removed: `skillSnapshots`, `skillsScannedAt`, `abilitySnapshots[*].spells` (see section 13).
 - Added later (without a version bump, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (section 14); `encounters` (section 15) and `lootSources[*].instanceID` (addon 0.1.10); `CountedLocation` with `count`/`firstSeenAt`/`lastSeenAt`/`times` for profession finds (addon 0.1.11); `lootSources[*].creatureType`/`creatureFamily`/`classification` (after addon 0.3.1); `characters` and `settings.armory` (section 16, after addon 0.3.2); `encounters[*].probe`/`lootedAfterKill`/`lootReceived` (addon 0.8.0) and the root's `combatLog` (uploader, never in the SavedVariables); `combatLog.abilities` (uploader, with addon 0.9.0).
-- Removed later (without a version bump, fields were optional): `abilitySnapshots`, `abilitiesScannedAt` – rune scan dropped; `items[*]` details (`detailsLoaded` & co.) and `tradeSkills`/`tradeSkillsUpdatedAt` – static spell, item and recipe data comes from wow.export.
+- Removed later (without a version bump, fields were optional): `abilitySnapshots`, `abilitiesScannedAt` – rune scan dropped; `items[*]` details (`detailsLoaded` & co.) and `tradeSkills`/`tradeSkillsUpdatedAt` – static spell, item and recipe data comes from wow.export; `spellTooltips`/`spellTooltipsUpdatedAt` (addon 0.9.1) – Forever's talent tooltips come from the client data.
