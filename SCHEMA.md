@@ -82,13 +82,14 @@ Example: `2:11509:69722:2:enUS:5:8:Horde`. A catalog is thus separate per client
 | `items` | map<number, Item> | Item catalog, keyed by `itemID` | 6 |
 | `merchantSnapshots` | map<NPCKey, MerchantSnapshot> | Inventory per merchant NPC | 7 |
 | `lootSources` | map<string, LootSource> | Loot per source | 8 |
+| `killTimes` | KillTime[] | The session's looted creatures in order, see below | 8 |
 | `encounters` | map<number, Encounter> | Boss encounters, keyed by `encounterID` | 15 |
 | `quests` | map<number, Quest> | Quests, keyed by `questID` | 11 |
 | `npcs` | NPC[] | NPC catalog | 12 |
 | `spellTooltips` | map<number, SpellTooltip> | Tooltips of the class's talent rank spells, keyed by `spellID` | 14 |
 | `characters` | map<CharacterKey, CharacterSnapshot> | Armory snapshot of the own characters (opt-in) | 16 |
 
-All collections are always present (possibly empty); `spellTooltips`, `encounters` and `characters` were added without a version bump and are missing in older catalogs.
+All collections are always present (possibly empty); `spellTooltips`, `encounters`, `characters` and `killTimes` were added without a version bump and are missing in older catalogs (`killTimes` also until the first creature is looted).
 
 **`NPCKey`**: GUID of the NPC (`"Creature-0-…"`); if no GUID is available, `"<npcID>:<name>"` (`addon.GetNPCKey`).
 **`CharacterKey`**: Player GUID (`"Player-…"`), alternatively `"<Name>-<Realm>"`.
@@ -126,7 +127,7 @@ All fields except `source` are absent if the client provides no map data (e.g. i
 | `count` | number | – | Number of gathers at this spot. |
 | `firstSeenAt` | number | – | First gather. |
 | `lastSeenAt` | number | – | Last gather. |
-| `times` | number[] | – | Timestamps of the last 20 gathers at most, ascending. |
+| `times` | number[] | – | Timestamps of the last 200 gathers at most, ascending (20 before addon 0.10.0). |
 
 ### 3.2 `Character`
 
@@ -366,6 +367,16 @@ Replaced when a merchant is opened and on `MERCHANT_UPDATE`.
 | `items` | map<number, LootItem> | – | Keyed by `itemID`. |
 | `money` | table | – | `{ timesSeen: number, total: number }` – money drops, `total` in copper. |
 
+### `KillTime`
+
+`catalog.killTimes`: every creature corpse looted, oldest first, at most 5,000 (the oldest are dropped). A corpse counts once, by its GUID, under the same rules as `lootCount` (deduplicated per session and in a group); several corpses in one loot window are several kills, while the source's `lootCount` counts the window once. Profession finds (skinning included) add nothing. The server reads farming runs and their pace from it, also of creatures farmed together (addon 0.10.0).
+
+| Field | Type | Opt. | Description |
+|---|---|---|---|
+| `at` | number | – | Time of the loot. |
+| `npcID` | number | – | Creature ID from the corpse's GUID. |
+| `instanceID` | number | ✓ | Instance ID (`GetInstanceInfo()`) when looted inside an instance. |
+
 ### `LootItem`
 
 | Field | Type | Opt. | Description |
@@ -579,5 +590,5 @@ Catalogs first created with version 9 do not contain these fields.
 - New: `items`, `merchantSnapshots`, `lootSources`, `tradeSkills` and the timestamps `itemsUpdatedAt`, `merchantScanUpdatedAt`, `lootUpdatedAt`, `tradeSkillsUpdatedAt`.
 - New: `trainerSnapshots` is actually filled (documented in 8, but empty).
 - Removed: `skillSnapshots`, `skillsScannedAt`, `abilitySnapshots[*].spells` (see section 13).
-- Added later (without a version bump, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (section 14); `encounters` (section 15) and `lootSources[*].instanceID` (addon 0.1.10); `CountedLocation` with `count`/`firstSeenAt`/`lastSeenAt`/`times` for profession finds (addon 0.1.11); `lootSources[*].creatureType`/`creatureFamily`/`classification` (after addon 0.3.1); `characters` and `settings.armory` (section 16, after addon 0.3.2); `encounters[*].probe`/`lootedAfterKill`/`lootReceived` (addon 0.8.0) and the root's `combatLog` (uploader, never in the SavedVariables); `combatLog.abilities` (uploader, with addon 0.9.0).
+- Added later (without a version bump, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (section 14); `encounters` (section 15) and `lootSources[*].instanceID` (addon 0.1.10); `CountedLocation` with `count`/`firstSeenAt`/`lastSeenAt`/`times` for profession finds (addon 0.1.11); `lootSources[*].creatureType`/`creatureFamily`/`classification` (after addon 0.3.1); `characters` and `settings.armory` (section 16, after addon 0.3.2); `encounters[*].probe`/`lootedAfterKill`/`lootReceived` (addon 0.8.0) and the root's `combatLog` (uploader, never in the SavedVariables); `combatLog.abilities` (uploader, with addon 0.9.0); `killTimes` and 200 instead of 20 `times` per counted location (addon 0.10.0).
 - Removed later (without a version bump, fields were optional): `abilitySnapshots`, `abilitiesScannedAt` – rune scan dropped; `items[*]` details (`detailsLoaded` & co.) and `tradeSkills`/`tradeSkillsUpdatedAt` – static spell, item and recipe data comes from wow.export; `spellTooltips`/`spellTooltipsUpdatedAt` (addon 0.9.1) – Forever's talent tooltips come from the client data.

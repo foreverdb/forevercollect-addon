@@ -90,6 +90,7 @@ local source = catalog.lootSources["Creature:299"]
 check("loot is captured on LOOT_READY", source and source.items[2672] and source.items[750])
 check("corpse is counted once", source.lootCount == 1)
 check("no scan errors", #errors == 0)
+check("the corpse is one kill on the timeline", #catalog.killTimes == 1 and catalog.killTimes[1].npcID == 299)
 
 fishing = true
 slots = { item(6303) }
@@ -111,6 +112,21 @@ slots = { item(769, boar) }
 fire("LOOT_OPENED", true)
 fire("LOOT_CLOSED")
 check("LOOT_OPENED scans when LOOT_READY saw no slots", catalog.lootSources["Creature:113"].items[769])
+check("fishing adds no kill, the boar does", #catalog.killTimes == 2 and catalog.killTimes[2].npcID == 113)
+
+-- Two corpses of one kind in one window are two kills; the source counts the window once.
+local wolf2 = "Creature-0-1-0-1-299-0000000004"
+local wolf3 = "Creature-0-1-0-1-299-0000000005"
+slots = { item(2672, wolf2), item(750, wolf3), item(2673, wolf3) }
+fire("LOOT_READY", true)
+fire("LOOT_CLOSED")
+check("each corpse is a kill", #catalog.killTimes == 4)
+check("a reopened corpse adds no kill", (function()
+    slots = { item(2672, wolf2) }
+    fire("LOOT_READY", true)
+    fire("LOOT_CLOSED")
+    return #catalog.killTimes == 4
+end)())
 check("still no scan errors", #errors == 0)
 
 -- Paused kinds record nothing; a paused gather is not recorded as loot either.
@@ -121,6 +137,7 @@ fire("LOOT_READY", true)
 fire("LOOT_OPENED", true)
 fire("LOOT_CLOSED")
 check("paused loot is not recorded", catalog.lootSources["Creature:883"] == nil)
+check("paused loot adds no kill", #catalog.killTimes == 4)
 
 fishing = true
 slots = { item(6358) }

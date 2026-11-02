@@ -26,7 +26,12 @@ local ITEM_LOCATION_CAP = 20
 -- spawn points and gathering pace can be derived (where farming pays off).
 local GATHER_SOURCE_LOCATION_CAP = 500
 local GATHER_ITEM_LOCATION_CAP = 100
-local GATHER_LOCATION_TIMES_CAP = 20
+-- Enough for a long session at one spot, a fishing spot above all: the
+-- uploader clears the catalog after each upload, so the cap is per session.
+local GATHER_LOCATION_TIMES_CAP = 200
+-- Kills of a session, oldest dropped first: a safety net for sessions never
+-- uploaded, far above what an evening of farming loots.
+local KILL_TIMES_CAP = 5000
 
 -- Loot containers (corpses, nodes) already counted this session, so that
 -- reopening the same loot window does not inflate the counters.
@@ -173,6 +178,18 @@ local function describeSource(guid, gather)
     return sourceType or "Unknown", sourceID, name, unit
 end
 
+-- One looted creature on the session's kill timeline (`catalog.killTimes`):
+-- when and what, so the server can tell farming runs and their pace, also
+-- of creatures farmed together. Each corpse counts once, like the loot.
+local function recordKill(catalog, npcID, now)
+    catalog.killTimes = catalog.killTimes or {}
+    local kills = catalog.killTimes
+    kills[#kills + 1] = { at = now, npcID = npcID, instanceID = getInstance() }
+    while #kills > KILL_TIMES_CAP do
+        table.remove(kills, 1)
+    end
+end
+
 local function getOrCreateSource(catalog, sourceType, sourceID, name, now, gather, unit)
     local profession = gather and gather.profession or nil
     local key = getSourceKey(sourceType, sourceID, profession)
@@ -238,6 +255,7 @@ local function scanLoot()
     local now = time()
     local location = getPlayerLocation()
     local countedSources = {}
+    local countedKills = {}
     local summary = { items = 0, money = 0, sources = {}, sourceNames = {}, itemNames = {} }
 
     for slot = 1, numSlots do
@@ -262,6 +280,10 @@ local function scanLoot()
                     sourceName = objectName
                 end
                 local source = getOrCreateSource(catalog, sourceType, sourceID, sourceName, now, gather, unit)
+                if guid and not gather and sourceType == "Creature" and sourceID and not countedKills[guid] then
+                    countedKills[guid] = true
+                    recordKill(catalog, sourceID, now)
+                end
                 local sourceKey = getSourceKey(sourceType, sourceID, gather and gather.profession)
                 if not countedSources[sourceKey] then
                     countedSources[sourceKey] = true
