@@ -168,7 +168,7 @@ GetTradeSkillLine, GetNumTradeSkills, GetTradeSkillInfo = nil, nil, nil
 -- The uploader empties ForeverCollectDB; bank and recipes come back from the cache.
 ForeverCollectDB = nil
 now = 3000
-fire("BAG_UPDATE_DELAYED")
+fire("BAG_UPDATE", 0)
 private = snapshot().private
 check("bank survives the upload", private.bank and private.bank[300] == 20 and private.bankScannedAt == 2000)
 check("recipes survive the upload", private.recipes[171] and private.recipes[171].scannedAt == 2000)
@@ -178,7 +178,7 @@ paused = true
 containers[0] = { slots = 16, { itemID = 100, stackCount = 1 } }
 containers[-1] = { slots = 24, { itemID = 400, stackCount = 1 } }
 fire("BANKFRAME_OPENED")
-fire("BAG_UPDATE_DELAYED")
+fire("BAG_UPDATE", 0)
 fire("BANKFRAME_CLOSED")
 check("a paused bank is not read", ForeverCollectCharacterSettings.privateCache.bank[400] == nil)
 check("paused bags keep the last state", snapshot().private.bags[100] == 8)
@@ -186,7 +186,7 @@ paused = false
 
 -- Empty bags.
 containers[0], containers[1] = { slots = 16 }, { slots = 6 }
-fire("BAG_UPDATE_DELAYED")
+fire("BAG_UPDATE", 0)
 check("empty bags are an empty map", next(snapshot().private.bags) == nil)
 
 -- Off: the private part goes, the public profile stays.
@@ -197,7 +197,7 @@ check("private is removed from every catalog", snapshot().private == nil and oth
 check("the public snapshot stays", snapshot() ~= nil and other.characters[KEY] ~= nil)
 check("the cache is cleared", ForeverCollectCharacterSettings.privateCache == nil)
 check("off is stored", ForeverCollectCharacterSettings.private == false)
-fire("BAG_UPDATE_DELAYED")
+fire("BAG_UPDATE", 0)
 check("nothing private after off", snapshot().private == nil)
 
 -- New opt-ins send the private part at once; Armory off drops both.

@@ -19,13 +19,29 @@ function addon:RegisterEvent(event, handler)
     handlers[#handlers + 1] = handler
 end
 
+-- Several modules share an event (PLAYER_ENTERING_WORLD has five handlers). A failing
+-- handler must not skip the ones after it, so each runs on its own; the error still
+-- goes to the game's error handler (script errors, BugSack).
+local function reportError(event, message)
+    local text = "ForeverCollect " .. event .. ": " .. tostring(message)
+    local handler = geterrorhandler and geterrorhandler()
+    if handler then
+        handler(text)
+    else
+        printMessage(text)
+    end
+end
+
 eventFrame:SetScript("OnEvent", function(_, event, ...)
     local handlers = eventHandlers[event]
     if not handlers then
         return
     end
     for _, handler in ipairs(handlers) do
-        handler(...)
+        local ok, message = pcall(handler, ...)
+        if not ok then
+            reportError(event, message)
+        end
     end
 end)
 

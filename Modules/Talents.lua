@@ -154,11 +154,14 @@ local function scanTalentCatalog(options)
         return nil
     end
 
-    printMessage(string.format(
-        "Scanned %d talent trees and %d talents. Use /reload to save the catalog.",
-        #catalog.specializations,
-        countTalents(catalog)
-    ))
+    -- Login fires PLAYER_LOGIN and PLAYER_TALENT_UPDATE, so automatic scans stay quiet.
+    if not options.silent then
+        printMessage(string.format(
+            "Scanned %d talent trees and %d talents. Use /reload to save the catalog.",
+            #catalog.specializations,
+            countTalents(catalog)
+        ))
+    end
 
     return catalog
 end

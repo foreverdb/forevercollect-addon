@@ -18,6 +18,8 @@ local getCharacterKey = addon.GetCharacterKey
 
 -- Profession lists arrive in several updates after the window opens; one scan per burst.
 local RECIPE_SCAN_DELAY = 1
+-- A stack moved or split changes several containers at once.
+local CONTAINER_SCAN_DELAY = 0.5
 
 local bankOpen = false
 local recipeScanPending
@@ -172,17 +174,30 @@ end)
 addon:RegisterEvent("BANKFRAME_CLOSED", function()
     bankOpen = false
 end)
-addon:RegisterEvent("PLAYERBANKSLOTS_CHANGED", function()
-    scanBank()
-end)
-addon:RegisterEvent("BAG_UPDATE_DELAYED", function()
+-- BAG_UPDATE fires once per changed container, on every client; BAG_UPDATE_DELAYED
+-- does not reach Classic Era. One scan per burst: bank bags change with the bank open,
+-- the bags themselves are read at capture time.
+local containerScanPending
+local function scanContainers()
+    containerScanPending = nil
     if not isScanning() then
         return
     end
-    -- Bank bags change with the bank open; the bags themselves are read at capture time.
     scanBank()
     scheduleCapture()
-end)
+end
+
+local function scheduleContainerScan()
+    if containerScanPending or not isScanning() then
+        return
+    end
+    containerScanPending = true
+    C_Timer.After(CONTAINER_SCAN_DELAY, scanContainers)
+end
+
+for _, event in ipairs({ "BAG_UPDATE", "BAG_UPDATE_DELAYED", "PLAYERBANKSLOTS_CHANGED" }) do
+    pcall(addon.RegisterEvent, addon, event, scheduleContainerScan)
+end
 
 -- Recipes ------------------------------------------------------------------------------
 
@@ -402,8 +417,9 @@ local function spellIDFromLink(link)
     return link and (tonumber(string.match(link, "enchant:(%d+)")) or tonumber(string.match(link, "spell:(%d+)")))
 end
 
--- Spell IDs from the recipe links; recipes without one (older Classic builds) are
--- named by the item they make instead.
+-- Spell IDs from the recipe links; recipes without one are named by the item they make
+-- instead. Classic Era's trade skill window gives no recipe link at all (only the craft
+-- window, enchanting, has spell IDs), so there the server maps items to spells.
 local function readWindowRecipes(window)
     local spellIDs, itemIDs = {}, {}
     for index = 1, window.getNum() do

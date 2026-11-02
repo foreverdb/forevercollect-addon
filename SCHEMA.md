@@ -576,7 +576,7 @@ Map `CharacterKey → CharacterSnapshot`, the latest state of each own character
 | `name` | string | ✓ | Localized profession name. |
 | `scannedAt` | number | – | Time of the scan. |
 | `spellIDs` | number[] | – | Spell IDs of the learned recipes, sorted. Read regardless of the window's filters, search text and collapsed headers (the Classic window is put back afterwards). Another player's linked profession, guild lists and NPC crafting orders are not read. |
-| `itemIDs` | number[] | ✓ | Classic window only: result items of recipes whose link carries no spell ID. |
+| `itemIDs` | number[] | ✓ | Classic window only: result items of recipes whose link carries no spell ID. On Classic Era every trade skill window profession comes this way (`GetTradeSkillRecipeLink` returns nothing), only the craft window (enchanting) has spell IDs; the server maps the items to their creating spell. |
 
 ### `Profession`
 
