@@ -208,7 +208,7 @@ local function captureStats()
     return stats
 end
 
-local function buildSnapshot()
+local function buildSnapshot(previous)
     local character = getCharacterContext()
     character.guid = UnitGUID("player")
     -- Forever has first and last names: UnitName returns the last name where other units
@@ -227,6 +227,9 @@ local function buildSnapshot()
         traits = captureTraits(),
         professions = captureProfessions(),
         stats = captureStats(),
+        -- Bags, bank and known recipes for Companion (Modules/CharacterPrivate.lua), only
+        -- with /fc private on; the server keeps them apart from the public profile.
+        private = addon.BuildCharacterPrivate and addon.BuildCharacterPrivate(previous) or nil,
     }
 end
 
@@ -249,11 +252,14 @@ end
 
 -- Stats move with every buff, so they only refresh together with a real change;
 -- otherwise every reload would upload a new snapshot.
-local function sameContent(a, b)
+local PUBLIC_FIELDS = { "character", "equipment", "talents", "traits", "professions" }
+local CONTENT_FIELDS = { "character", "equipment", "talents", "traits", "professions", "private" }
+
+local function sameContent(a, b, fields)
     if not b then
         return false
     end
-    for _, field in ipairs({ "character", "equipment", "talents", "traits", "professions" }) do
+    for _, field in ipairs(fields or CONTENT_FIELDS) do
         if not deepEqual(a[field], b[field]) then
             return false
         end
@@ -275,13 +281,14 @@ local function capture()
     if (call(UnitHealthMax, "player") or 0) <= 0 then
         return
     end
-    local snapshot = buildSnapshot()
     local catalog = getOrCreateCatalog(client)
     local key = getCharacterKey()
+    local previous = catalog.characters[key]
+    local snapshot = buildSnapshot(previous)
     if savedSnapshots[key] == nil then
-        savedSnapshots[key] = catalog.characters[key] or false
+        savedSnapshots[key] = previous or false
     end
-    if sameContent(snapshot, catalog.characters[key]) then
+    if sameContent(snapshot, previous) then
         return
     end
     local saved = savedSnapshots[key]
@@ -291,6 +298,11 @@ local function capture()
     end
     snapshot.capturedAt = time()
     catalog.characters[key] = snapshot
+    -- Bags change all the time; such updates only go to the capture list, not the chat.
+    if sameContent(snapshot, previous, PUBLIC_FIELDS) then
+        addon.NoteCapture("Companion: bags, bank and recipes updated.")
+        return
+    end
     addon.Announce(string.format(
         "Armory: captured %s (%d items).",
         tostring(snapshot.character.name),
@@ -304,6 +316,10 @@ local function scheduleCapture(delay)
     end
     pending = true
     C_Timer.After(delay or DEBOUNCE_SECONDS, capture)
+end
+
+addon.ScheduleCharacterCapture = function()
+    scheduleCapture()
 end
 
 addon:RegisterEvent("PLAYER_ENTERING_WORLD", function()
@@ -358,9 +374,16 @@ function addon.SetArmory(enabled)
     ForeverCollectSettings.armory = nil
     ForeverCollectCharacterSettings.armory = enabled
     if enabled then
-        printMessage("Armory on: your character (name, realm, gear, talents, professions, stats) is uploaded and gets a public profile on ForeverDB. /fc armory off removes it from the upload.")
+        -- New opt-ins send the private part for Companion at once.
+        ForeverCollectCharacterSettings.private = true
+        printMessage("Armory on: your character (name, realm, gear, talents, professions, stats) is uploaded and gets a public profile on ForeverDB. "
+            .. "Bags, bank and known recipes go along for Companion; only you can see them (/fc private off). "
+            .. "/fc armory off removes it all from the upload.")
         capture()
     else
+        if addon.ClearCharacterPrivate then
+            addon.ClearCharacterPrivate()
+        end
         local removed = removeSnapshots()
         addon.NoteCapture("Armory: stored snapshots removed.")
         printMessage(string.format(

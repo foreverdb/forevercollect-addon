@@ -22,7 +22,7 @@ This document fully describes the structure of the SavedVariable `ForeverCollect
 | `catalogs` | map<string, Catalog> | – | All catalogs; see below for the key. |
 | `combatLog` | { kills?: CombatLogKill[], abilities?: CombatLogAbility[] } | ✓ | Never in the SavedVariables: the uploader adds it to the upload, next to the catalogs (section 15). |
 
-The file holds a second global, `ForeverCollectSettings`, with the addon settings. It is not part of the upload, and the uploader keeps it when it clears `ForeverCollectDB` after an upload. Files written before the split carried the settings in `ForeverCollectDB.settings`; the addon moves them over on load. Per-character settings (Armory, capture pause) are in `ForeverCollectCharacterSettings` in each character's own file and never reach the uploader.
+The file holds a second global, `ForeverCollectSettings`, with the addon settings. It is not part of the upload, and the uploader keeps it when it clears `ForeverCollectDB` after an upload. Files written before the split carried the settings in `ForeverCollectDB.settings`; the addon moves them over on load. Per-character settings (Armory, capture pause, the private part's opt-in `private`, its once-shown notice `privateNoticeShown` and its cache `privateCache` with the last bank scan and the recipe lists) are in `ForeverCollectCharacterSettings` in each character's own file and never reach the uploader.
 
 | Field | Type | Opt. | Description |
 |---|---|---|---|
@@ -534,6 +534,8 @@ Written by the uploader, never by the addon: a spell a creature used, read from 
 
 Map `CharacterKey → CharacterSnapshot`, the latest state of each own character of the catalog for its public ForeverDB profile (Armory). **Opt-in per character:** only written for characters with `/fc armory on` (`ForeverCollectCharacterSettings.armory`); `/fc armory off` removes that character's entry from every catalog, other characters keep theirs. The snapshot is taken 5 s after entering the world, 2 s after equipment, talent, level, skill, guild or trait changes, and on logout only if such a delayed capture is still pending. Without max health (`UnitHealthMax`) the unit data is not loaded yet or already torn down, and no snapshot is written. It is only replaced when `character`, `equipment`, `talents`, `traits` or `professions` changed; `stats` and `capturedAt` refresh together with such a change. If a session ends up where it started (e.g. an item taken off and put on again), the snapshot loaded at login is kept unchanged.
 
+**Private part (`private`, addon 0.11.0):** bags, bank and known recipes for Companion. Only written with `/fc private on` (`ForeverCollectCharacterSettings.private == true`), which needs Armory; `/fc armory on` turns it on for new opt-ins, characters that opted into Armory before 0.11.0 are told once in chat and send nothing private until they allow it. `/fc private off` removes `private` from every catalog and keeps the rest of the snapshot. The server must store it apart from the public profile and show it only to the owner. Bags are read at capture time; a bag change (`BAG_UPDATE_DELAYED`) schedules a capture. The bank is read while it is open (`BANKFRAME_OPENED`, `PLAYERBANKSLOTS_CHANGED`, `BAG_UPDATE_DELAYED`), the recipes when a profession window opens or its list changes. Because the uploader empties `ForeverCollectDB`, the addon also keeps the last bank scan and the recipe lists in `ForeverCollectCharacterSettings.privateCache` and copies them into every new snapshot with their original times. While all capture is paused (`/fc pause`), nothing new is read and `private` stays as it was. A change to `private` alone replaces the snapshot as well.
+
 ### `CharacterSnapshot`
 
 | Field | Type | Opt. | Description |
@@ -544,6 +546,7 @@ Map `CharacterKey → CharacterSnapshot`, the latest state of each own character
 | `talents` | { tab, index, talentID?, rank }[] | ✓ | Classic Era: learned talents (rank > 0) by talent tab and talent index (`GetTalentInfo` order). Absent on Forever. |
 | `traits` | { configID, treeIDs: number[], nodes: { nodeID, entryID?, rank }[] } | ✓ | Forever: purchased trait nodes of the active configuration. Absent on Classic Era. |
 | `professions` | Profession[] | ✓ | Skill lines; see below. |
+| `private` | CharacterPrivate | ✓ | Bags, bank and known recipes; see below. Only with `/fc private on`. |
 | `stats` | table | – | Character sheet values at `capturedAt`, active buffs included: `primary[1..5]` (`{ base, effective }`, Strength…Spirit), `armor` (`{ base, effective }`), `resistances[1..6]` (`{ base, total }`, Holy…Arcane), `health`, `powerType`, `power` (max), `attackPower`, `rangedAttackPower`, `critChance`, `rangedCritChance`, `spellCritChance`, `bonusHealing`, `dodgeChance`, `parryChance`, `blockChance`. Every value is optional. |
 
 ### `EquippedItem`
@@ -555,6 +558,25 @@ Map `CharacterKey → CharacterSnapshot`, the latest state of each own character
 | `enchantID` | number | ✓ | `SpellItemEnchantment` ID of the permanent enchant. |
 | `suffixID` | number | ✓ | Random property/suffix ID ("of the Bear"); negative values are random suffixes. |
 | `link` | string | – | Item link as returned by `GetInventoryItemLink`. |
+
+### `CharacterPrivate`
+
+| Field | Type | Opt. | Description |
+|---|---|---|---|
+| `bags` | map<itemID, number> | – | Item counts over the backpack, the equipped bags and (mainline engine) the reagent bag; stacks are summed. `{}` for empty bags. |
+| `bank` | map<itemID, number> | ✓ | Item counts over the bank slots and bank bags (mainline engine: also character bank tabs and the reagent bank; never the account bank) at `bankScannedAt`. Absent until the bank was opened once. |
+| `bankScannedAt` | number | ✓ | Time of the bank scan. |
+| `recipes` | map<skillLineID \| name, KnownRecipes> | – | Known recipes per profession, keyed by `skillLineID` where the client gives one (`C_TradeSkillUI`), else by the localized profession name (Classic trade skill and craft window). `{}` until a profession window was opened. |
+
+### `KnownRecipes`
+
+| Field | Type | Opt. | Description |
+|---|---|---|---|
+| `skillLineID` | number | ✓ | `SkillLine` ID (`C_TradeSkillUI.GetBaseProfessionInfo`). |
+| `name` | string | ✓ | Localized profession name. |
+| `scannedAt` | number | – | Time of the scan. |
+| `spellIDs` | number[] | – | Spell IDs of the learned recipes, sorted. Read regardless of the window's filters, search text and collapsed headers (the Classic window is put back afterwards). Another player's linked profession, guild lists and NPC crafting orders are not read. |
+| `itemIDs` | number[] | ✓ | Classic window only: result items of recipes whose link carries no spell ID. |
 
 ### `Profession`
 
@@ -590,5 +612,5 @@ Catalogs first created with version 9 do not contain these fields.
 - New: `items`, `merchantSnapshots`, `lootSources`, `tradeSkills` and the timestamps `itemsUpdatedAt`, `merchantScanUpdatedAt`, `lootUpdatedAt`, `tradeSkillsUpdatedAt`.
 - New: `trainerSnapshots` is actually filled (documented in 8, but empty).
 - Removed: `skillSnapshots`, `skillsScannedAt`, `abilitySnapshots[*].spells` (see section 13).
-- Added later (without a version bump, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (section 14); `encounters` (section 15) and `lootSources[*].instanceID` (addon 0.1.10); `CountedLocation` with `count`/`firstSeenAt`/`lastSeenAt`/`times` for profession finds (addon 0.1.11); `lootSources[*].creatureType`/`creatureFamily`/`classification` (after addon 0.3.1); `characters` and `settings.armory` (section 16, after addon 0.3.2); `encounters[*].probe`/`lootedAfterKill`/`lootReceived` (addon 0.8.0) and the root's `combatLog` (uploader, never in the SavedVariables); `combatLog.abilities` (uploader, with addon 0.9.0); `killTimes` and 200 instead of 20 `times` per counted location (addon 0.10.0).
+- Added later (without a version bump, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (section 14); `encounters` (section 15) and `lootSources[*].instanceID` (addon 0.1.10); `CountedLocation` with `count`/`firstSeenAt`/`lastSeenAt`/`times` for profession finds (addon 0.1.11); `lootSources[*].creatureType`/`creatureFamily`/`classification` (after addon 0.3.1); `characters` and `settings.armory` (section 16, after addon 0.3.2); `encounters[*].probe`/`lootedAfterKill`/`lootReceived` (addon 0.8.0) and the root's `combatLog` (uploader, never in the SavedVariables); `combatLog.abilities` (uploader, with addon 0.9.0); `killTimes` and 200 instead of 20 `times` per counted location (addon 0.10.0); `characters[*].private` with bags, bank and known recipes (section 16, addon 0.11.0).
 - Removed later (without a version bump, fields were optional): `abilitySnapshots`, `abilitiesScannedAt` – rune scan dropped; `items[*]` details (`detailsLoaded` & co.) and `tradeSkills`/`tradeSkillsUpdatedAt` – static spell, item and recipe data comes from wow.export; `spellTooltips`/`spellTooltipsUpdatedAt` (addon 0.9.1) – Forever's talent tooltips come from the client data.

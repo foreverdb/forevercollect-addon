@@ -64,13 +64,28 @@ local verbose, afterVerbose = createCheckbox(
     end
 )
 
-local armory, afterArmory = createCheckbox(
+local private
+local armory, afterArmoryToggle = createCheckbox(
     afterVerbose,
     "Armory (public profile of this character)",
     "Uploads this character (name, realm, gear, talents, professions, stats) for a public profile on ForeverDB. "
         .. "Set per character; turning it off removes this character's stored snapshots. Same as /fc armory on/off.",
     function(enabled)
         addon.SetArmory(enabled)
+        private:SetChecked(addon.IsCharacterPrivateEnabled())
+        private:SetEnabled(enabled)
+    end
+)
+
+local afterArmory
+private, afterArmory = createCheckbox(
+    afterArmoryToggle,
+    "Bags, bank and recipes (private, for Companion)",
+    "Sends bags, the last bank visit and the recipes of each opened profession window with the Armory snapshot. "
+        .. "Only you can see them on ForeverDB. Set per character. Same as /fc private on/off.",
+    function(enabled)
+        addon.SetCharacterPrivate(enabled)
+        private:SetChecked(addon.IsCharacterPrivateEnabled())
     end
 )
 
@@ -319,6 +334,8 @@ end)
 panel:SetScript("OnShow", function()
     verbose:SetChecked(addon.IsVerbose())
     armory:SetChecked(addon.IsArmoryEnabled())
+    private:SetChecked(addon.IsCharacterPrivateEnabled())
+    private:SetEnabled(addon.IsArmoryEnabled())
     combatLog:SetChecked(addon.IsCombatLogEnabled())
     combatLogScope:SetChecked(addon.CombatLogScope() == "everywhere")
     combatLogScope:SetEnabled(addon.IsCombatLogEnabled())
