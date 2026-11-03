@@ -223,13 +223,22 @@ local function captureQuest(event)
             QUEST_PROGRESS = "in progress",
             QUEST_COMPLETE = "ready to turn in",
         })[event] or event
+        local npcName = observation.questNPC and observation.questNPC.name
         announce(string.format(
             "Quest captured: %s (%d), %s, NPC %s.",
             quest.title or "?",
             questID,
             phaseLabel,
-            observation.questNPC and observation.questNPC.name or "unknown"
-        ))
+            npcName or "unknown"
+        ), {
+            kind = "quests",
+            title = quest.title or ("Quest " .. questID),
+            detail = addon.JoinDetail(({
+                QUEST_DETAIL = "Quest offered",
+                QUEST_PROGRESS = "Quest in progress",
+                QUEST_COMPLETE = "Quest ready to turn in",
+            })[event], npcName, addon.CurrentPlace()),
+        })
     end
 end
 addon.CaptureQuest = captureQuest
@@ -259,7 +268,11 @@ local function recordQuestTurnIn(questID, xpReward, moneyReward)
         questID,
         tonumber(xpReward) or 0,
         formatMoney(moneyReward)
-    ))
+    ), {
+        kind = "quests",
+        title = quest.title or ("Quest " .. questID),
+        detail = addon.JoinDetail("Quest turned in", addon.CurrentPlace()),
+    })
 end
 addon.RecordQuestTurnIn = recordQuestTurnIn
 

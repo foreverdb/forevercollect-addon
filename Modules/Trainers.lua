@@ -292,7 +292,11 @@ local function scanTrainerServices(silent)
                 or ""
         ), function()
             hasAnnouncedTrainer = true
-        end)
+        end, {
+            kind = "trainers",
+            title = npc.name or "Unknown trainer",
+            detail = addon.JoinDetail(string.format("Trainer · %d services", serviceCount), addon.CurrentPlace()),
+        })
     end
     return snapshot
 end

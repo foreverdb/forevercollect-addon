@@ -15,6 +15,10 @@ local getCharacterKey = addon.GetCharacterKey
 -- recipe lists are also kept in ForeverCollectCharacterSettings.privateCache (the
 -- character's own file, never uploaded) and copied into every new snapshot with their
 -- original scan times.
+--
+-- Completed quests come along for the dungeon and quest pages: the full list on login and
+-- each turn-in added on top, kept in privateCache like the bank (a set) with the time of
+-- the newest change.
 
 -- Profession lists arrive in several updates after the window opens; one scan per burst.
 local RECIPE_SCAN_DELAY = 1
@@ -512,6 +516,92 @@ for _, event in ipairs({ "TRADE_SKILL_LIST_UPDATE", "TRADE_SKILL_UPDATE", "CRAFT
     end)
 end
 
+-- Completed quests ---------------------------------------------------------------------
+
+-- Forever has C_QuestLog.GetAllCompletedQuestIDs (a list); Classic Era GetQuestsCompleted
+-- (a map of quest ID to true). nil when the client has neither.
+local function readCompletedQuests()
+    local list = call(C_QuestLog and C_QuestLog.GetAllCompletedQuestIDs)
+    if type(list) == "table" then
+        local quests = {}
+        for _, questID in ipairs(list) do
+            quests[questID] = true
+        end
+        return quests
+    end
+    local map = call(GetQuestsCompleted)
+    if type(map) == "table" then
+        local quests = {}
+        for questID, done in pairs(map) do
+            if done then
+                quests[questID] = true
+            end
+        end
+        return quests
+    end
+    return nil
+end
+
+local function sameSet(a, b)
+    for key in pairs(a or {}) do
+        if not b[key] then
+            return false
+        end
+    end
+    for key in pairs(b) do
+        if not (a and a[key]) then
+            return false
+        end
+    end
+    return true
+end
+
+local function scanCompletedQuests()
+    if not isScanning() then
+        return
+    end
+    local quests = readCompletedQuests()
+    if not quests then
+        return
+    end
+    local cache = getCache()
+    -- An unchanged list keeps its time, so a login alone makes no new snapshot.
+    if cache.questsScannedAt and sameSet(cache.completedQuests, quests) then
+        return
+    end
+    cache.completedQuests = quests
+    cache.questsScannedAt = time()
+    scheduleCapture()
+end
+
+addon.ScanCompletedQuests = scanCompletedQuests
+
+addon:RegisterEvent("QUEST_TURNED_IN", function(questID)
+    if not isScanning() or type(questID) ~= "number" then
+        return
+    end
+    local cache = getCache()
+    -- Without a full list a single ID would claim the character completed nothing else.
+    if not cache.completedQuests then
+        return
+    end
+    if cache.completedQuests[questID] then
+        return
+    end
+    cache.completedQuests[questID] = true
+    cache.questsScannedAt = time()
+    scheduleCapture()
+end)
+
+local function completedQuestList(set)
+    local list = {}
+    for questID in pairs(set or {}) do
+        list[#list + 1] = questID
+    end
+    table.sort(list)
+    return list
+end
+
 -- Snapshot -----------------------------------------------------------------------------
 
 -- The private section for a new snapshot: bags read now, bank and recipes from the cache.
@@ -529,6 +619,8 @@ function addon.BuildCharacterPrivate(previous)
         bank = copyTable(cache.bank),
         bankScannedAt = cache.bankScannedAt,
         recipes = copyTable(cache.recipes),
+        completedQuests = cache.questsScannedAt and completedQuestList(cache.completedQuests) or nil,
+        questsScannedAt = cache.questsScannedAt,
     }
 end
 
@@ -558,6 +650,7 @@ function addon.SetCharacterPrivate(enabled)
             return false
         end
         settings.private = true
+        scanCompletedQuests()
         printMessage("Bags, bank and recipes on: they go up with your character for Companion on ForeverDB, "
             .. "only you can see them. Open your bank and each profession window once so they are included. "
             .. "/fc private off removes them.")
@@ -610,6 +703,13 @@ local function statusLines()
     lines[#lines + 1] = #professions > 0
         and ("Recipes: " .. table.concat(professions, ", ") .. ".")
         or "Recipes: none yet, open each profession window once."
+    local quests = 0
+    for _ in pairs(cache.completedQuests or {}) do
+        quests = quests + 1
+    end
+    lines[#lines + 1] = cache.questsScannedAt
+        and string.format("Completed quests: %d, last read %s.", quests, date("%Y-%m-%d %H:%M", cache.questsScannedAt))
+        or "Completed quests: not read yet, they are read on login."
     lines[#lines + 1] = "Profession window API: "
         .. (hasModernTradeSkillAPI() and "C_TradeSkillUI." or "Classic trade skill/craft window.")
     return lines
@@ -628,6 +728,7 @@ end, "Bags, bank and recipes for Companion (only you see them): /fc private on o
 -- Characters that opted into Armory before this part existed send nothing private
 -- until the player allows it; they are told once.
 addon:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+    scanCompletedQuests()
     local settings = ForeverCollectCharacterSettings
     if settings and settings.armory == true and settings.private == nil and not settings.privateNoticeShown then
         settings.privateNoticeShown = true

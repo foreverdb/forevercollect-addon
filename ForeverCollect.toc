@@ -2,12 +2,15 @@
 ## Title: ForeverCollect
 ## Notes: Collects quests, NPCs, merchants, trainers, loot, talents and (opt-in) your character for ForeverDB.
 ## Author: Alex <info@foreverdb.app>
-## Version: 0.11.0
+## Version: 0.12.0
 ## DefaultState: enabled
 ## SavedVariables: ForeverCollectDB, ForeverCollectSettings
 ## SavedVariablesPerCharacter: ForeverCollectCharacterSettings
+## OptionalDeps: ForeverCollect_CacheIDs
 
 Core/Util.lua
+Core/Theme.lua
+Core/Widgets.lua
 Core/Database.lua
 Core/Registry.lua
 Core/SaveReminder.lua
@@ -27,5 +30,6 @@ Modules/Trainers.lua
 Modules/Quests.lua
 Modules/QuestCache.lua
 Modules/ItemCache.lua
-Core/Options.lua
+Core/Window.lua
+Core/Setup.lua
 ForeverCollect.lua

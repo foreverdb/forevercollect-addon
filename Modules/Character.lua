@@ -208,6 +208,15 @@ local function captureStats()
     return stats
 end
 
+local function publicChoice()
+    local settings = ForeverCollectCharacterSettings
+    local choice = settings and settings.publicChoice
+    if choice == true or choice == false then
+        return choice
+    end
+    return nil
+end
+
 local function buildSnapshot(previous)
     local character = getCharacterContext()
     character.guid = UnitGUID("player")
@@ -230,6 +239,9 @@ local function buildSnapshot(previous)
         -- Bags, bank and known recipes for Companion (Modules/CharacterPrivate.lua), only
         -- with /fc private on; the server keeps them apart from the public profile.
         private = addon.BuildCharacterPrivate and addon.BuildCharacterPrivate(previous) or nil,
+        -- The setup's choice whether the character shows in the Armory. The server only uses
+        -- it when it first creates the character; afterwards the account page decides.
+        public = publicChoice(),
     }
 end
 
@@ -288,11 +300,17 @@ local function capture()
     if savedSnapshots[key] == nil then
         savedSnapshots[key] = previous or false
     end
+    -- The visibility choice is no content of its own: a stored snapshot just takes it over,
+    -- so a choice made after the last capture still goes up with it.
+    if previous then
+        previous.public = snapshot.public
+    end
     if sameContent(snapshot, previous) then
         return
     end
     local saved = savedSnapshots[key]
     if saved and sameContent(snapshot, saved) then
+        saved.public = snapshot.public
         catalog.characters[key] = saved
         return
     end
@@ -300,14 +318,22 @@ local function capture()
     catalog.characters[key] = snapshot
     -- Bags change all the time; such updates only go to the capture list, not the chat.
     if sameContent(snapshot, previous, PUBLIC_FIELDS) then
-        addon.NoteCapture("Companion: bags, bank and recipes updated.")
+        addon.NoteCapture("Companion: bags, bank and recipes updated.", {
+            kind = "character",
+            title = tostring(snapshot.character.name),
+            detail = "Private data updated",
+        })
         return
     end
     addon.Announce(string.format(
         "Armory: captured %s (%d items).",
         tostring(snapshot.character.name),
         #snapshot.equipment
-    ))
+    ), {
+        kind = "character",
+        title = tostring(snapshot.character.name),
+        detail = string.format("Character uploaded · %d items equipped", #snapshot.equipment),
+    })
 end
 
 local function scheduleCapture(delay)
@@ -367,7 +393,9 @@ end
 
 addon.IsArmoryEnabled = isEnabled
 
-function addon.SetArmory(enabled)
+-- `options.private` decides the private part for the window and the setup; the command
+-- keeps turning it on for new opt-ins.
+function addon.SetArmory(enabled, options)
     initializeDatabase()
     -- The account-wide flag only seeds characters until the first explicit choice;
     -- from then on characters created later start with Armory off.
@@ -375,10 +403,19 @@ function addon.SetArmory(enabled)
     ForeverCollectCharacterSettings.armory = enabled
     if enabled then
         -- New opt-ins send the private part for Companion at once.
-        ForeverCollectCharacterSettings.private = true
-        printMessage("Armory on: your character (name, realm, gear, talents, professions, stats) is uploaded and gets a public profile on ForeverDB. "
-            .. "Bags, bank and known recipes go along for Companion; only you can see them (/fc private off). "
+        local private = true
+        if options and options.private ~= nil then
+            private = options.private and true or false
+        end
+        ForeverCollectCharacterSettings.private = private
+        printMessage("Armory on: your character (name, realm, gear, talents, professions, stats) is uploaded to ForeverDB; "
+            .. "whether it shows in the Armory you decide on foreverdb.app/profile. "
+            .. (private and "Bags, bank, known recipes and completed quests go along for Companion; only you can see them (/fc private off). "
+                or "")
             .. "/fc armory off removes it all from the upload.")
+        if addon.ScanCompletedQuests then
+            addon.ScanCompletedQuests()
+        end
         capture()
     else
         if addon.ClearCharacterPrivate then

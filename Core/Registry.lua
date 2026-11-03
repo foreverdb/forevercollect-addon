@@ -45,15 +45,28 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
     end
 end)
 
-function addon:RegisterCommand(name, handler, help)
+-- `isAvailable` (optional) hides a command while it returns false: it is left out of the
+-- help and answers like an unknown command, e.g. the cache crawls for players who are no
+-- approved crawlers.
+function addon:RegisterCommand(name, handler, help, isAvailable)
     if not commands[name] then
         commandOrder[#commandOrder + 1] = name
     end
-    commands[name] = { handler = handler, help = help }
+    commands[name] = { handler = handler, help = help, isAvailable = isAvailable }
+end
+
+local function available(entry)
+    return entry ~= nil and (entry.isAvailable == nil or entry.isAvailable())
 end
 
 function addon:GetCommandNames()
-    return commandOrder
+    local names = {}
+    for _, name in ipairs(commandOrder) do
+        if available(commands[name]) then
+            names[#names + 1] = name
+        end
+    end
+    return names
 end
 
 function addon:HandleSlashCommand(message)
@@ -66,7 +79,7 @@ function addon:HandleSlashCommand(message)
     end
 
     local entry = commands[command]
-    if entry then
+    if available(entry) then
         -- A bare "/fc" matches nothing, so argument is nil as well as "".
         entry.handler(argument and argument ~= "" and string.lower(argument) or nil)
     else

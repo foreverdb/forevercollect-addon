@@ -266,7 +266,11 @@ local function announceNPC(interactionType, details)
             npc.name or "unknown",
             tostring(npc.npcID or "?"),
             interactionType
-        ))
+        ), {
+            kind = "npcs",
+            title = npc.name or "Unknown NPC",
+            detail = addon.JoinDetail(addon.InteractionLabel(interactionType), addon.CurrentPlace()),
+        })
     end
 end
 

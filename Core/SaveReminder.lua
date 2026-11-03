@@ -17,14 +17,19 @@ local sessionStartedAt = time()
 local lastReminderAt = nil
 local lastReminderCaptures = 0
 
--- What was captured since the last save, for the list on the settings page. Memory
--- only: after a reload everything in it is saved and the list starts empty.
+-- What was captured since the last save, for the session list of the window. Memory
+-- only: after a reload everything in it is saved and the list starts empty. An entry
+-- carries `kind`, `title` and `detail` where the module gave them, and always the chat
+-- `text` to fall back on.
 local MAX_LISTED_CAPTURES = 500
 local captures = {}
 
-function addon.NoteCapture(message)
+function addon.NoteCapture(message, details)
     unsavedCaptures = unsavedCaptures + 1
     local entry = { at = time(), text = message }
+    if type(details) == "table" then
+        entry.kind, entry.title, entry.detail = details.kind, details.title, details.detail
+    end
     captures[#captures + 1] = entry
     if #captures > MAX_LISTED_CAPTURES then
         table.remove(captures, 1)
@@ -85,25 +90,28 @@ function addon.Save(force)
     reloadUI()
 end
 
--- The reminder is a standard game popup: "Save now" reloads the UI, "Later" snoozes it.
-local POPUP = "FOREVERCOLLECT_SAVE_REMINDER"
-StaticPopupDialogs[POPUP] = {
-    text = "ForeverCollect: %d capture(s) are not saved yet (%d min since the last save).\n\n"
-        .. "The game writes addon data only on logout or /reload; a crash loses everything since.",
-    button1 = "Save now (reload UI)",
-    button2 = "Later",
-    OnAccept = function()
-        if canReloadNow() then
-            reloadUI()
-        else
-            printMessage("Cannot reload right now (combat, casting or an open dialog). Use /fc save in a moment.")
-        end
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = true,
-    preferredIndex = 3, -- keep the first popup slots free for the game's own dialogs
-}
+-- The reminder is a notice of the addon's own style (Core/Widgets.lua): "Reload UI to
+-- save" reloads, "Later" snoozes it until the next reminder is due.
+local NOTICE = "save"
+
+local function showReminder(count, minutes)
+    addon.ShowNotice(NOTICE, {
+        icon = "character",
+        title = count == 1 and "1 find waiting to be saved" or (count .. " finds waiting to be saved"),
+        detail = minutes < 1 and "Last save just now" or ("Last save " .. minutes .. " min ago"),
+        secondary = { label = "Later" },
+        primary = {
+            label = "Reload UI to save",
+            onClick = function()
+                if canReloadNow() then
+                    reloadUI()
+                else
+                    printMessage("Cannot reload right now (combat, casting or an open dialog). Use /fc save in a moment.")
+                end
+            end,
+        },
+    })
+end
 
 local function tick()
     if unsavedCaptures == 0 then
@@ -119,8 +127,8 @@ local function tick()
             "|cffffcc00%d capture(s) are not saved yet|r (%d min since the last save) - /fc save to write them now.",
             unsavedCaptures, sinceSave
         ))
-        if not StaticPopup_Visible(POPUP) then
-            StaticPopup_Show(POPUP, unsavedCaptures, sinceSave)
+        if not addon.IsNoticeShown(NOTICE) and not InCombatLockdown() then
+            showReminder(unsavedCaptures, sinceSave)
         end
         lastReminderAt = now
         lastReminderCaptures = unsavedCaptures

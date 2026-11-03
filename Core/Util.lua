@@ -25,11 +25,45 @@ function addon.SetVerbose(enabled)
     addon.PrintMessage(enabled and "Capture notices enabled." or "Capture notices disabled.")
 end
 
+-- Joins the non-empty parts of a session list line with " · ".
+function addon.JoinDetail(...)
+    local parts = {}
+    for index = 1, select("#", ...) do
+        local part = select(index, ...)
+        if part ~= nil and part ~= "" then
+            parts[#parts + 1] = tostring(part)
+        end
+    end
+    return table.concat(parts, " · ")
+end
+
+-- NPC interaction types as the session list names them.
+local INTERACTION_LABELS = {
+    banker = "Banker",
+    flightMaster = "Flight master",
+    innkeeper = "Innkeeper",
+    gossip = "Gossip",
+}
+function addon.InteractionLabel(interactionType)
+    return INTERACTION_LABELS[interactionType] or interactionType
+end
+
+-- Where the player is, for the session list: the subzone if there is one, else the zone.
+function addon.CurrentPlace()
+    local subZone = GetSubZoneText and GetSubZoneText() or ""
+    if subZone ~= "" then
+        return subZone
+    end
+    local zone = GetRealZoneText and GetRealZoneText() or ""
+    return zone ~= "" and zone or nil
+end
+
 -- Every module announces a successful capture through here, which also feeds the
--- unsaved-captures counter in Core/SaveReminder.lua.
-function addon.Announce(message)
+-- unsaved-captures counter and the session list in Core/SaveReminder.lua. `entry`
+-- ({ kind, title, detail }) is what the list shows; `message` is the chat line.
+function addon.Announce(message, entry)
     if addon.NoteCapture then
-        addon.NoteCapture(message)
+        addon.NoteCapture(message, entry)
     end
     if addon.IsVerbose() then
         addon.PrintMessage(message)
@@ -40,14 +74,14 @@ end
 -- scan restarts the delay, so only the final numbers are announced, once.
 local SETTLE_SECONDS = 1
 local settleTokens = {}
-function addon.AnnounceSettled(key, message, onAnnounced)
+function addon.AnnounceSettled(key, message, onAnnounced, entry)
     local token = (settleTokens[key] or 0) + 1
     settleTokens[key] = token
     local function announce()
         if settleTokens[key] ~= token then
             return
         end
-        addon.Announce(message)
+        addon.Announce(message, entry)
         if onAnnounced then
             onAnnounced()
         end

@@ -154,6 +154,9 @@ local function scanTalentCatalog(options)
         return nil
     end
 
+    -- for the window's "Talent discovery"
+    addon.lastTalentScanAt = time()
+
     -- Login fires PLAYER_LOGIN and PLAYER_TALENT_UPDATE, so automatic scans stay quiet.
     if not options.silent then
         printMessage(string.format(

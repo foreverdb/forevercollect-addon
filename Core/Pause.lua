@@ -65,6 +65,9 @@ function addon.SetPaused(kind, paused)
     else
         flags[kind] = paused or nil
     end
+    if kind == "all" then
+        settings.pausedAt = paused and time() or nil
+    end
     if next(flags) == nil then
         settings.paused = nil
     end
@@ -98,21 +101,16 @@ addon:RegisterCommand("resume", function(argument)
 end, "Resume capture: /fc resume (all) or /fc resume <kind>")
 
 -- A pause outlives the session, so every login and /reload reminds of it in
--- chat and with a popup that resumes everything in one click.
+-- chat and with a notice that resumes everything in one click.
 local LOGIN_REMINDER_DELAY = 2
-local POPUP = "FOREVERCOLLECT_CAPTURE_PAUSED"
-StaticPopupDialogs[POPUP] = {
-    text = "ForeverCollect: capture is paused on this character for %s.",
-    button1 = "Resume all",
-    button2 = "Keep paused",
-    OnAccept = function()
-        addon.SetPaused("all", false)
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = true,
-    preferredIndex = 3, -- keep the first popup slots free for the game's own dialogs
-}
+local NOTICE = "paused"
+
+-- "Nov 02, 23:10" for the time capture was paused; nil when it is not known.
+function addon.PausedSince()
+    local settings = ForeverCollectCharacterSettings
+    local at = settings and settings.pausedAt
+    return at and date("%b %d, %H:%M", at) or nil
+end
 
 local function remindPaused()
     local labels = addon.PausedLabels()
@@ -121,15 +119,42 @@ local function remindPaused()
     end
     local text = table.concat(labels, ", ")
     printMessage(string.format("|cffffcc00Capture is paused on this character for %s.|r /fc resume turns it back on.", text))
-    if not InCombatLockdown() and not StaticPopup_Visible(POPUP) then
-        StaticPopup_Show(POPUP, text)
+    if InCombatLockdown() or addon.IsNoticeShown(NOTICE) then
+        return
     end
+    local name = UnitName("player") or "this character"
+    local since = addon.PausedSince()
+    local all = addon.IsPaused("all")
+    addon.ShowNotice(NOTICE, {
+        icon = "encounters",
+        title = all and ("Collecting is paused on " .. name) or ("Some kinds are paused on " .. name),
+        detail = all and (since and ("Since " .. since) or nil) or text,
+        secondary = { label = "Keep paused" },
+        primary = {
+            label = "Resume",
+            onClick = function()
+                addon.SetPaused("all", false)
+                if addon.RefreshWindow then
+                    addon.RefreshWindow()
+                end
+            end,
+        },
+    })
+end
+addon.RemindPaused = remindPaused
+
+-- The setup comes first on a character's first login; it reminds of a pause when it closes.
+local function remindAfterLogin()
+    if addon.IsSetupPending and addon.IsSetupPending() then
+        return
+    end
+    remindPaused()
 end
 
 addon:RegisterEvent("PLAYER_LOGIN", function()
     if C_Timer and C_Timer.After then
-        C_Timer.After(LOGIN_REMINDER_DELAY, remindPaused)
+        C_Timer.After(LOGIN_REMINDER_DELAY, remindAfterLogin)
     else
-        remindPaused()
+        remindAfterLogin()
     end
 end)

@@ -386,20 +386,33 @@ local function scanLoot()
             if location.subZone and location.subZone ~= "" then
                 where = where .. " - " .. location.subZone
             end
+            local items = #summary.itemNames > 0 and table.concat(summary.itemNames, ", ") or "nothing"
             announce(string.format(
                 "%s: %s from %s in %s.",
                 gather.profession,
-                #summary.itemNames > 0 and table.concat(summary.itemNames, ", ") or "nothing",
+                items,
                 table.concat(summary.sourceNames, ", "),
                 where
-            ))
+            ), {
+                kind = "gathering",
+                title = table.concat(summary.sourceNames, ", "),
+                detail = addon.JoinDetail(gather.profession, items, location.subZone ~= "" and location.subZone or location.zone),
+            })
         else
             announce(string.format(
                 "Loot captured from %s: %d item(s)%s.",
                 table.concat(summary.sourceNames, ", "),
                 summary.items,
                 moneyText
-            ))
+            ), {
+                kind = "loot",
+                title = table.concat(summary.sourceNames, ", "),
+                detail = addon.JoinDetail(
+                    summary.items == 1 and "Loot · 1 item" or string.format("Loot · %d items", summary.items),
+                    #summary.itemNames > 0 and table.concat(summary.itemNames, ", ") or nil,
+                    summary.money > 0 and formatMoney(summary.money) or nil
+                ),
+            })
         end
     end
 end
