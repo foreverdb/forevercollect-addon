@@ -172,6 +172,7 @@ At least one of the two fields is set; lines without text are omitted.
 | `gossip` | Gossip | ✓ | Last seen gossip window (see below). |
 | `creatureType` | string | – | `UnitCreatureType`, otherwise `"Unknown"`. |
 | `classification` | string | – | `UnitClassification` (`normal`, `elite`, `rare`, …), otherwise `"unknown"`. |
+| `level` | number | ✓ | `UnitLevel` at the last interaction; absent for -1 (`??`). |
 | `location` | Location | – | Location (see 3.1). |
 
 `Gossip`, from `GOSSIP_SHOW` (`C_GossipInfo`) or `QUEST_GREETING`; overwritten on every visit:
@@ -359,6 +360,7 @@ Replaced when a merchant is opened and on `MERCHANT_UPDATE`.
 | `creatureType` | string | ✓ | `UnitCreatureType` of a `Creature` source that was the target while looting (e.g. `Beast`). Absent inside instances, where the unit is secret. |
 | `creatureFamily` | string | ✓ | `UnitCreatureFamily` under the same condition (e.g. `Spider`); beasts and demons only. |
 | `classification` | string | ✓ | `UnitClassification` under the same condition (`normal`, `elite`, `rare`, …). |
+| `minLevel`, `maxLevel` | number | ✓ | Lowest and highest `UnitLevel` under the same condition. A `UnitLevel` of -1 (`??`, far above the player) is not recorded. |
 | `instanceID` | number | ✓ | Instance ID (`GetInstanceInfo()`, = map ID) of the last observation inside an instance. There `C_Map` provides no position and `locations` stays empty; the instance assigns the source to its dungeon. |
 | `firstSeenAt` | number | – | First observation. |
 | `lastSeenAt` | number | – | Last observation. |
@@ -615,5 +617,5 @@ Catalogs first created with version 9 do not contain these fields.
 - New: `items`, `merchantSnapshots`, `lootSources`, `tradeSkills` and the timestamps `itemsUpdatedAt`, `merchantScanUpdatedAt`, `lootUpdatedAt`, `tradeSkillsUpdatedAt`.
 - New: `trainerSnapshots` is actually filled (documented in 8, but empty).
 - Removed: `skillSnapshots`, `skillsScannedAt`, `abilitySnapshots[*].spells` (see section 13).
-- Added later (without a version bump, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (section 14); `encounters` (section 15) and `lootSources[*].instanceID` (addon 0.1.10); `CountedLocation` with `count`/`firstSeenAt`/`lastSeenAt`/`times` for profession finds (addon 0.1.11); `lootSources[*].creatureType`/`creatureFamily`/`classification` (after addon 0.3.1); `characters` and `settings.armory` (section 16, after addon 0.3.2); `encounters[*].probe`/`lootedAfterKill`/`lootReceived` (addon 0.8.0) and the root's `combatLog` (uploader, never in the SavedVariables); `combatLog.abilities` (uploader, with addon 0.9.0); `killTimes` and 200 instead of 20 `times` per counted location (addon 0.10.0); `characters[*].private` with bags, bank and known recipes (section 16, addon 0.11.0); `characters[*].public` and `characters[*].private.completedQuests`/`questsScannedAt` (section 16, addon 0.12.0).
+- Added later (without a version bump, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (section 14); `encounters` (section 15) and `lootSources[*].instanceID` (addon 0.1.10); `CountedLocation` with `count`/`firstSeenAt`/`lastSeenAt`/`times` for profession finds (addon 0.1.11); `lootSources[*].creatureType`/`creatureFamily`/`classification` (after addon 0.3.1); `characters` and `settings.armory` (section 16, after addon 0.3.2); `encounters[*].probe`/`lootedAfterKill`/`lootReceived` (addon 0.8.0) and the root's `combatLog` (uploader, never in the SavedVariables); `combatLog.abilities` (uploader, with addon 0.9.0); `killTimes` and 200 instead of 20 `times` per counted location (addon 0.10.0); `characters[*].private` with bags, bank and known recipes (section 16, addon 0.11.0); `characters[*].public` and `characters[*].private.completedQuests`/`questsScannedAt` (section 16, addon 0.12.0); `lootSources[*].minLevel`/`maxLevel` and `npcs[*].level` (after addon 0.12.0).
 - Removed later (without a version bump, fields were optional): `abilitySnapshots`, `abilitiesScannedAt` – rune scan dropped; `items[*]` details (`detailsLoaded` & co.) and `tradeSkills`/`tradeSkillsUpdatedAt` – static spell, item and recipe data comes from wow.export; `spellTooltips`/`spellTooltipsUpdatedAt` (addon 0.9.1) – Forever's talent tooltips come from the client data.

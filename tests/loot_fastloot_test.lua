@@ -129,6 +129,27 @@ check("a reopened corpse adds no kill", (function()
 end)())
 check("still no scan errors", #errors == 0)
 
+-- The looted target's level widens the source's level range; "??" (-1) adds nothing.
+local targetGUID, targetLevel
+UnitGUID = function(unit) return unit == "target" and targetGUID or nil end
+UnitLevel = function() return targetLevel end
+local function lootTarget(guid, level)
+    targetGUID, targetLevel = guid, level
+    slots = { item(2672, guid) }
+    fire("LOOT_READY", true)
+    fire("LOOT_CLOSED")
+end
+lootTarget("Creature-0-1-0-1-1131-0000000010", 6)
+lootTarget("Creature-0-1-0-1-1131-0000000011", 8)
+lootTarget("Creature-0-1-0-1-1131-0000000012", 7)
+lootTarget("Creature-0-1-0-1-1131-0000000013", -1)
+local trogg = catalog.lootSources["Creature:1131"]
+check("level range spans the looted targets", trogg.minLevel == 6 and trogg.maxLevel == 8)
+lootTarget("Creature-0-1-0-1-1132-0000000014", -1)
+check("an unreadable level records no range", catalog.lootSources["Creature:1132"].minLevel == nil)
+UnitGUID = function() return nil end
+local killsBeforePause = #catalog.killTimes
+
 -- Paused kinds record nothing; a paused gather is not recorded as loot either.
 local deer = "Creature-0-1-0-1-883-0000000003"
 ForeverCollectCharacterSettings.paused = { loot = true }
@@ -137,7 +158,7 @@ fire("LOOT_READY", true)
 fire("LOOT_OPENED", true)
 fire("LOOT_CLOSED")
 check("paused loot is not recorded", catalog.lootSources["Creature:883"] == nil)
-check("paused loot adds no kill", #catalog.killTimes == 4)
+check("paused loot adds no kill", #catalog.killTimes == killsBeforePause)
 
 fishing = true
 slots = { item(6358) }

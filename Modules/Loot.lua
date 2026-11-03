@@ -169,6 +169,7 @@ local function describeSource(guid, gather)
                 creatureType = UnitCreatureType and readable(UnitCreatureType("target")) or nil,
                 creatureFamily = UnitCreatureFamily and readable(UnitCreatureFamily("target")) or nil,
                 classification = UnitClassification and readable(UnitClassification("target")) or nil,
+                level = UnitLevel and readable(UnitLevel("target")) or nil,
             }
         end
     end
@@ -215,6 +216,13 @@ local function getOrCreateSource(catalog, sourceType, sourceID, name, now, gathe
         source.creatureType = unit.creatureType or source.creatureType
         source.creatureFamily = unit.creatureFamily or source.creatureFamily
         source.classification = unit.classification or source.classification
+        -- Spawns of one creature vary in level. UnitLevel is -1 ("??") for
+        -- units far above the player: no level to record then.
+        local level = unit.level
+        if type(level) == "number" and level > 0 then
+            source.minLevel = math.min(source.minLevel or level, level)
+            source.maxLevel = math.max(source.maxLevel or level, level)
+        end
     end
     -- Positions are unavailable inside instances, so the instance ties the
     -- source (bosses and trash alike) to its dungeon.
