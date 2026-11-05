@@ -1,4 +1,4 @@
-# Test protocol: ForeverCollect 0.12.0
+# Test protocol: ForeverCollect 1.0
 
 What the automated tests (`tests/*_test.lua`) cannot cover: the look of the window, runtime
 fallbacks of the client API and the way from the game to the website. Run each check on
@@ -82,6 +82,7 @@ Reference designs: Paper file "ForeverDB", artboards "ForeverCollect Addon – �
 | 5.3 | Switch "Additional private data" on, then `/fc private` | Chat contains "Completed quests: N, last read …" with N > 0 | ☐ | ☐ |
 | 5.4 | Turn in a quest, `/fc private` | N goes up by one | ☐ | ☐ |
 | 5.5 | Switch the combat log off and on | "Also in the open world" is dimmed while it is off | ☐ | ☐ |
+| 5.6 | Upload on: change a piece of gear in combat, or gain a weapon skill point | No Lua error (`Character.lua`, "secret number value"); "Armory: captured …" comes about 2 s after the fight ends | ☐ | ☐ |
 
 If 5.3 shows "not read yet" after a login, the client has neither `C_QuestLog.GetAllCompletedQuestIDs`
 nor `GetQuestsCompleted`. Please run and report:
@@ -95,7 +96,7 @@ nor `GetQuestsCompleted`. Please run and report:
 
 | # | Step | Expected | Forever | Classic Era |
 |---|---|---|---|---|
-| 6.1 | Open Advanced without `ForeverCollect_CacheIDs` | No "Crawler" section; client line with client, season, locale and addon v0.12.0 | ☐ | ☐ |
+| 6.1 | Open Advanced without `ForeverCollect_CacheIDs` | No "Crawler" section; client line with client, season, locale and addon v1.0 | ☐ | ☐ |
 | 6.2 | "Talent discovery" | Classic Era: "<Class> talent trees", "Scanned at HH:MM", "Scan again" works. Forever: section absent | ☐ | ☐ |
 | 6.3 | `/fc help`, `/fc questcache` | Neither `questcache` nor `itemcache` is listed; the command answers "Unknown command" | ☐ | ☐ |
 

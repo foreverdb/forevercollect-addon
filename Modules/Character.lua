@@ -22,6 +22,8 @@ local DEBOUNCE_SECONDS = 2
 local FIRST_SLOT, LAST_SLOT = 0, 19
 
 local pending
+-- A capture came while the stats were secret; it runs again when the fight ends.
+local waitingForStats = false
 -- Per character key: the snapshot the file held at login (false: none). A gear swap passes
 -- through intermediate states; when it ends where the session started, the stored snapshot is
 -- put back unchanged, so the upload deduplicates instead of adding a copy with a new time.
@@ -32,15 +34,38 @@ local function isEnabled()
     return settings and settings.armory == true or false
 end
 
+local function readableResults(ok, ...)
+    if not ok then
+        return nil
+    end
+    local count = select("#", ...)
+    local values = { ... }
+    for index = 1, count do
+        values[index] = addon.Readable(values[index])
+    end
+    return unpack(values, 1, count)
+end
+
+-- A client call that may be missing, fail or hand out secret values; those come back as nil.
 local function call(fn, ...)
     if type(fn) ~= "function" then
         return nil
     end
-    local results = { pcall(fn, ...) }
-    if not results[1] then
-        return nil
+    return readableResults(pcall(fn, ...))
+end
+
+local function isSecretResult(fn, ...)
+    if type(fn) ~= "function" then
+        return false
     end
-    return unpack(results, 2)
+    local ok, value = pcall(fn, ...)
+    return ok and value ~= nil and addon.Readable(value) == nil
+end
+
+-- The mainline engine (Forever) keeps a unit's stats and maximum health secret in restricted
+-- situations such as combat.
+local function statsAreSecret()
+    return isSecretResult(UnitAttackPower, "player") or isSecretResult(UnitHealthMax, "player")
 end
 
 -- item:itemID:enchantID:gem1:gem2:gem3:gem4:suffixID:uniqueID:...
@@ -281,11 +306,17 @@ end
 
 local function capture()
     pending = nil
+    waitingForStats = false
     if not isEnabled() then
         return
     end
     local client = getClientInfo()
     if not isSupportedClient(client) then
+        return
+    end
+    -- A snapshot now would replace the stored stats with empty ones until the next real change.
+    if statsAreSecret() then
+        waitingForStats = true
         return
     end
     -- Without max health the unit data is not loaded yet or already torn down (Forever clears
@@ -369,6 +400,11 @@ for _, event in ipairs({
         scheduleCapture()
     end)
 end
+addon:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+    if waitingForStats then
+        scheduleCapture()
+    end
+end)
 -- The SavedVariables are written right after logout: flush a debounced capture that has not
 -- fired yet. Everything else is already stored from the session.
 addon:RegisterEvent("PLAYER_LOGOUT", function()
