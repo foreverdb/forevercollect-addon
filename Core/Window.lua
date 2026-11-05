@@ -2,8 +2,9 @@ local _, addon = ...
 
 -- The ForeverCollect window (/fc): Session (what was captured since the last save), Capture
 -- (what is collected), Character (upload, private data, combat log) and Advanced (talents,
--- the save reminder, the cache crawls for approved crawlers, the client). Built on first open; every value is
--- read again when it is shown, so changes made through /fc commands appear here too.
+-- the save reminder, the cache crawls for approved crawlers, the client). Built on first
+-- open; every value is read again when it is shown, so changes made through /fc commands
+-- appear here too.
 
 local Theme, W = addon.Theme, addon.Widgets
 local printMessage = addon.PrintMessage
@@ -465,25 +466,23 @@ local function buildAdvanced(page)
     local client = W.Card(page, "sidebar", "sidebar")
     client:SetHeight(64)
     local fields = {}
-    local function field(labelText, anchor, x, alignRight)
-        local labelString = W.Text(client, "caption", "mutedForeground", alignRight and "RIGHT" or "LEFT")
-        local value = W.Text(client, "number", "foreground", alignRight and "RIGHT" or "LEFT")
-        if alignRight then
-            labelString:SetPoint("TOPRIGHT", -18, -14)
-        elseif anchor then
-            labelString:SetPoint("TOPLEFT", anchor, "TOPRIGHT", x, 0)
+    -- Fixed columns from the left, wide enough for "SeasonOfDiscovery"; without `x` on the right.
+    local function field(labelText, x)
+        local labelString = W.Text(client, "caption", "mutedForeground", x and "LEFT" or "RIGHT")
+        local value = W.Text(client, "number", "foreground", x and "LEFT" or "RIGHT")
+        if x then
+            labelString:SetPoint("TOPLEFT", x, -14)
         else
-            labelString:SetPoint("TOPLEFT", 18, -14)
+            labelString:SetPoint("TOPRIGHT", -18, -14)
         end
         labelString:SetText(labelText)
-        value:SetPoint(alignRight and "TOPRIGHT" or "TOPLEFT", labelString, alignRight and "BOTTOMRIGHT" or "BOTTOMLEFT", 0, -4)
+        value:SetPoint(x and "TOPLEFT" or "TOPRIGHT", labelString, x and "BOTTOMLEFT" or "BOTTOMRIGHT", 0, -4)
         fields[labelText] = value
-        return value
     end
-    local version = field("Client")
-    local season = field("Season", version, 28)
-    field("Locale", season, 28)
-    field("Addon", nil, nil, true)
+    field("Client", 18)
+    field("Season", 120)
+    field("Locale", 270)
+    field("Addon")
     children[#children + 1] = client
 
     function page.Refresh()
