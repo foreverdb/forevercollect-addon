@@ -65,7 +65,11 @@ UnitChannelInfo = function() return nil end
 UnitIsDeadOrGhost = function() return false end
 local reloads = 0
 C_UI = { Reload = function() reloads = reloads + 1 end }
-C_Timer = { After = function(_, callback) callback() end, NewTicker = function() return { Cancel = function() end } end }
+local lastTicker
+C_Timer = { After = function(_, callback) callback() end, NewTicker = function(_, callback)
+    lastTicker = callback
+    return { Cancel = function() end }
+end }
 time = function() return 100000 end
 date = os.date
 GetBuildInfo = function() return "1.15.9", "70003", "Nov 1 2026", 11509 end
@@ -190,6 +194,26 @@ local orderNotice = addon.ShowNotice("order", {
 })
 orderNotice.primary:Click()
 check("a notice runs its action before it hides", shownDuringAction == true and not addon.IsNoticeShown("order"))
+
+-- The reminder interval: default, limits and steps, and the reminder follows it.
+ForeverCollectSettings.remindMinutes = nil
+check("the reminder defaults to 30 minutes", addon.RemindMinutes() == 30)
+addon.SetRemindMinutes(1)
+check("the interval has a lower limit", addon.RemindMinutes() == 5)
+addon.SetRemindMinutes(500)
+check("the interval has an upper limit", addon.RemindMinutes() == 120)
+addon.SetRemindMinutes(47)
+check("the interval snaps to its steps", addon.RemindMinutes() == 45)
+addon.SetRemindMinutes(10)
+local realTime = time
+local startedAt = realTime()
+time = function() return startedAt + 9 * 60 end
+lastTicker()
+check("no reminder before the interval is over", not addon.IsNoticeShown("save"))
+time = function() return startedAt + 10 * 60 end
+lastTicker()
+check("the reminder comes when the interval is over", addon.IsNoticeShown("save"))
+time = realTime
 addon.RefreshWindow()
 check("the window refreshes after the clicks", true)
 

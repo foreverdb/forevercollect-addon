@@ -9,8 +9,27 @@ local _, addon = ...
 local printMessage = addon.PrintMessage
 
 local REMIND_AFTER_CAPTURES = 50
-local REMIND_AFTER_MINUTES = 30
+local DEFAULT_REMIND_MINUTES = 30
+local MIN_REMIND_MINUTES = 5
+local MAX_REMIND_MINUTES = 120
+local REMIND_MINUTES_STEP = 5
 local TICK_SECONDS = 60
+
+addon.REMIND_AFTER_CAPTURES = REMIND_AFTER_CAPTURES
+addon.MIN_REMIND_MINUTES = MIN_REMIND_MINUTES
+addon.MAX_REMIND_MINUTES = MAX_REMIND_MINUTES
+addon.REMIND_MINUTES_STEP = REMIND_MINUTES_STEP
+
+-- How long finds may wait for a reminder, account-wide (Advanced tab).
+function addon.RemindMinutes()
+    local settings = ForeverCollectSettings
+    return settings and settings.remindMinutes or DEFAULT_REMIND_MINUTES
+end
+
+function addon.SetRemindMinutes(minutes)
+    local snapped = math.floor(minutes / REMIND_MINUTES_STEP + 0.5) * REMIND_MINUTES_STEP
+    ForeverCollectSettings.remindMinutes = math.max(MIN_REMIND_MINUTES, math.min(MAX_REMIND_MINUTES, snapped))
+end
 
 local unsavedCaptures = 0
 local sessionStartedAt = time()
@@ -120,7 +139,7 @@ local function tick()
     local now = time()
     local minutes = math.floor((now - (lastReminderAt or sessionStartedAt)) / 60)
     local dueByCount = unsavedCaptures - lastReminderCaptures >= REMIND_AFTER_CAPTURES
-    local dueByTime = minutes >= REMIND_AFTER_MINUTES
+    local dueByTime = minutes >= addon.RemindMinutes()
     if dueByCount or dueByTime then
         local sinceSave = math.floor((now - sessionStartedAt) / 60)
         printMessage(string.format(

@@ -27,6 +27,7 @@ The file holds a second global, `ForeverCollectSettings`, with the addon setting
 | Field | Type | Opt. | Description |
 |---|---|---|---|
 | `verbose` | boolean | ✓ | Chat notice per capture; only `false` turns it off. |
+| `remindMinutes` | number | ✓ | Minutes until the save reminder (5 to 120, in steps of 5). Absent means 30. |
 | `armory` | boolean | ✓ | Account-wide Armory opt-in from before addon 0.6.4; only seeds `ForeverCollectCharacterSettings.armory` of characters without a choice of their own and is removed on the first `/fc armory on/off`. |
 | `questCacheCrawl` | table | ✓ | `{ build, nextIndex }`, position of `/fc questcache`. |
 | `itemCacheCrawl` | table | ✓ | `{ build, nextIndex }`, position of `/fc itemcache`. |

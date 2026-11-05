@@ -2,7 +2,7 @@ local _, addon = ...
 
 -- The ForeverCollect window (/fc): Session (what was captured since the last save), Capture
 -- (what is collected), Character (upload, private data, combat log) and Advanced (talents,
--- the cache crawls for approved crawlers, the client). Built on first open; every value is
+-- the save reminder, the cache crawls for approved crawlers, the client). Built on first open; every value is
 -- read again when it is shown, so changes made through /fc commands appear here too.
 
 local Theme, W = addon.Theme, addon.Widgets
@@ -438,6 +438,30 @@ local function buildAdvanced(page)
         children[#children + 1] = talents
     end
 
+    local reminderLabel = CreateFrame("Frame", nil, page)
+    reminderLabel:SetHeight(14)
+    W.SectionLabel(reminderLabel, "Save reminder"):SetPoint("LEFT")
+    children[#children + 1] = reminderLabel
+    local reminder = listRow(page, "Remind me to save after",
+        string.format("Or after %d new finds", addon.REMIND_AFTER_CAPTURES))
+    W.Hairline(reminder, true)
+    local function stepRemindMinutes(step)
+        addon.SetRemindMinutes(addon.RemindMinutes() + step)
+        page.Refresh()
+    end
+    local later = W.Button(reminder, "+", "secondary", function()
+        stepRemindMinutes(addon.REMIND_MINUTES_STEP)
+    end)
+    later:SetPoint("RIGHT", -2, 0)
+    local remindValue = W.Text(reminder, "number", "foreground", "CENTER")
+    remindValue:SetWidth(64)
+    remindValue:SetPoint("RIGHT", later, "LEFT", -4, 0)
+    local sooner = W.Button(reminder, "-", "secondary", function()
+        stepRemindMinutes(-addon.REMIND_MINUTES_STEP)
+    end)
+    sooner:SetPoint("RIGHT", remindValue, "LEFT", -4, 0)
+    children[#children + 1] = reminder
+
     local client = W.Card(page, "sidebar", "sidebar")
     client:SetHeight(64)
     local fields = {}
@@ -471,6 +495,10 @@ local function buildAdvanced(page)
                 and ("Scanned at " .. date("%H:%M", addon.lastTalentScanAt))
                 or "Not scanned yet")
         end
+        local remindMinutes = addon.RemindMinutes()
+        remindValue:SetText(remindMinutes .. " min")
+        sooner:SetActive(remindMinutes > addon.MIN_REMIND_MINUTES)
+        later:SetActive(remindMinutes < addon.MAX_REMIND_MINUTES)
         local catalog = addon.GetLatestCatalog and addon.GetLatestCatalog()
         local versionText, build = GetBuildInfo()
         fields.Client:SetText(string.format("%s.%s", versionText or "?", build or "?"))

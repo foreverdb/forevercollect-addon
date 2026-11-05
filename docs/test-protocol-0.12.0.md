@@ -62,6 +62,7 @@ Reference designs: Paper file "ForeverDB", artboards "ForeverCollect Addon – �
 | 3.10 | "Reload UI to save" in the notice while in combat | No reload; chat: "Cannot reload right now …" | ☐ | ☐ |
 | 3.11 | "Reload UI to save" in the notice out of combat | The UI reloads; no "Interface action failed because of an AddOn" | ☐ | ☐ |
 | 3.12 | "Later" in the notice | The notice closes, no reload | ☐ | ☐ |
+| 3.13 | Advanced tab, "Save reminder": set 5 min with "-", capture a find, wait | Notice after about 5 min; "-" is greyed out at 5 min, "+" at 120 min; the value stays after `/reload` | ☐ | ☐ |
 
 ## 4. Capture tab and pause
 
