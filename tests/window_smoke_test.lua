@@ -182,6 +182,14 @@ for _, frame in ipairs(created) do
 end
 check("every control of the window can be clicked (" .. clicked .. ")", clicked > 20)
 check("Reload UI to save reloads", reloads == 1)
+
+-- A notice's action runs while the notice is still up, as in the game's own popups.
+local shownDuringAction
+local orderNotice = addon.ShowNotice("order", {
+    primary = { label = "Act", onClick = function() shownDuringAction = addon.IsNoticeShown("order") end },
+})
+orderNotice.primary:Click()
+check("a notice runs its action before it hides", shownDuringAction == true and not addon.IsNoticeShown("order"))
 addon.RefreshWindow()
 check("the window refreshes after the clicks", true)
 

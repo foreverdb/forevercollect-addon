@@ -504,10 +504,12 @@ function addon.ShowNotice(key, spec)
         if action then
             button:SetLabel(action.label)
             button:SetScript("OnClick", function()
-                notice:Hide()
+                -- The action runs first, as in the game's own popups; hiding the button
+                -- beforehand is the suspected reason a reload from it was refused.
                 if action.onClick then
                     action.onClick()
                 end
+                notice:Hide()
             end)
         end
     end

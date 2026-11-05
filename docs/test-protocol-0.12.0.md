@@ -60,6 +60,8 @@ Reference designs: Paper file "ForeverDB", artboards "ForeverCollect Addon – �
 | 3.8 | "Reload UI to save" | The UI reloads; afterwards "Everything is saved" | ☐ | ☐ |
 | 3.9 | Wait 30 min or capture 50 finds without saving | Notice at the top: "N finds waiting to be saved", "Later" / "Reload UI to save" | ☐ | ☐ |
 | 3.10 | "Reload UI to save" in the notice while in combat | No reload; chat: "Cannot reload right now …" | ☐ | ☐ |
+| 3.11 | "Reload UI to save" in the notice out of combat | The UI reloads; no "Interface action failed because of an AddOn" | ☐ | ☐ |
+| 3.12 | "Later" in the notice | The notice closes, no reload | ☐ | ☐ |
 
 ## 4. Capture tab and pause
 
