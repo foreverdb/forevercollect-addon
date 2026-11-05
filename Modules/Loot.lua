@@ -26,7 +26,12 @@ local ITEM_LOCATION_CAP = 20
 -- spawn points and gathering pace can be derived (where farming pays off).
 local GATHER_SOURCE_LOCATION_CAP = 500
 local GATHER_ITEM_LOCATION_CAP = 100
-local GATHER_LOCATION_TIMES_CAP = 20
+-- Enough for a long session at one spot, a fishing spot above all: the
+-- uploader clears the catalog after each upload, so the cap is per session.
+local GATHER_LOCATION_TIMES_CAP = 200
+-- Kills of a session, oldest dropped first: a safety net for sessions never
+-- uploaded, far above what an evening of farming loots.
+local KILL_TIMES_CAP = 5000
 
 -- Loot containers (corpses, nodes) already counted this session, so that
 -- reopening the same loot window does not inflate the counters.
@@ -164,6 +169,7 @@ local function describeSource(guid, gather)
                 creatureType = UnitCreatureType and readable(UnitCreatureType("target")) or nil,
                 creatureFamily = UnitCreatureFamily and readable(UnitCreatureFamily("target")) or nil,
                 classification = UnitClassification and readable(UnitClassification("target")) or nil,
+                level = UnitLevel and readable(UnitLevel("target")) or nil,
             }
         end
     end
@@ -171,6 +177,18 @@ local function describeSource(guid, gather)
         name = getCreatureName(sourceID)
     end
     return sourceType or "Unknown", sourceID, name, unit
+end
+
+-- One looted creature on the session's kill timeline (`catalog.killTimes`):
+-- when and what, so the server can tell farming runs and their pace, also
+-- of creatures farmed together. Each corpse counts once, like the loot.
+local function recordKill(catalog, npcID, now)
+    catalog.killTimes = catalog.killTimes or {}
+    local kills = catalog.killTimes
+    kills[#kills + 1] = { at = now, npcID = npcID, instanceID = getInstance() }
+    while #kills > KILL_TIMES_CAP do
+        table.remove(kills, 1)
+    end
 end
 
 local function getOrCreateSource(catalog, sourceType, sourceID, name, now, gather, unit)
@@ -198,6 +216,13 @@ local function getOrCreateSource(catalog, sourceType, sourceID, name, now, gathe
         source.creatureType = unit.creatureType or source.creatureType
         source.creatureFamily = unit.creatureFamily or source.creatureFamily
         source.classification = unit.classification or source.classification
+        -- Spawns of one creature vary in level. UnitLevel is -1 ("??") for
+        -- units far above the player: no level to record then.
+        local level = unit.level
+        if type(level) == "number" and level > 0 then
+            source.minLevel = math.min(source.minLevel or level, level)
+            source.maxLevel = math.max(source.maxLevel or level, level)
+        end
     end
     -- Positions are unavailable inside instances, so the instance ties the
     -- source (bosses and trash alike) to its dungeon.
@@ -238,6 +263,7 @@ local function scanLoot()
     local now = time()
     local location = getPlayerLocation()
     local countedSources = {}
+    local countedKills = {}
     local summary = { items = 0, money = 0, sources = {}, sourceNames = {}, itemNames = {} }
 
     for slot = 1, numSlots do
@@ -262,6 +288,10 @@ local function scanLoot()
                     sourceName = objectName
                 end
                 local source = getOrCreateSource(catalog, sourceType, sourceID, sourceName, now, gather, unit)
+                if guid and not gather and sourceType == "Creature" and sourceID and not countedKills[guid] then
+                    countedKills[guid] = true
+                    recordKill(catalog, sourceID, now)
+                end
                 local sourceKey = getSourceKey(sourceType, sourceID, gather and gather.profession)
                 if not countedSources[sourceKey] then
                     countedSources[sourceKey] = true
@@ -364,20 +394,33 @@ local function scanLoot()
             if location.subZone and location.subZone ~= "" then
                 where = where .. " - " .. location.subZone
             end
+            local items = #summary.itemNames > 0 and table.concat(summary.itemNames, ", ") or "nothing"
             announce(string.format(
                 "%s: %s from %s in %s.",
                 gather.profession,
-                #summary.itemNames > 0 and table.concat(summary.itemNames, ", ") or "nothing",
+                items,
                 table.concat(summary.sourceNames, ", "),
                 where
-            ))
+            ), {
+                kind = "gathering",
+                title = table.concat(summary.sourceNames, ", "),
+                detail = addon.JoinDetail(gather.profession, items, location.subZone ~= "" and location.subZone or location.zone),
+            })
         else
             announce(string.format(
                 "Loot captured from %s: %d item(s)%s.",
                 table.concat(summary.sourceNames, ", "),
                 summary.items,
                 moneyText
-            ))
+            ), {
+                kind = "loot",
+                title = table.concat(summary.sourceNames, ", "),
+                detail = addon.JoinDetail(
+                    summary.items == 1 and "Loot · 1 item" or string.format("Loot · %d items", summary.items),
+                    #summary.itemNames > 0 and table.concat(summary.itemNames, ", ") or nil,
+                    summary.money > 0 and formatMoney(summary.money) or nil
+                ),
+            })
         end
     end
 end

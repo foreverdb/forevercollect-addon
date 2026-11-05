@@ -1,20 +1,24 @@
 -- Run: luajit tests/capture_pause_test.lua (or lua5.1)
 local stubFrame = setmetatable({}, { __index = function() return function() end end })
 CreateFrame = function() return stubFrame end
-StaticPopupDialogs = {}
 InCombatLockdown = function() return false end
-StaticPopup_Visible = function() return false end
+UnitName = function() return "Thaldrin" end
+time = function() return 1000 end
+date = os.date
 local popups = {}
-StaticPopup_Show = function(name, text)
-    popups[#popups + 1] = { name = name, text = text }
-end
 
 local printed = {}
 local loginHandlers = {}
+local setupPending = false
 local addon = {
     PrintMessage = function(message)
         printed[#printed + 1] = message
     end,
+    ShowNotice = function(key, spec)
+        popups[#popups + 1] = { key = key, spec = spec }
+    end,
+    IsNoticeShown = function() return false end,
+    IsSetupPending = function() return setupPending end,
 }
 
 local function load(path)
@@ -59,10 +63,19 @@ check("a paused kind stops", not addon.IsCapturing("loot"))
 check("other kinds keep capturing", addon.IsCapturing("gathering"))
 check("status lists the paused kind", addon.PausedLabels()[1] == "Loot")
 login()
-check("login reminds with a popup", #popups == 1 and popups[1].text == "Loot")
+check("login reminds with a notice", #popups == 1 and popups[1].spec.detail == "Loot"
+    and popups[1].spec.title == "Some kinds are paused on Thaldrin")
+setupPending = true
+login()
+check("no reminder while the setup is pending", #popups == 0)
+setupPending = false
 
 addon:HandleSlashCommand("pause")
 check("bare pause stops everything", not addon.IsCapturing("quests"))
+check("the pause time is kept", ForeverCollectCharacterSettings.pausedAt == 1000)
+login()
+check("a full pause names the character and the time", popups[1].spec.title == "Collecting is paused on Thaldrin"
+    and popups[1].spec.detail == "Since " .. os.date("%b %d, %H:%M", 1000))
 check("everything is reported", addon.PausedLabels()[1] == "everything")
 
 addon:HandleSlashCommand("resume loot")
@@ -78,5 +91,7 @@ check("unknown kind is reported", string.find(printed[#printed], "Unknown captur
 check("unknown kind pauses nothing", ForeverCollectCharacterSettings.paused == nil)
 
 addon:HandleSlashCommand("pause gathering")
-StaticPopupDialogs.FOREVERCOLLECT_CAPTURE_PAUSED.OnAccept()
-check("popup resume clears every pause", ForeverCollectCharacterSettings.paused == nil)
+login()
+popups[1].spec.primary.onClick()
+check("Resume clears every pause", ForeverCollectCharacterSettings.paused == nil
+    and ForeverCollectCharacterSettings.pausedAt == nil)

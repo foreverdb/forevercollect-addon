@@ -45,3 +45,23 @@ check("command without argument passes nil", calls[1].name == "armory" and calls
 
 addon:HandleSlashCommand("nope")
 check("unknown command is reported", printed[#printed] == "Unknown command. Use /fc help.")
+
+-- A command that is not available is hidden from the help and answers like an unknown one.
+local open = false
+addon:RegisterCommand("secret", record("secret"), "Only sometimes", function() return open end)
+local function named(name)
+    for _, command in ipairs(addon:GetCommandNames()) do
+        if command == name then
+            return true
+        end
+    end
+    return false
+end
+calls, printed = {}, {}
+addon:HandleSlashCommand("secret")
+check("an unavailable command is unknown", #calls == 0 and printed[1] == "Unknown command. Use /fc help.")
+check("an unavailable command is not listed", not named("secret") and named("armory"))
+open = true
+calls = {}
+addon:HandleSlashCommand("secret")
+check("an available command runs", #calls == 1 and calls[1].name == "secret" and named("secret"))

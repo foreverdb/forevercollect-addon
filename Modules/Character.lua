@@ -22,6 +22,8 @@ local DEBOUNCE_SECONDS = 2
 local FIRST_SLOT, LAST_SLOT = 0, 19
 
 local pending
+-- A capture came while the stats were secret; it runs again when the fight ends.
+local waitingForStats = false
 -- Per character key: the snapshot the file held at login (false: none). A gear swap passes
 -- through intermediate states; when it ends where the session started, the stored snapshot is
 -- put back unchanged, so the upload deduplicates instead of adding a copy with a new time.
@@ -32,15 +34,38 @@ local function isEnabled()
     return settings and settings.armory == true or false
 end
 
+local function readableResults(ok, ...)
+    if not ok then
+        return nil
+    end
+    local count = select("#", ...)
+    local values = { ... }
+    for index = 1, count do
+        values[index] = addon.Readable(values[index])
+    end
+    return unpack(values, 1, count)
+end
+
+-- A client call that may be missing, fail or hand out secret values; those come back as nil.
 local function call(fn, ...)
     if type(fn) ~= "function" then
         return nil
     end
-    local results = { pcall(fn, ...) }
-    if not results[1] then
-        return nil
+    return readableResults(pcall(fn, ...))
+end
+
+local function isSecretResult(fn, ...)
+    if type(fn) ~= "function" then
+        return false
     end
-    return unpack(results, 2)
+    local ok, value = pcall(fn, ...)
+    return ok and value ~= nil and addon.Readable(value) == nil
+end
+
+-- The mainline engine (Forever) keeps a unit's stats and maximum health secret in restricted
+-- situations such as combat.
+local function statsAreSecret()
+    return isSecretResult(UnitAttackPower, "player") or isSecretResult(UnitHealthMax, "player")
 end
 
 -- item:itemID:enchantID:gem1:gem2:gem3:gem4:suffixID:uniqueID:...
@@ -208,7 +233,16 @@ local function captureStats()
     return stats
 end
 
-local function buildSnapshot()
+local function publicChoice()
+    local settings = ForeverCollectCharacterSettings
+    local choice = settings and settings.publicChoice
+    if choice == true or choice == false then
+        return choice
+    end
+    return nil
+end
+
+local function buildSnapshot(previous)
     local character = getCharacterContext()
     character.guid = UnitGUID("player")
     -- Forever has first and last names: UnitName returns the last name where other units
@@ -227,6 +261,12 @@ local function buildSnapshot()
         traits = captureTraits(),
         professions = captureProfessions(),
         stats = captureStats(),
+        -- Bags, bank and known recipes for Companion (Modules/CharacterPrivate.lua), only
+        -- with /fc private on; the server keeps them apart from the public profile.
+        private = addon.BuildCharacterPrivate and addon.BuildCharacterPrivate(previous) or nil,
+        -- The setup's choice whether the character shows in the Armory. The server only uses
+        -- it when it first creates the character; afterwards the account page decides.
+        public = publicChoice(),
     }
 end
 
@@ -249,11 +289,14 @@ end
 
 -- Stats move with every buff, so they only refresh together with a real change;
 -- otherwise every reload would upload a new snapshot.
-local function sameContent(a, b)
+local PUBLIC_FIELDS = { "character", "equipment", "talents", "traits", "professions" }
+local CONTENT_FIELDS = { "character", "equipment", "talents", "traits", "professions", "private" }
+
+local function sameContent(a, b, fields)
     if not b then
         return false
     end
-    for _, field in ipairs({ "character", "equipment", "talents", "traits", "professions" }) do
+    for _, field in ipairs(fields or CONTENT_FIELDS) do
         if not deepEqual(a[field], b[field]) then
             return false
         end
@@ -263,6 +306,7 @@ end
 
 local function capture()
     pending = nil
+    waitingForStats = false
     if not isEnabled() then
         return
     end
@@ -270,32 +314,57 @@ local function capture()
     if not isSupportedClient(client) then
         return
     end
+    -- A snapshot now would replace the stored stats with empty ones until the next real change.
+    if statsAreSecret() then
+        waitingForStats = true
+        return
+    end
     -- Without max health the unit data is not loaded yet or already torn down (Forever clears
     -- gear and stats before PLAYER_LOGOUT); such a snapshot would replace the good one empty.
     if (call(UnitHealthMax, "player") or 0) <= 0 then
         return
     end
-    local snapshot = buildSnapshot()
     local catalog = getOrCreateCatalog(client)
     local key = getCharacterKey()
+    local previous = catalog.characters[key]
+    local snapshot = buildSnapshot(previous)
     if savedSnapshots[key] == nil then
-        savedSnapshots[key] = catalog.characters[key] or false
+        savedSnapshots[key] = previous or false
     end
-    if sameContent(snapshot, catalog.characters[key]) then
+    -- The visibility choice is no content of its own: a stored snapshot just takes it over,
+    -- so a choice made after the last capture still goes up with it.
+    if previous then
+        previous.public = snapshot.public
+    end
+    if sameContent(snapshot, previous) then
         return
     end
     local saved = savedSnapshots[key]
     if saved and sameContent(snapshot, saved) then
+        saved.public = snapshot.public
         catalog.characters[key] = saved
         return
     end
     snapshot.capturedAt = time()
     catalog.characters[key] = snapshot
+    -- Bags change all the time; such updates only go to the capture list, not the chat.
+    if sameContent(snapshot, previous, PUBLIC_FIELDS) then
+        addon.NoteCapture("Companion: bags, bank and recipes updated.", {
+            kind = "character",
+            title = tostring(snapshot.character.name),
+            detail = "Private data updated",
+        })
+        return
+    end
     addon.Announce(string.format(
         "Armory: captured %s (%d items).",
         tostring(snapshot.character.name),
         #snapshot.equipment
-    ))
+    ), {
+        kind = "character",
+        title = tostring(snapshot.character.name),
+        detail = string.format("Character uploaded · %d items equipped", #snapshot.equipment),
+    })
 end
 
 local function scheduleCapture(delay)
@@ -304,6 +373,10 @@ local function scheduleCapture(delay)
     end
     pending = true
     C_Timer.After(delay or DEBOUNCE_SECONDS, capture)
+end
+
+addon.ScheduleCharacterCapture = function()
+    scheduleCapture()
 end
 
 addon:RegisterEvent("PLAYER_ENTERING_WORLD", function()
@@ -327,6 +400,11 @@ for _, event in ipairs({
         scheduleCapture()
     end)
 end
+addon:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+    if waitingForStats then
+        scheduleCapture()
+    end
+end)
 -- The SavedVariables are written right after logout: flush a debounced capture that has not
 -- fired yet. Everything else is already stored from the session.
 addon:RegisterEvent("PLAYER_LOGOUT", function()
@@ -351,16 +429,34 @@ end
 
 addon.IsArmoryEnabled = isEnabled
 
-function addon.SetArmory(enabled)
+-- `options.private` decides the private part for the window and the setup; the command
+-- keeps turning it on for new opt-ins.
+function addon.SetArmory(enabled, options)
     initializeDatabase()
     -- The account-wide flag only seeds characters until the first explicit choice;
     -- from then on characters created later start with Armory off.
     ForeverCollectSettings.armory = nil
     ForeverCollectCharacterSettings.armory = enabled
     if enabled then
-        printMessage("Armory on: your character (name, realm, gear, talents, professions, stats) is uploaded and gets a public profile on ForeverDB. /fc armory off removes it from the upload.")
+        -- New opt-ins send the private part for Companion at once.
+        local private = true
+        if options and options.private ~= nil then
+            private = options.private and true or false
+        end
+        ForeverCollectCharacterSettings.private = private
+        printMessage("Armory on: your character (name, realm, gear, talents, professions, stats) is uploaded to ForeverDB; "
+            .. "whether it shows in the Armory you decide on foreverdb.app/profile. "
+            .. (private and "Bags, bank, known recipes and completed quests go along for Companion; only you can see them (/fc private off). "
+                or "")
+            .. "/fc armory off removes it all from the upload.")
+        if addon.ScanCompletedQuests then
+            addon.ScanCompletedQuests()
+        end
         capture()
     else
+        if addon.ClearCharacterPrivate then
+            addon.ClearCharacterPrivate()
+        end
         local removed = removeSnapshots()
         addon.NoteCapture("Armory: stored snapshots removed.")
         printMessage(string.format(

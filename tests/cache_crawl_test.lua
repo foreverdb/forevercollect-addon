@@ -113,7 +113,16 @@ local missing = addon.NewCacheCrawl({
     unsupported = "Quest cache: no list",
 })
 addon:HandleSlashCommand("questcache")
-check("without an id list the command explains why", last() == "Quest cache: no list" and missing() == nil)
+check("without an id list the command is unknown", last() == "Unknown command. Use /fc help." and missing() == nil)
+local function listed(name)
+    for _, command in ipairs(addon:GetCommandNames()) do
+        if command == name then
+            return true
+        end
+    end
+    return false
+end
+check("without an id list the help leaves it out", not listed("questcache") and listed("itemcache"))
 
 -- A client without the result event: loading does not fail, the crawl is unsupported.
 local unknownStatus = addon.NewCacheCrawl({
@@ -131,7 +140,7 @@ local unknownStatus = addon.NewCacheCrawl({
 check("unknown result event: status function exists", type(unknownStatus) == "function")
 check("unknown result event: unsupported", unknownStatus() == nil)
 addon:HandleSlashCommand("questcache")
-check("unknown result event: command says unsupported", last() == "Quest cache: unsupported." and ticker == nil)
+check("unknown result event: command is unknown", last() == "Unknown command. Use /fc help." and ticker == nil)
 
 -- C_EventUtils knows the event is missing: no registration attempt at all.
 local attempted = false
@@ -157,3 +166,14 @@ local checkedStatus = addon.NewCacheCrawl({
 check("invalid per C_EventUtils: not registered", not attempted)
 check("invalid per C_EventUtils: unsupported", checkedStatus() == nil)
 C_EventUtils = nil
+
+-- The uploader's list names its build: another build hides the crawl until the next list.
+ForeverCollectCacheIDs = { build = 69000 }
+check("a list of another build is not available", status() == nil and not listed("itemcache"))
+addon:HandleSlashCommand("itemcache")
+check("a list of another build: the command is unknown", last() == "Unknown command. Use /fc help.")
+ForeverCollectCacheIDs = { build = tonumber(build) }
+check("a list of the current build is available", status() ~= nil and listed("itemcache"))
+ForeverCollectCacheIDs = {}
+check("a list without a build is available", status() ~= nil)
+ForeverCollectCacheIDs = nil

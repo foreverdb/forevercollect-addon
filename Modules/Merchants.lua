@@ -140,7 +140,11 @@ local function scanMerchant(silent)
             npc.name or "unknown merchant"
         ), function()
             hasAnnouncedMerchant = true
-        end)
+        end, {
+            kind = "merchants",
+            title = npc.name or "Unknown merchant",
+            detail = addon.JoinDetail(string.format("Merchant · %d goods with prices", #items), addon.CurrentPlace()),
+        })
     end
     return snapshot
 end

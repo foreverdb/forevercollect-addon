@@ -13,7 +13,7 @@ The version is set in `ForeverCollect.toc` (`## Version:`). When it is bumped on
 ## Usage
 
 ```text
-/fc           Open the settings page
+/fc           Open the ForeverCollect window
 /fc help      List all commands
 /fc scan      Scan talents (Classic Era)
 /fc talents   Show talent data of the current catalog
@@ -22,13 +22,15 @@ The version is set in `ForeverCollect.toc` (`## Version:`). When it is bumped on
 /fc merchants Show merchant inventories
 /fc loot      Show loot sources and items
 /fc quests    Show number of captured quests and observations
-/fc questcache Query all quests from the server (stop, status, reset)
-/fc itemcache Query all items without client data from the server (stop, status, reset)
+/fc questcache Query all quests from the server (stop, status, reset; approved crawlers only)
+/fc itemcache Query all items without client data from the server (stop, status, reset; approved crawlers only)
 /fc status    Show catalog context and scan status
 /fc verbose   Toggle notices for every capture (default: on)
 /fc save      Save collected data now (reloads the UI)
-/fc options   Open the settings page (Options -> AddOns -> ForeverCollect)
-/fc armory    Public profile of this character: /fc armory on or off (default: off)
+/fc options   Open the ForeverCollect window (also a bare /fc, or Options -> AddOns -> ForeverCollect)
+/fc setup     Open the setup again
+/fc armory    Upload this character to ForeverDB: /fc armory on or off (default: off)
+/fc private   Bags, bank, recipes and completed quests for Companion (only you see them): /fc private on or off
 /fc combatlog Combat log for bosses and creature abilities: on or off (default: on), instances (default) or everywhere
 /fc pause     Pause capture: /fc pause (all) or /fc pause <kind>
 /fc resume    Resume capture: /fc resume (all) or /fc resume <kind>
@@ -36,21 +38,25 @@ The version is set in `ForeverCollect.toc` (`## Version:`). When it is bumped on
 
 Every capture (quest dialog, turn-in, loot, merchant, trainer, banker, flight master) is announced in chat; `/fc verbose` turns these notices off and on again (setting in `ForeverCollectSettings`, not part of uploads).
 
-**Pausing capture:** `/fc pause` stops every automatic capture, `/fc pause <kind>` only one kind: `quests`, `npcs`, `merchants`, `trainers`, `loot`, `gathering`, `encounters`, `talents`. `/fc resume <kind>` resumes one kind, a bare `/fc resume` resumes everything. Explicit actions (`/fc scan`, `/fc merchants`, `/fc trainer`, the quest cache, Armory) still run. The pause applies to the current character only and is kept across reloads; while anything is paused, every login and `/reload` prints a reminder and shows a popup with "Resume all", and `/fc status` lists the paused kinds.
+**Pausing capture:** `/fc pause` stops every automatic capture, `/fc pause <kind>` only one kind: `quests`, `npcs`, `merchants`, `trainers`, `loot`, `gathering`, `encounters`, `talents`. `/fc resume <kind>` resumes one kind, a bare `/fc resume` resumes everything. Explicit actions (`/fc scan`, `/fc merchants`, `/fc trainer`, the quest cache, Armory) still run; `/fc pause` (all) does stop the reading of bags, bank and recipes for `/fc private`. The pause applies to the current character only and is kept across reloads; while anything is paused, every login and `/reload` prints a reminder and shows a notice with "Resume", and `/fc status` lists the paused kinds.
 
-**Settings page:** Options → AddOns → ForeverCollect (or `/fc` / `/fc options`) has checkboxes for capture notices, Armory, combat log (and whether to log outside dungeons and raids) and pausing capture (all, or per kind; Armory, combat log and pause apply to the current character), a "Save now" button, "Scan talents", and Start/Stop/Reset for the quest cache and the item cache with their progress. They do the same as `/fc verbose`, `/fc armory on/off`, `/fc combatlog on/off`, `/fc pause`/`/fc resume`, `/fc save`, `/fc scan`, `/fc questcache` and `/fc itemcache`. Below them, the page shows the catalog status of `/fc status` and lists every capture since the last save with its time, so you can see what the next `/reload` or logout writes. The page scrolls when the window is too small.
+**Window:** `/fc` (or `/fc options`, or Options → AddOns → ForeverCollect) opens the ForeverCollect window with four tabs. *Session* lists every capture since the last save with its time and a filter per kind, and offers "Reload UI to save". *Capture* switches collecting on this character on and off, as a whole or per kind, and the chat line for every find. *Character* has the upload of this character, its additional private data and the combat log. *Advanced* shows the talent scan (Classic Era), the quest and item cache for approved crawlers, and the client, season, locale and addon version. The switches do the same as `/fc pause`/`/fc resume`, `/fc verbose`, `/fc armory`, `/fc private` and `/fc combatlog`. The window uses the game's own fonts and draws without texture files.
+
+**Setup:** Every character sees a short setup once (`ForeverCollectCharacterSettings.setupDone`), prefilled with its current settings: the kinds to collect, the upload with "Show on the public Armory" and the additional private data, and the combat log. "Start collecting" applies the choices; "Skip setup" changes nothing. `/fc setup` opens it again. "Show on the public Armory" is only the starting value the server uses when it first creates the character (`public` in the snapshot); afterwards the visibility is changed on foreverdb.app/profile.
 
 **Quest type:** On every accept and turn-in, the quest type from the quest log is recorded (`tag`: Dungeon, Raid, Elite, PvP …, plus `suggestedGroup`). Quests captured earlier get their type as soon as they are accepted or turned in again.
 
-**Quest catalog:** The website's quest data comes from the client (`QuestV2.db2` and the quest cache `Cache/WDB/<locale>/questcache.wdb`); the observations add NPCs, progress and turn-in texts. The cache only contains quests the client has already queried from the server. `/fc questcache` queries all IDs from the local addon `ForeverCollect_CacheIDs` (written into the installation by `foreverdb-import quest-ids`, not part of the release) at a throttled rate (20/s, a bit over 5 minutes, resumable); afterwards, log out so the client writes the cache, then run `foreverdb-import all`.
+**Quest catalog:** The website's quest data comes from the client (`QuestV2.db2` and the quest cache `Cache/WDB/<locale>/questcache.wdb`); the observations add NPCs, progress and turn-in texts. The cache only contains quests the client has already queried from the server. `/fc questcache` queries all IDs from the local addon `ForeverCollect_CacheIDs` (written into the installation by `foreverdb-import quest-ids`, not part of the release) at a throttled rate (20/s, a bit over 5 minutes, resumable); afterwards, log out so the client writes the cache, then run `foreverdb-import all`. Only approved crawlers get `ForeverCollect_CacheIDs` from the uploader; without it (or with a list of another build) the window shows no crawler section and `/fc questcache` and `/fc itemcache` are unknown commands.
 
 **Item catalog:** Item data (name, stats, levels) comes from `ItemSparse.db2`. Many items sit there in encrypted sections whose key the client does not have; the server sends such an item's rows when the client shows or asks for it, and the client keeps them in `Cache/ADB/<locale>/DBCache.bin`, which the importer's `db2` step merges like hotfixes. `/fc itemcache` asks for every item ID in `ForeverCollect_CacheIDs` (items without client data, written by `foreverdb-import item-ids`) at the same rate as the quest cache; afterwards, log out and run `foreverdb-import all`.
 
-**Combat log:** Addons get no combat data: inside dungeons and raids the game hides the GUIDs of hostile units, so the addon cannot see which creature an encounter's boss is, and casts of creatures are hidden everywhere. The game's own combat log file still has both: the addon turns combat logging on when entering a dungeon or raid and off again when leaving (only logging it started itself; logging started with `/combatlog` or by another addon stays on). With `/fc combatlog everywhere` (or "Also outside dungeons and raids" on the settings page) it logs everywhere, for the abilities of creatures in the open world; `/fc combatlog instances` goes back to dungeons and raids. The uploader reads `Logs/WoWCombatLog*.txt` and sends the creatures that died during each successful encounter and which spells creatures used (creature and spell IDs only); nothing else from the log (no player names, no raw lines) leaves the computer. Per character, on by default in dungeons and raids, `/fc combatlog off` or the settings page turns it off. The log files stay in `Logs/`; WoW starts a new one per session and never deletes old ones (about 1 MB per hour of play).
+**Combat log:** Addons get no combat data: inside dungeons and raids the game hides the GUIDs of hostile units, so the addon cannot see which creature an encounter's boss is, and casts of creatures are hidden everywhere. The game's own combat log file still has both: the addon turns combat logging on when entering a dungeon or raid and off again when leaving (only logging it started itself; logging started with `/combatlog` or by another addon stays on). With `/fc combatlog everywhere` (or "Also in the open world" in the window) it logs everywhere, for the abilities of creatures in the open world; `/fc combatlog instances` goes back to dungeons and raids. The uploader reads `Logs/WoWCombatLog*.txt` and sends the creatures that died during each successful encounter and which spells creatures used (creature and spell IDs only); nothing else from the log (no player names, no raw lines) leaves the computer. Per character, on by default in dungeons and raids, `/fc combatlog off` or the window turns it off. The log files stay in `Logs/`; WoW starts a new one per session and never deletes old ones.
 
-**Armory (opt-in):** With `/fc armory on`, the addon keeps a snapshot of the own character per catalog in `characters`: name, realm, guild, equipped items (with enchant and random suffix), spent talents (Classic) or purchased trait nodes (Forever), skill lines and the character sheet values. The upload gives the character a public profile on ForeverDB. It is set per character and off by default because name and realm otherwise never leave the computer; `/fc armory off` removes that character's stored snapshots (written with the next `/reload` or logout), other characters keep theirs. Before addon 0.6.4 Armory was account-wide: that opt-in carries over to each character on its first login (with a chat notice) until Armory is switched on or off explicitly for any character; characters logging in for the first time after that start with Armory off. Details: `SCHEMA.md` section 16.
+**Armory (opt-in):** With `/fc armory on`, the addon keeps a snapshot of the own character per catalog in `characters`: name, realm, guild, equipped items (with enchant and random suffix), spent talents (Classic) or purchased trait nodes (Forever), skill lines and the character sheet values. The upload gives the character a profile on ForeverDB; a new character starts hidden unless the setup's "Show on the public Armory" was on, and its owner shows or hides it on foreverdb.app/profile. It is set per character and off by default because name and realm otherwise never leave the computer; `/fc armory off` removes that character's stored snapshots (written with the next `/reload` or logout), other characters keep theirs. Before addon 0.6.4 Armory was account-wide: that opt-in carries over to each character on its first login (with a chat notice) until Armory is switched on or off explicitly for any character; characters logging in for the first time after that start with Armory off. Details: `SCHEMA.md` section 16.
 
-**Saving:** WoW only writes addon data to disk on logout, exit or `/reload`. Everything since the last save lives only in memory and is lost on a crash or a killed process. The addon therefore counts captures since the last save and, after 50 captures or 30 minutes, reminds you to run `/fc save` with a popup ("Save now" reloads the UI, "Later" postpones) and in chat. `/fc save` is a UI reload and never happens in combat, while casting or with a dialog open. The addon never reloads on its own: the game blocks reloads in many situations, and an unexpected reload interrupts play. `/fc status` shows the unsaved captures.
+**Bags, bank, recipes and completed quests (private, opt-in):** With `/fc private on`, the Armory snapshot also carries the character's bags, the last bank visit, the known recipes of every profession window opened and the completed quests (read on login, extended with every turn-in), for Companion and the dungeon and quest pages on ForeverDB. Only the owner sees them; the server keeps them apart from the public profile. `/fc armory on` turns it on for new opt-ins; characters that had Armory on before 0.11.0 get one chat line and send nothing private until `/fc private on`. `/fc private off` removes the private part and keeps the public profile; `/fc armory off` removes both. The bank and the recipes can only be read with their window open, so the addon keeps the last scans in `ForeverCollectCharacterSettings.privateCache` and sends them again after each upload. A bare `/fc private` shows the bank's last scan, the professions with recipes and which profession window API the client uses.
+
+**Saving:** WoW only writes addon data to disk on logout, exit or `/reload`. Everything since the last save lives only in memory and is lost on a crash or a killed process. The addon therefore counts captures since the last save and, after 50 captures or 30 minutes (the time can be set from 5 to 120 minutes in the *Advanced* tab), reminds you to run `/fc save` with a notice ("Reload UI to save" reloads the UI, "Later" postpones) and in chat. `/fc save` is a UI reload and never happens in combat, while casting or with a dialog open. The addon never reloads on its own: the game blocks reloads in many situations, and an unexpected reload interrupts play. `/fc status` shows the unsaved captures.
 
 After `/reload`, logout or exit, WoW writes the data to:
 
@@ -83,7 +89,11 @@ Modules/Encounters.lua  Boss encounters: pulls, kills, boss units, diagnostics, 
 Modules/CombatLog.lua   Turns combat logging on for bosses and creature abilities (/fc combatlog)
 Modules/Talents.lua     Talent trees via the Classic API (/fc talents)
 Modules/Character.lua   Opt-in Armory snapshot of the own character, per character (/fc armory)
-Core/Options.lua        Settings page under Options -> AddOns (/fc, /fc options)
+Modules/CharacterPrivate.lua  Private part of that snapshot: bags, bank, known recipes, completed quests (/fc private)
+Core/Theme.lua          Colours (ForeverDB design tokens) and game fonts of the window
+Core/Widgets.lua        Cards, switches, buttons, chips, tabs and notices drawn without texture files
+Core/Window.lua         The ForeverCollect window (/fc, /fc options) and its Options entry
+Core/Setup.lua          The setup every character sees once (/fc setup)
 Modules/Trainers.lua    Trainer services (/fc trainer)
 Modules/Quests.lua      Quest dialogs and turn-ins (/fc quests)
 Modules/QuestCache.lua  Queries all quests of ForeverCollect_CacheIDs from the server (/fc questcache)
@@ -272,7 +282,7 @@ trainerSnapshots = {
 
 ## Items
 
-`items` is a deduplicated catalog of all observed items, keyed by `itemID`. It is filled exclusively through sources (merchants, quests, loot, recipes); bag contents are not captured, equipment only in the opt-in Armory snapshot (`characters`, see below).
+`items` is a deduplicated catalog of all observed items, keyed by `itemID`. It is filled exclusively through sources (merchants, quests, loot, recipes); bag contents and equipment only in the opt-in Armory snapshot (`characters`, see below).
 
 ```lua
 items = {

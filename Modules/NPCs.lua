@@ -7,6 +7,16 @@ local getOrCreateCatalog = addon.GetOrCreateCatalog
 local initializeDatabase = addon.InitializeDatabase
 local readTooltipLines = addon.ReadTooltipLines
 
+-- UnitLevel of the unit; nil for -1 ("??", far above the player) and for
+-- secret values.
+local function getUnitLevel(unitToken)
+    local level = UnitLevel and addon.Readable(UnitLevel(unitToken)) or nil
+    if type(level) == "number" and level > 0 then
+        return level
+    end
+    return nil
+end
+
 -- Returns the player's current position; used as an approximation of the
 -- position of whatever the player is interacting with.
 local function getPlayerLocation()
@@ -134,6 +144,7 @@ local function getNPC(unitToken, interactionType, role)
         interactionTypes = { interactionType },
         creatureType = UnitCreatureType and UnitCreatureType(unitToken) or nil,
         classification = UnitClassification and UnitClassification(unitToken) or nil,
+        level = getUnitLevel(unitToken),
         location = location,
     }
 
@@ -266,7 +277,11 @@ local function announceNPC(interactionType, details)
             npc.name or "unknown",
             tostring(npc.npcID or "?"),
             interactionType
-        ))
+        ), {
+            kind = "npcs",
+            title = npc.name or "Unknown NPC",
+            detail = addon.JoinDetail(addon.InteractionLabel(interactionType), addon.CurrentPlace()),
+        })
     end
 end
 

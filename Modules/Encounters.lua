@@ -207,7 +207,11 @@ addon:RegisterEvent("ENCOUNTER_END", function(encounterID, _, _, _, success)
             "Encounter captured: %s, %s.",
             result.name or tostring(encounterID),
             #names > 0 and table.concat(names, ", ") or "boss from the combat log"
-        ))
+        ), {
+            kind = "encounters",
+            title = result.name or ("Encounter " .. tostring(encounterID)),
+            detail = addon.JoinDetail("Boss kill", addon.CurrentPlace()),
+        })
     end
     current = nil
 end)

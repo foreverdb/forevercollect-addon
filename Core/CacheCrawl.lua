@@ -36,8 +36,15 @@ function addon.NewCacheCrawl(config)
     -- the client does not report it; pcall covers clients without C_EventUtils.
     local eventKnown
 
+    -- The uploader writes the lists only for approved crawlers, with the build they are for;
+    -- a list of another build waits for the uploader's next one. Lists without a build (older
+    -- uploaders, the importer) still count.
     local function isSupported()
-        return eventKnown and config.isSupported() and config.ids() ~= nil
+        if not (eventKnown and config.isSupported() and config.ids() ~= nil) then
+            return false
+        end
+        local listBuild = ForeverCollectCacheIDs and ForeverCollectCacheIDs.build
+        return listBuild == nil or tostring(listBuild) == tostring(select(2, GetBuildInfo()))
     end
 
     local function stop(message)
@@ -118,13 +125,15 @@ function addon.NewCacheCrawl(config)
             ))
             ticker = C_Timer.NewTicker(TICK_SECONDS, tick)
         end
-    end, config.help)
+    end, config.help, isSupported)
 
-    -- For the settings page: nil when the client cannot crawl.
+    -- For the window: nil when the client cannot crawl, else the status line, whether it
+    -- runs, and how many of how many IDs were requested.
     return function()
         if not isSupported() then
             return nil
         end
-        return statusText(getState(), #config.ids()), ticker ~= nil
+        local state, total = getState(), #config.ids()
+        return statusText(state, total), ticker ~= nil, math.min(state.nextIndex - 1, total), total
     end
 end
