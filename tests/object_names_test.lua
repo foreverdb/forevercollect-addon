@@ -113,6 +113,23 @@ fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-2", 133)
 loot("GameObject-0-1-0-1-2843-0000000003", 4542)
 check("UI tooltips and other casts do not name objects", catalog.lootSources["GameObject:2843"].name == nil)
 
+-- UI elements with the default anchor also have UIParent as their owner; only the mouse
+-- position tells them from world objects.
+now = now + 30
+GetMouseFoci = function() return { {} } end
+hover("4,062 / 4,500  (91%)")
+now = now + 1
+loot("GameObject-0-1-0-1-2846-0000000007", 4545)
+check("a status bar tooltip does not name an object", catalog.lootSources["GameObject:2846"].name == nil)
+now = now + 30
+GetMouseFoci = function() return { WorldFrame } end
+hover("Supply Crate")
+now = now + 1
+loot("GameObject-0-1-0-1-2847-0000000008", 4546)
+check("a tooltip over the world names an object", catalog.lootSources["GameObject:2847"].name == "Supply Crate")
+GetMouseFoci = nil
+now = now + 30
+
 hover("Battered Chest")
 now = now + 10
 loot("GameObject-0-1-0-1-2844-0000000004", 4543)

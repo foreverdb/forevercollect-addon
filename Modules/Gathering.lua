@@ -91,6 +91,12 @@ local function readTooltipTitle(tooltip)
     if owner and UIParent and owner ~= UIParent then
         return nil
     end
+    -- UI elements with the default anchor look just the same (the experience bar's title is
+    -- "4,062 / 4,500 (91%)"), so the mouse has to be over the world itself.
+    local focus = GetMouseFoci and GetMouseFoci()[1]
+    if focus and focus ~= WorldFrame then
+        return nil
+    end
     if (tooltip.GetItem and tooltip:GetItem()) or (tooltip.GetSpell and tooltip:GetSpell()) then
         return nil
     end
