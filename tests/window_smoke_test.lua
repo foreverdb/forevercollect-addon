@@ -133,6 +133,20 @@ check("Skip changes nothing", state.armory == before.armory and state.combatLog 
 fire("PLAYER_LOGIN")
 check("the setup does not come back", not setup:IsShown())
 
+-- The opening cinematic of a new character closes the setup; it comes back when that ends.
+ForeverCollectCharacterSettings.setupDone = nil
+fire("PLAYER_LOGIN")
+check("the setup opens before the cinematic", setup:IsShown())
+setup:Hide()
+setup.scripts.OnHide(setup)
+check("the cinematic closed the setup", not setup:IsShown() and not addon.IsSetupPending())
+fire("CINEMATIC_STOP")
+check("the setup returns after the cinematic", setup:IsShown() and addon.IsSetupPending()
+    and ForeverCollectCharacterSettings.setupDone == nil)
+setup.skip:Click()
+fire("CINEMATIC_STOP")
+check("a finished setup stays closed after a cinematic", not setup:IsShown())
+
 -- Start collecting applies the choices, only where they changed.
 local kinds = {}
 for _, kind in ipairs(addon.CAPTURE_KINDS) do

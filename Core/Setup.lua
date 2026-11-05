@@ -370,6 +370,7 @@ local function build()
     frame.back:SetPoint("RIGHT", frame.next, "LEFT", -8, 0)
 
     -- Closed with Escape: nothing is applied and the setup comes back on the next login.
+    -- Closed by a cinematic: the same, but it already comes back when the cinematic ends.
     frame:SetScript("OnHide", function()
         if pending then
             pending = false
@@ -415,15 +416,26 @@ local function openIfDue()
     addon.OpenSetup()
 end
 
-addon:RegisterEvent("PLAYER_LOGIN", function()
-    if settings().setupDone then
-        return
-    end
+local function openAfterDelay()
     -- the pause reminder waits for the setup
     pending = true
     if C_Timer and C_Timer.After then
         C_Timer.After(LOGIN_DELAY, openIfDue)
     else
         openIfDue()
+    end
+end
+
+addon:RegisterEvent("PLAYER_LOGIN", function()
+    if not settings().setupDone then
+        openAfterDelay()
+    end
+end)
+
+-- An opening cinematic closes every special frame, this one included, and only runs on
+-- a character's first login: without this the setup would wait for the next /reload.
+addon:RegisterEvent("CINEMATIC_STOP", function()
+    if not settings().setupDone then
+        openAfterDelay()
     end
 end)

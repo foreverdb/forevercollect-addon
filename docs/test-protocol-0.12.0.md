@@ -21,7 +21,7 @@ Reference designs: Paper file "ForeverDB", artboards "ForeverCollect Addon – �
 
 | # | Step | Expected | Forever | Classic Era |
 |---|---|---|---|---|
-| 1.1 | Log in with the new character | The setup opens about 2 s after login, step 1 "Welcome, <name>" with 8 kind chips, all on | ☐ | ☐ |
+| 1.1 | Log in with the new character | The setup opens about 2 s after login, or at the latest about 2 s after the intro cinematic ends or is cancelled, without a `/reload`; step 1 "Welcome, <name>" with 8 kind chips, all on | ☐ | ☐ |
 | 1.2 | Click a chip twice | It turns off (no check, quiet outline) and on again | ☐ | ☐ |
 | 1.3 | Next | Step 2: "Upload this character" off, its two sub-rows dimmed; combat log on, "Also in the open world" off | ☐ | ☐ |
 | 1.4 | Switch "Upload this character" on | "Show on the public Armory" and "Additional private data" become switchable | ☐ | ☐ |
