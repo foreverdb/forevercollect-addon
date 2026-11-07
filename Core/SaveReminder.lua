@@ -2,39 +2,74 @@ local _, addon = ...
 
 -- WoW writes SavedVariables only on logout, exit or /reload. Everything captured
 -- since then lives in memory and dies with a crash or a killed process, so this
--- module counts captures since the last save and reminds the player to /reload.
--- It never reloads on its own: the game blocks reloads in many situations, and an
--- unexpected reload is more disruptive than the reminder.
+-- module counts captures since the last save. The reminder to /reload is opt-in
+-- (Advanced tab): the game saves on logout and exit anyway, so by default it stays
+-- quiet. It never reloads on its own: the game blocks reloads in many situations,
+-- and an unexpected reload is more disruptive than the reminder.
 
 local printMessage = addon.PrintMessage
 
-local REMIND_AFTER_CAPTURES = 50
+local DEFAULT_REMIND_CAPTURES = 100
+local MIN_REMIND_CAPTURES = 25
+local MAX_REMIND_CAPTURES = 500
+local REMIND_CAPTURES_STEP = 25
 local DEFAULT_REMIND_MINUTES = 30
 local MIN_REMIND_MINUTES = 5
 local MAX_REMIND_MINUTES = 120
 local REMIND_MINUTES_STEP = 5
 local TICK_SECONDS = 60
 
-addon.REMIND_AFTER_CAPTURES = REMIND_AFTER_CAPTURES
+addon.MIN_REMIND_CAPTURES = MIN_REMIND_CAPTURES
+addon.MAX_REMIND_CAPTURES = MAX_REMIND_CAPTURES
+addon.REMIND_CAPTURES_STEP = REMIND_CAPTURES_STEP
 addon.MIN_REMIND_MINUTES = MIN_REMIND_MINUTES
 addon.MAX_REMIND_MINUTES = MAX_REMIND_MINUTES
 addon.REMIND_MINUTES_STEP = REMIND_MINUTES_STEP
 
--- How long finds may wait for a reminder, account-wide (Advanced tab).
+local unsavedCaptures = 0
+local sessionStartedAt = time()
+local lastReminderAt = nil
+local lastReminderCaptures = 0
+
+local function snap(value, step, min, max)
+    return math.max(min, math.min(max, math.floor(value / step + 0.5) * step))
+end
+
+-- Whether the reminder is on, account-wide (Advanced tab). Off unless switched on.
+function addon.IsSaveReminderOn()
+    local settings = ForeverCollectSettings
+    return settings and settings.saveReminder == true or false
+end
+
+-- Switching on starts both thresholds fresh, so the finds collected so far do not
+-- trigger a reminder right away.
+function addon.SetSaveReminder(enabled)
+    ForeverCollectSettings.saveReminder = enabled and true or false
+    if enabled then
+        lastReminderAt = time()
+        lastReminderCaptures = unsavedCaptures
+    end
+end
+
+-- How long finds may wait for a reminder.
 function addon.RemindMinutes()
     local settings = ForeverCollectSettings
     return settings and settings.remindMinutes or DEFAULT_REMIND_MINUTES
 end
 
 function addon.SetRemindMinutes(minutes)
-    local snapped = math.floor(minutes / REMIND_MINUTES_STEP + 0.5) * REMIND_MINUTES_STEP
-    ForeverCollectSettings.remindMinutes = math.max(MIN_REMIND_MINUTES, math.min(MAX_REMIND_MINUTES, snapped))
+    ForeverCollectSettings.remindMinutes = snap(minutes, REMIND_MINUTES_STEP, MIN_REMIND_MINUTES, MAX_REMIND_MINUTES)
 end
 
-local unsavedCaptures = 0
-local sessionStartedAt = time()
-local lastReminderAt = nil
-local lastReminderCaptures = 0
+-- How many new finds may wait for a reminder; whichever threshold comes first wins.
+function addon.RemindCaptures()
+    local settings = ForeverCollectSettings
+    return settings and settings.remindCaptures or DEFAULT_REMIND_CAPTURES
+end
+
+function addon.SetRemindCaptures(count)
+    ForeverCollectSettings.remindCaptures = snap(count, REMIND_CAPTURES_STEP, MIN_REMIND_CAPTURES, MAX_REMIND_CAPTURES)
+end
 
 -- What was captured since the last save, for the session list of the window. Memory
 -- only: after a reload everything in it is saved and the list starts empty. An entry
@@ -133,12 +168,12 @@ local function showReminder(count, minutes)
 end
 
 local function tick()
-    if unsavedCaptures == 0 then
+    if unsavedCaptures == 0 or not addon.IsSaveReminderOn() then
         return
     end
     local now = time()
     local minutes = math.floor((now - (lastReminderAt or sessionStartedAt)) / 60)
-    local dueByCount = unsavedCaptures - lastReminderCaptures >= REMIND_AFTER_CAPTURES
+    local dueByCount = unsavedCaptures - lastReminderCaptures >= addon.RemindCaptures()
     local dueByTime = minutes >= addon.RemindMinutes()
     if dueByCount or dueByTime then
         local sinceSave = math.floor((now - sessionStartedAt) / 60)

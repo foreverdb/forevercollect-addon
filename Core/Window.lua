@@ -443,25 +443,49 @@ local function buildAdvanced(page)
     reminderLabel:SetHeight(14)
     W.SectionLabel(reminderLabel, "Save reminder"):SetPoint("LEFT")
     children[#children + 1] = reminderLabel
-    local reminder = listRow(page, "Remind me to save after",
-        string.format("Or after %d new finds", addon.REMIND_AFTER_CAPTURES))
-    W.Hairline(reminder, true)
-    local function stepRemindMinutes(step)
-        addon.SetRemindMinutes(addon.RemindMinutes() + step)
+    local reminderList = CreateFrame("Frame", nil, page)
+    W.Hairline(reminderList, true)
+    local reminder = listRow(reminderList, "Remind me to save", "Off: the game saves on logout and exit")
+    reminder.toggle = W.Toggle(reminder)
+    reminder.toggle:SetPoint("RIGHT", -2, 0)
+    reminder.toggle.onChange = function(on)
+        addon.SetSaveReminder(on)
         page.Refresh()
     end
-    local later = W.Button(reminder, "+", "secondary", function()
-        stepRemindMinutes(addon.REMIND_MINUTES_STEP)
-    end)
-    later:SetPoint("RIGHT", -2, 0)
-    local remindValue = W.Text(reminder, "number", "foreground", "CENTER")
-    remindValue:SetWidth(64)
-    remindValue:SetPoint("RIGHT", later, "LEFT", -4, 0)
-    local sooner = W.Button(reminder, "-", "secondary", function()
-        stepRemindMinutes(-addon.REMIND_MINUTES_STEP)
-    end)
-    sooner:SetPoint("RIGHT", remindValue, "LEFT", -4, 0)
-    children[#children + 1] = reminder
+    -- A "-" / value / "+" stepper for one reminder threshold.
+    local function stepperRow(title, detail, get, set, step, min, max, unit)
+        local row = listRow(reminderList, title, detail)
+        local later = W.Button(row, "+", "secondary", function()
+            set(get() + step)
+            page.Refresh()
+        end)
+        later:SetPoint("RIGHT", -2, 0)
+        local value = W.Text(row, "number", "foreground", "CENTER")
+        value:SetWidth(64)
+        value:SetPoint("RIGHT", later, "LEFT", -4, 0)
+        local sooner = W.Button(row, "-", "secondary", function()
+            set(get() - step)
+            page.Refresh()
+        end)
+        sooner:SetPoint("RIGHT", value, "LEFT", -4, 0)
+        function row.Refresh(enabled)
+            local current = get()
+            value:SetText(current .. " " .. unit)
+            sooner:SetActive(enabled and current > min)
+            later:SetActive(enabled and current < max)
+            row.title:SetTextColor(Theme.Color(enabled and "foreground" or "mutedForeground"))
+            row:SetAlpha(enabled and 1 or 0.4)
+        end
+        return row
+    end
+    local remindTime = stepperRow("After time", "Since the last save or reminder",
+        addon.RemindMinutes, addon.SetRemindMinutes,
+        addon.REMIND_MINUTES_STEP, addon.MIN_REMIND_MINUTES, addon.MAX_REMIND_MINUTES, "min")
+    local remindFinds = stepperRow("After new finds", "Whichever comes first",
+        addon.RemindCaptures, addon.SetRemindCaptures,
+        addon.REMIND_CAPTURES_STEP, addon.MIN_REMIND_CAPTURES, addon.MAX_REMIND_CAPTURES, "finds")
+    reminderList:SetHeight(stack(reminderList, { reminder, remindTime, remindFinds }) + 1)
+    children[#children + 1] = reminderList
 
     local client = W.Card(page, "sidebar", "sidebar")
     client:SetHeight(64)
@@ -494,10 +518,12 @@ local function buildAdvanced(page)
                 and ("Scanned at " .. date("%H:%M", addon.lastTalentScanAt))
                 or "Not scanned yet")
         end
-        local remindMinutes = addon.RemindMinutes()
-        remindValue:SetText(remindMinutes .. " min")
-        sooner:SetActive(remindMinutes > addon.MIN_REMIND_MINUTES)
-        later:SetActive(remindMinutes < addon.MAX_REMIND_MINUTES)
+        local reminderOn = addon.IsSaveReminderOn()
+        reminder.toggle:SetOn(reminderOn)
+        reminder.detail:SetText(reminderOn and "A notice when finds wait too long"
+            or "Off: the game saves on logout and exit")
+        remindTime.Refresh(reminderOn)
+        remindFinds.Refresh(reminderOn)
         local catalog = addon.GetLatestCatalog and addon.GetLatestCatalog()
         local versionText, build = GetBuildInfo()
         fields.Client:SetText(string.format("%s.%s", versionText or "?", build or "?"))

@@ -58,11 +58,13 @@ Reference designs: Paper file "ForeverDB", artboards "ForeverCollect Addon – �
 | 3.6 | Click a filter chip, then "All N" | The list shows only that kind, then everything again; the counts match | ☐ | ☐ |
 | 3.7 | More than 6 rows: scroll with the mouse wheel | The list scrolls | ☐ | ☐ |
 | 3.8 | "Reload UI to save" | The UI reloads; afterwards "Everything is saved" | ☐ | ☐ |
-| 3.9 | Wait 30 min or capture 50 finds without saving | Notice at the top: "N finds waiting to be saved", "Later" / "Reload UI to save" | ☐ | ☐ |
+| 3.9a | Fresh settings: wait 30 min or capture 100 finds without saving | No notice, no chat line; Advanced tab: "Remind me to save" off, both steppers greyed out | ☐ | ☐ |
+| 3.9 | Advanced tab: switch "Remind me to save" on, then wait 30 min or capture 100 finds without saving | Notice at the top: "N finds waiting to be saved", "Later" / "Reload UI to save" | ☐ | ☐ |
 | 3.10 | "Reload UI to save" in the notice while in combat | No reload; chat: "Cannot reload right now …" | ☐ | ☐ |
 | 3.11 | "Reload UI to save" in the notice out of combat | The UI reloads; no "Interface action failed because of an AddOn" | ☐ | ☐ |
 | 3.12 | "Later" in the notice | The notice closes, no reload | ☐ | ☐ |
-| 3.13 | Advanced tab, "Save reminder": set 5 min with "-", capture a find, wait | Notice after about 5 min; "-" is greyed out at 5 min, "+" at 120 min; the value stays after `/reload` | ☐ | ☐ |
+| 3.13 | Advanced tab, "Save reminder": set 5 min with "-", capture a find, wait | Notice after about 5 min; "-" is greyed out at 5 min, "+" at 120 min; toggle and value stay after `/reload` | ☐ | ☐ |
+| 3.13a | Advanced tab, reminder on: set "After new finds" to 25 with "-", capture 25 finds | Notice after the 25th find (within a minute); "-" is greyed out at 25, "+" at 500 | ☐ | ☐ |
 | 3.14 | Hover the experience bar, then within 4 s loot a ground object without a cast | The source is no number like "4,062 / 4,500 (91%)", and the chat line has no line break | ☐ | ☐ |
 
 ## 4. Capture tab and pause
