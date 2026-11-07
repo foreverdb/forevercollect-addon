@@ -29,8 +29,8 @@ The file holds a second global, `ForeverCollectSettings`, with the addon setting
 | `verbose` | boolean | ✓ | Chat notice per capture; only `false` turns it off. |
 | `remindMinutes` | number | ✓ | Minutes until the save reminder (5 to 120, in steps of 5). Absent means 30. |
 | `armory` | boolean | ✓ | Account-wide Armory opt-in from before addon 0.6.4; only seeds `ForeverCollectCharacterSettings.armory` of characters without a choice of their own and is removed on the first `/fc armory on/off`. |
-| `questCacheCrawl` | table | ✓ | `{ build, nextIndex }`, position of `/fc questcache`. |
-| `itemCacheCrawl` | table | ✓ | `{ build, nextIndex }`, position of `/fc itemcache`. |
+| `questCacheCrawl` | table | ✓ | `{ build, list, nextIndex }`, position of `/fc questcache`; `list` is a checksum of the ID list. |
+| `itemCacheCrawl` | table | ✓ | `{ build, list, nextIndex }`, position of `/fc itemcache`; `list` is a checksum of the ID list. |
 
 ### Catalog Key
 
@@ -427,7 +427,7 @@ No longer written since schema 9.1 (see section 13). The static spell catalog co
 | `phase` | string | – | `QUEST_DETAIL` (accept), `QUEST_PROGRESS` (progress), `QUEST_COMPLETE` (turn-in). |
 | `capturedAt` | number | – | Timestamp. |
 | `character` | Character | – | Character (quest texts can depend on class/race/level). |
-| `questNPC` | NPC | – | Dialog partner with `role` `giver`/`progress`/`turnIn` and `location`. |
+| `questNPC` | NPC | – | Dialog partner with `role` `giver`/`progress`/`turnIn` and `location`. A quest shared by a group member has no NPC: then only `{ role, objectType = "Player", sharedByPlayer = true }`, without name, GUID or location. |
 | `description` | string | ✓ | Only `QUEST_DETAIL`: quest text. The player's name, class and race are replaced back with the placeholders `$N`, `$C`/`$c`, `$R`/`$r`. |
 | `objectives` | string | ✓ | Only `QUEST_DETAIL`: objective text (placeholders as in `description`). |
 | `text` | string | ✓ | `QUEST_PROGRESS`: progress text; `QUEST_COMPLETE`: turn-in text (placeholders as in `description`). |
@@ -573,6 +573,8 @@ Map `CharacterKey → CharacterSnapshot`, the latest state of each own character
 | `recipes` | map<skillLineID \| name, KnownRecipes> | – | Known recipes per profession, keyed by `skillLineID` where the client gives one (`C_TradeSkillUI`), else by the localized profession name (Classic trade skill and craft window). `{}` until a profession window was opened. |
 | `completedQuests` | number[] | ✓ | Quest IDs the character has completed, sorted (addon 1.0). Read on entering the world (`C_QuestLog.GetAllCompletedQuestIDs` on Forever, `GetQuestsCompleted` on Classic Era) and extended on `QUEST_TURNED_IN`; kept in `privateCache` like the bank. Absent until the list was read once. |
 | `questsScannedAt` | number | ✓ | Time of the newest change to `completedQuests`; an unchanged list read on login keeps its time. |
+| `activeQuests` | number[] | ✓ | Quest IDs in the character's quest log, sorted (addon 1.1). Read on entering the world and on `QUEST_LOG_UPDATE` (`C_QuestLog.GetInfo` on Forever, `GetQuestLogTitle` on Classic Era). `{}` for an empty log. |
+| `activeQuestsScannedAt` | number | ✓ | Time of the newest change to `activeQuests`; an unchanged log keeps its time. |
 
 ### `KnownRecipes`
 

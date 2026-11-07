@@ -2,8 +2,9 @@ local _, addon = ...
 
 -- Asks the server for every ID of a generated list (Data/*IDs.lua) at a throttled rate, so the
 -- client stores each answer in one of its cache files, which the importer reads. Nothing is
--- saved here except the crawl position per build, so a /reload or logout continues where it
--- stopped. Modules/QuestCache.lua and Modules/ItemCache.lua are the two crawls.
+-- saved here except the crawl position per build and list, so a /reload or logout continues where
+-- it stopped and a new list starts over. Modules/QuestCache.lua and Modules/ItemCache.lua are the
+-- two crawls.
 
 local printMessage = addon.PrintMessage
 
@@ -20,12 +21,26 @@ function addon.NewCacheCrawl(config)
     local ticker
     local loaded, failed = 0, 0
 
+    -- Which list a position belongs to; a table only changes with a /reload or login.
+    local keyedList, listKey
+    local function getListKey()
+        local ids = config.ids()
+        if ids ~= keyedList then
+            keyedList, listKey = ids, 0
+            for _, id in ipairs(ids or {}) do
+                listKey = (listKey * 31 + id) % 2147483647
+            end
+        end
+        return listKey
+    end
+
     local function getState()
         local settings = ForeverCollectSettings
         local build = select(2, GetBuildInfo())
         local state = settings[config.settingsKey]
-        if not state or state.build ~= build then
-            state = { build = build, nextIndex = 1 }
+        local list = getListKey()
+        if not state or state.build ~= build or state.list ~= list then
+            state = { build = build, list = list, nextIndex = 1 }
             settings[config.settingsKey] = state
         end
         return state

@@ -103,6 +103,22 @@ check("reset starts over", last() == "Item cache: position reset, /fc itemcache 
     and ForeverCollectSettings.itemCacheCrawl.nextIndex == 1)
 
 ForeverCollectSettings.itemCacheCrawl.nextIndex = 9
+check("the same list keeps the position", status() == "Item cache: 8/12 requested for build 70532.")
+local sameList = ids
+ids = {}
+for i = 1, 12 do
+    ids[i] = sameList[i]
+end
+check("an equal list keeps the position", status() == "Item cache: 8/12 requested for build 70532.")
+local equalList = ids
+ids = {}
+for i = 1, 11 do
+    ids[i] = equalList[i]
+end
+ids[12] = 2012
+check("a changed list starts from the first id", status() == "Item cache: 0/12 requested for build 70532.")
+
+ForeverCollectSettings.itemCacheCrawl.nextIndex = 9
 build = "70600"
 check("a new build starts from the first id", status() == "Item cache: 0/12 requested for build 70600.")
 

@@ -58,3 +58,24 @@ check("migration leaves other services alone", stale.npcs[2].role == "gossip")
 addon.MergeNPC(services, { npcID = 1573, name = "Gryth", role = "gossip", interactionTypes = { "gossip" } })
 addon.MergeNPC(services, { npcID = 1573, name = "Gryth", role = "flightMaster", interactionTypes = { "flightMaster" } })
 check("flight master keeps the gossip role", services.npcs[3].role == "gossip")
+
+-- a quest shared by a group member stored the sharing player; the load strips it
+local shared = {
+    npcs = {
+        { guid = "Player-6945-0111DC8C", objectType = "Player", name = "Rita", role = "giver" },
+        { npcID = 7, name = "Marshal", role = "giver" },
+    },
+    quests = { [358] = { questID = 358, observations = {
+        { phase = "QUEST_DETAIL", questNPC = {
+            guid = "Player-6945-0111DC8C", objectType = "Player", name = "Rita", role = "giver",
+            location = { uiMapID = 1420, x = 0.6, y = 0.5 },
+        } },
+    } } },
+}
+ForeverCollectDB = { schemaVersion = 9, catalogs = { k = shared } }
+addon.MigrateNPCData()
+local sharedNPC = shared.quests[358].observations[1].questNPC
+check("player removed from NPC catalog", #shared.npcs == 1 and shared.npcs[1].npcID == 7)
+check("shared quest keeps only the marker", sharedNPC.sharedByPlayer == true
+    and sharedNPC.role == "giver" and sharedNPC.name == nil
+    and sharedNPC.guid == nil and sharedNPC.location == nil)
