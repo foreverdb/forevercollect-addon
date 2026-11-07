@@ -593,7 +593,56 @@ addon:RegisterEvent("QUEST_TURNED_IN", function(questID)
     scheduleCapture()
 end)
 
-local function completedQuestList(set)
+-- Quest log ----------------------------------------------------------------------------
+
+-- The quests in the log, as a set: C_QuestLog on Forever, GetQuestLogTitle on Classic Era.
+-- nil when the client has neither.
+local function readActiveQuests()
+    local quests = {}
+    local entries = call(C_QuestLog and C_QuestLog.GetNumQuestLogEntries)
+    if type(entries) == "number" and C_QuestLog.GetInfo then
+        for index = 1, entries do
+            local info = call(C_QuestLog.GetInfo, index)
+            if info and not info.isHeader and not info.isHidden and (info.questID or 0) > 0 then
+                quests[info.questID] = true
+            end
+        end
+        return quests
+    end
+    entries = call(GetNumQuestLogEntries)
+    if type(entries) ~= "number" or type(GetQuestLogTitle) ~= "function" then
+        return nil
+    end
+    for index = 1, entries do
+        local _, _, _, isHeader, _, _, _, questID = call(GetQuestLogTitle, index)
+        if not isHeader and (questID or 0) > 0 then
+            quests[questID] = true
+        end
+    end
+    return quests
+end
+
+local function scanActiveQuests()
+    if not isScanning() then
+        return
+    end
+    local quests = readActiveQuests()
+    if not quests then
+        return
+    end
+    local cache = getCache()
+    if cache.activeQuestsScannedAt and sameSet(cache.activeQuests, quests) then
+        return
+    end
+    cache.activeQuests = quests
+    cache.activeQuestsScannedAt = time()
+    scheduleCapture()
+end
+
+-- Fires when a quest is accepted or removed, and once the log is loaded after login.
+addon:RegisterEvent("QUEST_LOG_UPDATE", scanActiveQuests)
+
+local function questList(set)
     local list = {}
     for questID in pairs(set or {}) do
         list[#list + 1] = questID
@@ -619,8 +668,10 @@ function addon.BuildCharacterPrivate(previous)
         bank = copyTable(cache.bank),
         bankScannedAt = cache.bankScannedAt,
         recipes = copyTable(cache.recipes),
-        completedQuests = cache.questsScannedAt and completedQuestList(cache.completedQuests) or nil,
+        completedQuests = cache.questsScannedAt and questList(cache.completedQuests) or nil,
         questsScannedAt = cache.questsScannedAt,
+        activeQuests = cache.activeQuestsScannedAt and questList(cache.activeQuests) or nil,
+        activeQuestsScannedAt = cache.activeQuestsScannedAt,
     }
 end
 
@@ -651,6 +702,7 @@ function addon.SetCharacterPrivate(enabled)
         end
         settings.private = true
         scanCompletedQuests()
+        scanActiveQuests()
         printMessage("Bags, bank and recipes on: they go up with your character for Companion on ForeverDB, "
             .. "only you can see them. Open your bank and each profession window once so they are included. "
             .. "/fc private off removes them.")
@@ -729,6 +781,7 @@ end, "Bags, bank and recipes for Companion (only you see them): /fc private on o
 -- until the player allows it; they are told once.
 addon:RegisterEvent("PLAYER_ENTERING_WORLD", function()
     scanCompletedQuests()
+    scanActiveQuests()
     local settings = ForeverCollectCharacterSettings
     if settings and settings.armory == true and settings.private == nil and not settings.privateNoticeShown then
         settings.privateNoticeShown = true

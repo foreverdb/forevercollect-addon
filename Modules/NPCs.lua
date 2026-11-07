@@ -227,13 +227,38 @@ local function mergeNPC(catalog, npc)
 end
 addon.MergeNPC = mergeNPC
 
+local function isPlayerNPC(npc)
+    return npc.objectType == "Player"
+        or (type(npc.guid) == "string" and string.match(npc.guid, "^Player%-") ~= nil)
+end
+
 function addon.MigrateNPCData()
     initializeDatabase()
     for _, catalog in pairs(ForeverCollectDB.catalogs) do
         catalog.npcs = catalog.npcs or {}
+        -- Older versions: a quest shared by a group member stored the sharing player
+        -- (name, GUID, position) as quest NPC; keep only the "shared" marker.
+        for index = #catalog.npcs, 1, -1 do
+            if isPlayerNPC(catalog.npcs[index]) then
+                table.remove(catalog.npcs, index)
+            end
+        end
         for _, quest in pairs(catalog.quests or {}) do
             for _, observation in ipairs(quest.observations or {}) do
-                local npc = normalizeNPC(observation.questNPC)
+                local questNPC = observation.questNPC
+                if questNPC and isPlayerNPC(questNPC) then
+                    observation.questNPC = {
+                        role = questNPC.role,
+                        objectType = "Player",
+                        sharedByPlayer = true,
+                    }
+                end
+                local npc = observation.questNPC
+                if npc and npc.sharedByPlayer then
+                    npc = nil
+                else
+                    npc = normalizeNPC(npc)
+                end
                 if npc then
                     mergeNPC(catalog, npc)
                 end

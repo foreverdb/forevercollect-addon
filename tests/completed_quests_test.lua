@@ -116,7 +116,43 @@ C_QuestLog = { GetAllCompletedQuestIDs = function() return { 5, 7, 33, 176 } end
 now = 3000
 fire("PLAYER_ENTERING_WORLD")
 check("the list API is read", cache().completedQuests[5] and cache().questsScannedAt == 3000)
+
+-- The quest log: headers and hidden entries are no quests, an unchanged log keeps its time.
+local logEntries = {
+    { isHeader = true, title = "Undercity" },
+    { questID = 5725 },
+    { questID = 99, isHidden = true },
+    { questID = 7 },
+}
+C_QuestLog.GetNumQuestLogEntries = function() return #logEntries, #logEntries end
+C_QuestLog.GetInfo = function(index) return logEntries[index] end
+now = 3100
+fire("QUEST_LOG_UPDATE")
+check("the log is read", cache().activeQuests[5725] and cache().activeQuests[7] and not cache().activeQuests[99]
+    and cache().activeQuestsScannedAt == 3100)
+check("the snapshot carries the log sorted", snapshot().private.activeQuests[1] == 7
+    and snapshot().private.activeQuests[2] == 5725 and snapshot().private.activeQuestsScannedAt == 3100)
+now = 3200
+fire("QUEST_LOG_UPDATE")
+check("an unchanged log keeps its time", cache().activeQuestsScannedAt == 3100)
+logEntries = {}
+fire("QUEST_LOG_UPDATE")
+check("an emptied log is sent as empty", cache().activeQuestsScannedAt == 3200
+    and #snapshot().private.activeQuests == 0)
 C_QuestLog = nil
+
+-- Classic Era has no C_QuestLog.GetInfo.
+GetNumQuestLogEntries = function() return 2 end
+GetQuestLogTitle = function(index)
+    if index == 1 then
+        return "Barrens", nil, nil, true
+    end
+    return "Quest", 16, 0, false, false, false, 1, 5725
+end
+now = 3300
+fire("QUEST_LOG_UPDATE")
+check("the Classic log is read", cache().activeQuests[5725] and cache().activeQuestsScannedAt == 3300)
+GetNumQuestLogEntries, GetQuestLogTitle = nil, nil
 
 -- Paused: nothing new is read.
 paused = true

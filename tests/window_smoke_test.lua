@@ -195,8 +195,11 @@ local orderNotice = addon.ShowNotice("order", {
 orderNotice.primary:Click()
 check("a notice runs its action before it hides", shownDuringAction == true and not addon.IsNoticeShown("order"))
 
--- The reminder interval: default, limits and steps, and the reminder follows it.
+-- The reminder is off by default; interval and find count have defaults, limits and steps.
 ForeverCollectSettings.remindMinutes = nil
+ForeverCollectSettings.remindCaptures = nil
+ForeverCollectSettings.saveReminder = nil
+check("the reminder is off by default", not addon.IsSaveReminderOn())
 check("the reminder defaults to 30 minutes", addon.RemindMinutes() == 30)
 addon.SetRemindMinutes(1)
 check("the interval has a lower limit", addon.RemindMinutes() == 5)
@@ -204,15 +207,41 @@ addon.SetRemindMinutes(500)
 check("the interval has an upper limit", addon.RemindMinutes() == 120)
 addon.SetRemindMinutes(47)
 check("the interval snaps to its steps", addon.RemindMinutes() == 45)
+check("the find count defaults to 100", addon.RemindCaptures() == 100)
+addon.SetRemindCaptures(1)
+check("the find count has a lower limit", addon.RemindCaptures() == 25)
+addon.SetRemindCaptures(9999)
+check("the find count has an upper limit", addon.RemindCaptures() == 500)
+addon.SetRemindCaptures(60)
+check("the find count snaps to its steps", addon.RemindCaptures() == 50)
 addon.SetRemindMinutes(10)
+addon.SetRemindCaptures(25)
+addon.NoteCapture("Test find")
 local realTime = time
 local startedAt = realTime()
+time = function() return startedAt + 60 * 60 end
+lastTicker()
+check("no reminder while it is off", not addon.IsNoticeShown("save"))
+time = function() return startedAt end
+addon.SetSaveReminder(true)
+addon.RefreshWindow()
 time = function() return startedAt + 9 * 60 end
 lastTicker()
 check("no reminder before the interval is over", not addon.IsNoticeShown("save"))
 time = function() return startedAt + 10 * 60 end
 lastTicker()
 check("the reminder comes when the interval is over", addon.IsNoticeShown("save"))
+-- "Later" closes it.
+addon.ShowNotice("save", { secondary = { label = "Later" } }).secondary:Click()
+time = function() return startedAt + 11 * 60 end
+for _ = 1, 24 do
+    addon.NoteCapture("Test find")
+end
+lastTicker()
+check("no reminder before the find count is reached", not addon.IsNoticeShown("save"))
+addon.NoteCapture("Test find")
+lastTicker()
+check("the reminder comes when the find count is reached", addon.IsNoticeShown("save"))
 time = realTime
 addon.RefreshWindow()
 check("the window refreshes after the clicks", true)

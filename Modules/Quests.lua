@@ -14,7 +14,16 @@ local recordItem = addon.RecordItem
 
 local activeQuestPhase
 
+-- A quest shared by a group member opens the same QUEST_DETAIL dialog, with the
+-- sharing player as "questnpc". That player is not a quest giver, and their name,
+-- GUID and position are personal data: only the fact that it was shared is kept.
 local function getQuestNPC(role)
+    local guid = UnitGUID and UnitGUID("questnpc") or nil
+    local isPlayer = (UnitIsPlayer and UnitIsPlayer("questnpc"))
+        or (type(guid) == "string" and string.match(guid, "^Player%-") ~= nil)
+    if isPlayer then
+        return { role = role, objectType = "Player", sharedByPlayer = true }
+    end
     return getNPC("questnpc", "questGiver", role)
 end
 
@@ -187,7 +196,9 @@ local function captureQuest(event)
             character = getCharacterContext(),
             questNPC = getQuestNPC(role),
         }
-        mergeNPC(catalog, observation.questNPC)
+        if not observation.questNPC.sharedByPlayer then
+            mergeNPC(catalog, observation.questNPC)
+        end
         quest.observations[#quest.observations + 1] = observation
     end
 
@@ -224,6 +235,9 @@ local function captureQuest(event)
             QUEST_COMPLETE = "ready to turn in",
         })[event] or event
         local npcName = observation.questNPC and observation.questNPC.name
+        if observation.questNPC and observation.questNPC.sharedByPlayer then
+            npcName = "shared by a group member"
+        end
         announce(string.format(
             "Quest captured: %s (%d), %s, NPC %s.",
             quest.title or "?",
