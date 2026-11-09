@@ -13,7 +13,7 @@ addon.CAPTURE_KINDS = {
     { key = "merchants", label = "Merchants", hint = "Merchant inventories and prices." },
     { key = "trainers", label = "Trainers", hint = "Trainer services and costs." },
     { key = "loot", label = "Loot", hint = "Creatures, chests and other containers." },
-    { key = "gathering", label = "Gathering", hint = "Herbalism, mining, skinning and fishing finds." },
+    { key = "gathering", label = "Gathering", hint = "Herbalism, mining, skinning and fishing finds, disenchanting." },
     { key = "encounters", label = "Boss encounters", hint = "Encounter pulls, kills and boss units." },
     { key = "talents", label = "Talents", hint = "Automatic talent scans on login and talent changes." },
 }

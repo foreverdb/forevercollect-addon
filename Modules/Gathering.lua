@@ -8,6 +8,7 @@ local readable = addon.Readable
 -- are neither targetable nor listed in the client's data tables, so their
 -- names come from the cast's target name (UNIT_SPELLCAST_SENT, also for chests
 -- opened with "Opening"), else from the tooltip shown while hovering them.
+-- Disenchants are tagged the same way, keyed by the disenchanted bag item.
 
 -- Cast spells per profession; higher ranks not listed here are matched by name.
 local GATHER_SPELLS = {
@@ -21,6 +22,14 @@ local GATHER_SPELLS = {
 -- variants); its target name is the object's name.
 local OPENING_SPELL_ID = 3365
 
+-- Disenchanting (13262 and same-named variants) files its loot window under
+-- the disenchanted item ("Enchanting:Item:<itemID>").
+local DISENCHANT_SPELL_ID = 13262
+-- A bag click or item lock counts as the disenchant's target when it happens
+-- this close to the cast being sent (the click hook runs after the client
+-- applied the spell, so targeting is already over by then).
+local TARGET_ITEM_WINDOW = 1
+
 local PENDING_TIMEOUT = 5 -- seconds between the cast and the loot window
 local TOOLTIP_TIMEOUT = 4 -- seconds a hovered node name stays usable
 local TOOLTIP_MAX_LINES = 2 -- node tooltips: name, optionally a skill requirement
@@ -31,6 +40,9 @@ local pendingGather
 local pendingObject
 local lastWorldTooltip
 local lastCastTarget
+local lastClickedItem
+local lastLockedItem
+local disenchantSent
 
 local function getSpellName(spellID)
     if C_Spell and C_Spell.GetSpellInfo then
@@ -60,6 +72,97 @@ local function isOpeningSpell(spellID)
         return true
     end
     return openingName ~= nil and openingName ~= "" and getSpellName(spellID) == openingName
+end
+
+local disenchantName = getSpellName(DISENCHANT_SPELL_ID)
+
+local function isDisenchantSpell(spellID)
+    if spellID == DISENCHANT_SPELL_ID then
+        return true
+    end
+    return spellID ~= nil and disenchantName ~= nil and disenchantName ~= "" and getSpellName(spellID) == disenchantName
+end
+
+-- The item in a bag slot as { itemID, name, link }, or nil.
+local function containerItem(bag, slot)
+    if type(bag) ~= "number" or type(slot) ~= "number" then
+        return nil
+    end
+    local link
+    if C_Container and C_Container.GetContainerItemLink then
+        link = C_Container.GetContainerItemLink(bag, slot)
+    elseif GetContainerItemLink then
+        link = GetContainerItemLink(bag, slot)
+    end
+    link = readable(link)
+    local itemID = type(link) == "string" and addon.GetItemIDFromLink(link) or nil
+    if not itemID then
+        return nil
+    end
+    return { itemID = itemID, name = string.match(link, "%[(.-)%]"), link = link }
+end
+
+local function isContainerItemLocked(bag, slot)
+    if C_Container and C_Container.GetContainerItemInfo then
+        local info = C_Container.GetContainerItemInfo(bag, slot)
+        return type(info) == "table" and readable(info.isLocked) == true
+    end
+    if GetContainerItemInfo then
+        local _, _, locked = GetContainerItemInfo(bag, slot)
+        return readable(locked) and true or false
+    end
+    return false
+end
+
+-- A spell waiting for its target is applied to the bag item the player
+-- clicks next: left click picks it up, right click uses it. Bag addons call
+-- the same functions.
+local function noteClickedItem(bag, slot)
+    local item = containerItem(bag, slot)
+    if item then
+        item.at = GetTime()
+        lastClickedItem = item
+    end
+end
+
+if hooksecurefunc then
+    for _, name in ipairs({ "PickupContainerItem", "UseContainerItem" }) do
+        if C_Container and type(C_Container[name]) == "function" then
+            hooksecurefunc(C_Container, name, noteClickedItem)
+        end
+        if type(_G[name]) == "function" then
+            hooksecurefunc(name, noteClickedItem)
+        end
+    end
+end
+
+-- The client locks the item a spell is cast on. This catches targets set
+-- without a hooked click, e.g. a "/cast Disenchant" + "/use <bag> <slot>" macro.
+addon:RegisterEvent("ITEM_LOCK_CHANGED", function(bag, slot)
+    if slot == nil or not isContainerItemLocked(bag, slot) then
+        return
+    end
+    local item = containerItem(bag, slot)
+    if item then
+        item.at = GetTime()
+        lastLockedItem = item
+    end
+end)
+
+-- The item the sent disenchant targets: a click or lock close to the send,
+-- whose name matches the cast's target name when that is readable.
+local function disenchantedItem()
+    local sent = disenchantSent
+    if not sent then
+        return nil
+    end
+    for _, item in ipairs({ lastClickedItem or false, lastLockedItem or false }) do
+        if item and math.abs(item.at - sent.at) <= TARGET_ITEM_WINDOW
+            and (not sent.target or sent.target == item.name) then
+            return item
+        end
+    end
+    return nil
 end
 
 local function professionForSpell(spellID)
@@ -134,9 +237,15 @@ addon:RegisterEvent("UNIT_SPELLCAST_SENT", function(unit, target, castGUID, spel
         return
     end
     local name = readable(target)
+    castGUID, spellID = readable(castGUID), readable(spellID)
     lastCastTarget = nil
     if type(name) == "string" and name ~= "" then
-        lastCastTarget = { name = name, castGUID = readable(castGUID), spellID = readable(spellID) }
+        lastCastTarget = { name = name, castGUID = castGUID, spellID = spellID }
+    else
+        name = nil
+    end
+    if isDisenchantSpell(spellID) then
+        disenchantSent = { target = name, castGUID = castGUID, at = GetTime() }
     end
 end)
 
@@ -159,6 +268,26 @@ addon:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED", function(unit, castGUID, spellID
     if isOpeningSpell(spellID) then
         local name = castTargetName(castGUID, spellID) or recentTooltipTitle()
         pendingObject = name and { name = name, at = GetTime() } or nil
+        return
+    end
+    if isDisenchantSpell(spellID) then
+        local sent = disenchantSent
+        if sent and sent.castGUID and castGUID and sent.castGUID ~= castGUID then
+            sent = nil
+        end
+        local item = sent and disenchantedItem() or nil
+        disenchantSent, lastClickedItem, lastLockedItem = nil, nil, nil
+        -- Without the item there is nothing to key the results by; the window
+        -- then stays plain item loot.
+        pendingGather = item and {
+            profession = "Enchanting",
+            spellID = spellID,
+            sourceType = "Item",
+            sourceID = item.itemID,
+            nodeName = (sent and sent.target) or item.name,
+            noLocation = true,
+            at = GetTime(),
+        } or nil
         return
     end
     local profession = professionForSpell(spellID)

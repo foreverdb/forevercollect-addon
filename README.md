@@ -83,7 +83,7 @@ Core/SaveReminder.lua   Unsaved captures, save reminder, /fc save
 Core/Pause.lua          Capture pause, all or per kind, with login reminder (/fc pause, /fc resume)
 Modules/Items.lua       Item catalog with sources and coordinates (/fc items)
 Modules/Merchants.lua   Merchant inventories (/fc merchants)
-Modules/Gathering.lua   Detects gathering spells (herbs, ore, skinning, fishing) and node names via tooltip
+Modules/Gathering.lua   Detects gathering spells (herbs, ore, skinning, fishing), disenchants and node names via tooltip
 Modules/Loot.lua        Loot sources and drop locations (/fc loot)
 Modules/Encounters.lua  Boss encounters: pulls, kills, boss units, diagnostics, loot after the kill
 Modules/CombatLog.lua   Turns combat logging on for bosses and creature abilities (/fc combatlog)
@@ -348,7 +348,7 @@ merchantSnapshots = {
 
 ## Loot
 
-`lootSources` aggregates loot observations per source (`LOOT_READY`, with `LOOT_OPENED` as fallback, so fast-autoloot addons such as Leatrix Plus do not empty the window first; each loot window is scanned once). The key is `<sourceType>:<sourceID>` from the source GUID (`Creature`, `GameObject`), or `Fishing` when fishing. Inside instances, the GUIDs of hostile units are secret; such loot is stored under `Instance:<instanceID>` with the instance name as `name`. The same loot container counts only once per session (without a GUID, i.e. for `Instance`, this cannot be detected).
+`lootSources` aggregates loot observations per source (`LOOT_READY`, with `LOOT_OPENED` as fallback, so fast-autoloot addons such as Leatrix Plus do not empty the window first; each loot window is scanned once). The key is `<sourceType>:<sourceID>` from the source GUID (`Creature`, `GameObject`), or `Fishing` when fishing. Disenchants are stored under `Enchanting:Item:<itemID>` of the disenchanted item. Inside instances, the GUIDs of hostile units are secret; such loot is stored under `Instance:<instanceID>` with the instance name as `name`. The same loot container counts only once per session (without a GUID, i.e. for `Instance`, this cannot be detected).
 
 ```lua
 lootSources = {
