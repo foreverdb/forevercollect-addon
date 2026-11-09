@@ -74,7 +74,7 @@ Example: `2:11509:69722:2:enUS:5:8:Horde`. A catalog is thus separate per client
 | `itemsUpdatedAt` | number | ✓ | Last change to the item catalog. |
 | `merchantScanUpdatedAt` | number | ✓ | Last merchant scan. |
 | `lootUpdatedAt` | number | ✓ | Last loot observation. |
-| `spellTooltipsUpdatedAt` | number | ✓ | Last talent tooltip scan. |
+| `spellTooltipsUpdatedAt` | number | ✓ | Last spell tooltip scan (`/fc spelltooltips`). |
 
 ### 2.2 Collections
 
@@ -89,7 +89,7 @@ Example: `2:11509:69722:2:enUS:5:8:Horde`. A catalog is thus separate per client
 | `encounters` | map<number, Encounter> | Boss encounters, keyed by `encounterID` | 15 |
 | `quests` | map<number, Quest> | Quests, keyed by `questID` | 11 |
 | `npcs` | NPC[] | NPC catalog | 12 |
-| `spellTooltips` | map<number, SpellTooltip> | Tooltips of the class's talent rank spells, keyed by `spellID` | 14 |
+| `spellTooltips` | map<number, SpellTooltip> | Tooltips of spells the website cannot compute, keyed by `spellID` (crawlers only) | 14 |
 | `characters` | map<CharacterKey, CharacterSnapshot> | Armory snapshot of the own characters (opt-in) | 16 |
 
 All collections are always present (possibly empty); `spellTooltips`, `encounters`, `characters` and `killTimes` were added without a version bump and are missing in older catalogs (`killTimes` also until the first creature is looted).
@@ -295,15 +295,15 @@ Key: `merchant:<npcID>`, `quest:<questID>`, `loot:<sourceType>:<sourceID>`, for 
 | `type` | string | – | `merchant`, `quest`, `loot`. |
 | `npcID` | number | ✓ | Only `merchant`. |
 | `questID` | number | ✓ | Only `quest`. |
-| `sourceType` | string | ✓ | Only `loot`: `Creature`, `GameObject`, `Fishing`, … |
-| `sourceID` | number | ✓ | Only `loot`: creature/object ID; absent for `Fishing`. |
-| `profession` | string | ✓ | Only `loot` from profession actions: `Herbalism`, `Mining`, `Skinning`, `Fishing`. |
+| `sourceType` | string | ✓ | Only `loot`: `Creature`, `GameObject`, `Fishing`, `Item`, … |
+| `sourceID` | number | ✓ | Only `loot`: creature/object ID, for disenchants the disenchanted item's ID; absent for `Fishing`. |
+| `profession` | string | ✓ | Only `loot` from profession actions: `Herbalism`, `Mining`, `Skinning`, `Fishing`, `Enchanting` (disenchant, e.g. `loot:Enchanting:Item:2632`). |
 | `name` | string | ✓ | Name of the NPC/source. |
 | `firstSeenAt` | number | – | First observation of this source. |
 | `lastSeenAt` | number | – | Last observation. |
 | `timesSeen` | number | – | Number of observations. |
 | `location` | Location | ✓ | `merchant`/`quest`: NPC location of the first observation. |
-| `locations` | Location[] | ✓ | `loot`: drop locations, deduplicated (same `uiMapID`, `x`/`y` rounded to 0.001), max. 20. |
+| `locations` | Location[] | ✓ | `loot`: drop locations, deduplicated (same `uiMapID`, `x`/`y` rounded to 0.001), max. 20. Absent for disenchants. |
 
 ---
 
@@ -353,12 +353,14 @@ Replaced when a merchant is opened and on `MERCHANT_UPDATE`.
 
 `catalog.lootSources[key]`, keyed by `<sourceType>:<sourceID>`, or just `<sourceType>` without an ID (e.g. `Fishing`). Aggregated over all loot events; the same loot container (GUID) counts only once per session. With shared loot in a group (every loot method except Personal Loot), the addon reports opened corpse GUIDs to the group via addon message (prefix `ForeverCollect`, `L1:<guid>,<guid>…`); the other addons no longer count these corpses, so a kill is only counted by whoever opens it first. Profession finds (herbs, ore, skinning, fishing) get the profession name as a prefix: `Herbalism:GameObject:1617`, `Skinning:Creature:705`, `Fishing` – detected from the preceding gathering spell (`UNIT_SPELLCAST_SUCCEEDED`); skinning loot bypasses the container deduplication.
 
+**Disenchants** (addon 1.2.0) are keyed by the disenchanted item: `Enchanting:Item:<itemID>`, with `sourceType` `Item`, `sourceID` = item ID, `profession` `Enchanting`, `gatherSpellID` 13262 (or a same-named spell) and the item's name. Each disenchant is one loot window, so `lootCount` is the number of disenchants and `items[*].timesSeen`/`quantityTotal` give each material's chance and quantity per disenchant. `locations` stays empty there and in `items[*]`, because where an item is disenchanted does not matter. The item is the bag item clicked (`C_Container.PickupContainerItem`/`UseContainerItem`) or locked (`ITEM_LOCK_CHANGED`) within 1 s of the cast being sent (`UNIT_SPELLCAST_SENT`), whose name matches the cast's target name when that is readable. Without such an item the window stays plain `Item` loot.
+
 | Field | Type | Opt. | Description |
 |---|---|---|---|
-| `sourceType` | string | – | `Creature`, `GameObject`, `Fishing`, `Item` (container from the inventory), `Instance` (loot without a readable source GUID inside an instance, e.g. from hostile units whose GUIDs are secret there), `Unknown`. |
-| `profession` | string | ✓ | `Herbalism`, `Mining`, `Skinning` or `Fishing` if the loot comes from a profession action. |
-| `gatherSpellID` | number | ✓ | Spell ID of the gathering spell (e.g. 2366 Herb Gathering). |
-| `sourceID` | number | ✓ | Creature/GameObject ID from the GUID; for `Instance` the instance ID from `GetInstanceInfo()`. Absent for `Fishing`, `Item` and `Unknown`. |
+| `sourceType` | string | – | `Creature`, `GameObject`, `Fishing`, `Item` (container from the inventory, or the disenchanted item), `Instance` (loot without a readable source GUID inside an instance, e.g. from hostile units whose GUIDs are secret there), `Unknown`. |
+| `profession` | string | ✓ | `Herbalism`, `Mining`, `Skinning` or `Fishing` if the loot comes from a profession action; `Enchanting` for a disenchant. |
+| `gatherSpellID` | number | ✓ | Spell ID of the gathering spell (e.g. 2366 Herb Gathering, 13262 Disenchant). |
+| `sourceID` | number | ✓ | Creature/GameObject ID from the GUID; for `Instance` the instance ID from `GetInstanceInfo()`; for a disenchant the disenchanted item's ID. Absent for `Fishing`, opened `Item` containers and `Unknown`. |
 | `name` | string | ✓ | Name of the source if it was the target while looting. Game objects (herb/ore nodes, chests) are named from the target name of the preceding cast (`UNIT_SPELLCAST_SENT` of the gathering spell or of "Opening", spell 3365 and same-named variants), else from the title of the world-object tooltip shown at most 4 s before; chests that open without a cast only have the tooltip. Creatures looted inside instances (secret target name) are named from the client's creature cache via a `unit:Creature-0-0-0-0-<npcID>-…` hyperlink tooltip, at loot time or, if that is not readable there, after leaving the instance (addon 0.6.1). |
 | `creatureType` | string | ✓ | `UnitCreatureType` of a `Creature` source that was the target while looting (e.g. `Beast`). Absent inside instances, where the unit is secret. |
 | `creatureFamily` | string | ✓ | `UnitCreatureFamily` under the same condition (e.g. `Spider`); beasts and demons only. |
@@ -368,7 +370,7 @@ Replaced when a merchant is opened and on `MERCHANT_UPDATE`.
 | `firstSeenAt` | number | – | First observation. |
 | `lastSeenAt` | number | – | Last observation. |
 | `lootCount` | number | – | Number of loot windows opened. |
-| `locations` | Location[] \| CountedLocation[] | – | Player position per loot event, deduplicated, max. 100. For profession finds `CountedLocation` (3.1.1), max. 500. |
+| `locations` | Location[] \| CountedLocation[] | – | Player position per loot event, deduplicated, max. 100. For profession finds `CountedLocation` (3.1.1), max. 500. Empty for disenchants. |
 | `items` | map<number, LootItem> | – | Keyed by `itemID`. |
 | `money` | table | – | `{ timesSeen: number, total: number }` – money drops, `total` in copper. |
 
@@ -481,9 +483,19 @@ List of `NPC` (section 3.4). An NPC appears exactly once; merging is done via `g
 
 ---
 
-## 14. `spellTooltips` (removed)
+## 14. `spellTooltips`
 
-No longer written since addon 0.9.1, and dropped from existing catalogs on load (see section 13). On Forever the website computes the talent tooltips per rank from the client data, Blizzard's hotfixes included; the scanned texts went stale after a hotfix and overrode the current values.
+Map `spellID → SpellTooltip`, written by `/fc spelltooltips` (addon 1.2.0) only. The website computes spell texts from the client data; some effects sit in encrypted DB2 sections whose keys the client only holds in memory, so the text keeps an "X". For approved crawlers the uploader writes these spells into `ForeverCollectCacheIDs.spells` (once per build, until a scan of the build is imported); the crawl asks for each one's data (`C_Spell.RequestLoadSpellData`, `SPELL_DATA_LOAD_RESULT`) and reads its tooltip via `GameTooltip:SetSpellByID`, which shows the values on a character of any class. Secret lines are dropped; an entry is only written if the tooltip has more than the name line, and replaces the earlier one. The website uses a scan only where its own computation leaves an "X" and the game shows a value other than 0 there (the client lacks some effects itself), so a scan from an older build cannot override current values.
+
+Addon 0.1.x–0.9.0 wrote Forever's talent tooltips here (with `ranks`); 0.9.1–1.1.0 wrote nothing and dropped the field on load.
+
+### `SpellTooltip`
+
+| Field | Type | Opt. | Description |
+|---|---|---|---|
+| `name` | string | ✓ | Spell name (first tooltip line). |
+| `lines` | TooltipLine[] | | Tooltip including the name line (section 3.3). |
+| `capturedAt` | number | | Time of the scan. |
 
 ---
 
@@ -495,7 +507,7 @@ Map `encounterID → Encounter`. Between `ENCOUNTER_START` and `ENCOUNTER_END`, 
 
 | Field | Type | Opt. | Description |
 |---|---|---|---|
-| `encounterID` | number | – | `DungeonEncounter.db2` ID. |
+| `encounterID` | number | – | `DungeonEncounter.db2` ID. Always > 0; the client's ID 0 (loot without an encounter) is ignored. |
 | `name` | string | ✓ | Name from `ENCOUNTER_START`. |
 | `difficultyID` | number | ✓ | Difficulty. |
 | `instanceID` | number | ✓ | Instance ID (`GetInstanceInfo()`, = map ID). |
@@ -612,7 +624,6 @@ When the schema version is raised, existing data is **not** cleaned up. Catalogs
 | `abilitySnapshots`, `abilitiesScannedAt` | ≤ 9.0 | SoD runes per character; no longer written and never imported server-side. |
 | `tradeSkills`, `tradeSkillsUpdatedAt` | ≤ 9.0 | Profession recipes from the profession/craft window; replaced by DB2 import (`SkillLineAbility`, `SpellReagents` …). Never imported server-side. |
 | `items[*].detailsLoaded`, `name`, `quality`, `itemLevel`, `requiredLevel`, `itemType`, `itemSubType`, `stackCount`, `equipLoc`, `texture`, `sellPrice`, `classID`, `subclassID`, `bindType`, `expansionID`, `setID`, `isCraftingReagent`, `spell`, `stats`, `tooltipLines`, `updatedAt` | ≤ 9.0 | Item details from `GetItemInfo`/tooltip; replaced by DB2 import (`ItemSparse`). |
-| `spellTooltips`, `spellTooltipsUpdatedAt` | ≤ 0.9.0 (addon) | Forever talent tooltips; unlike the other fields here they are **removed** on load, so stale scans are not uploaded again. |
 | `quests[*].observations[*].questNPC` without `interactionTypes`/`location.source` | ≤ 7 | Normalized on load (`addon.MigrateNPCData`). |
 
 Catalogs first created with version 9 do not contain these fields.
@@ -622,5 +633,5 @@ Catalogs first created with version 9 do not contain these fields.
 - New: `items`, `merchantSnapshots`, `lootSources`, `tradeSkills` and the timestamps `itemsUpdatedAt`, `merchantScanUpdatedAt`, `lootUpdatedAt`, `tradeSkillsUpdatedAt`.
 - New: `trainerSnapshots` is actually filled (documented in 8, but empty).
 - Removed: `skillSnapshots`, `skillsScannedAt`, `abilitySnapshots[*].spells` (see section 13).
-- Added later (without a version bump, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (section 14); `encounters` (section 15) and `lootSources[*].instanceID` (addon 0.1.10); `CountedLocation` with `count`/`firstSeenAt`/`lastSeenAt`/`times` for profession finds (addon 0.1.11); `lootSources[*].creatureType`/`creatureFamily`/`classification` (after addon 0.3.1); `characters` and `settings.armory` (section 16, after addon 0.3.2); `encounters[*].probe`/`lootedAfterKill`/`lootReceived` (addon 0.8.0) and the root's `combatLog` (uploader, never in the SavedVariables); `combatLog.abilities` (uploader, with addon 0.9.0); `killTimes` and 200 instead of 20 `times` per counted location (addon 0.10.0); `characters[*].private` with bags, bank and known recipes (section 16, addon 0.11.0); `characters[*].public` and `characters[*].private.completedQuests`/`questsScannedAt` (section 16, addon 1.0); `lootSources[*].minLevel`/`maxLevel` and `npcs[*].level` (after addon 0.12.0).
-- Removed later (without a version bump, fields were optional): `abilitySnapshots`, `abilitiesScannedAt` – rune scan dropped; `items[*]` details (`detailsLoaded` & co.) and `tradeSkills`/`tradeSkillsUpdatedAt` – static spell, item and recipe data comes from wow.export; `spellTooltips`/`spellTooltipsUpdatedAt` (addon 0.9.1) – Forever's talent tooltips come from the client data.
+- Added later (without a version bump, optional): `spellTooltips`, `spellTooltipsUpdatedAt` (section 14); `encounters` (section 15) and `lootSources[*].instanceID` (addon 0.1.10); `CountedLocation` with `count`/`firstSeenAt`/`lastSeenAt`/`times` for profession finds (addon 0.1.11); `lootSources[*].creatureType`/`creatureFamily`/`classification` (after addon 0.3.1); `characters` and `settings.armory` (section 16, after addon 0.3.2); `encounters[*].probe`/`lootedAfterKill`/`lootReceived` (addon 0.8.0) and the root's `combatLog` (uploader, never in the SavedVariables); `combatLog.abilities` (uploader, with addon 0.9.0); `killTimes` and 200 instead of 20 `times` per counted location (addon 0.10.0); `characters[*].private` with bags, bank and known recipes (section 16, addon 0.11.0); `characters[*].public` and `characters[*].private.completedQuests`/`questsScannedAt` (section 16, addon 1.0); `lootSources[*].minLevel`/`maxLevel` and `npcs[*].level` (after addon 0.12.0); disenchant sources `Enchanting:Item:<itemID>` (section 8, addon 1.2.0).
+- Removed later (without a version bump, fields were optional): `abilitySnapshots`, `abilitiesScannedAt` – rune scan dropped; `items[*]` details (`detailsLoaded` & co.) and `tradeSkills`/`tradeSkillsUpdatedAt` – static spell, item and recipe data comes from wow.export; `spellTooltips`/`spellTooltipsUpdatedAt` (addon 0.9.1) – Forever's talent tooltips come from the client data; written again since addon 1.2.0 by `/fc spelltooltips` for spells the client data cannot fill in (section 14).

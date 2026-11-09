@@ -410,6 +410,9 @@ local function buildAdvanced(page)
     if addon.ItemCacheStatus and addon.ItemCacheStatus() then
         crawls[#crawls + 1] = crawlRow(page, "Item cache", "itemcache", addon.ItemCacheStatus)
     end
+    if addon.SpellTooltipStatus and addon.SpellTooltipStatus() then
+        crawls[#crawls + 1] = crawlRow(page, "Spell tooltips", "spelltooltips", addon.SpellTooltipStatus)
+    end
     if #crawls > 0 then
         local crawlLabel = CreateFrame("Frame", nil, page)
         crawlLabel:SetHeight(14)

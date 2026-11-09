@@ -265,6 +265,10 @@ local function scanLoot()
     local countedSources = {}
     local countedKills = {}
     local summary = { items = 0, money = 0, sources = {}, sourceNames = {}, itemNames = {} }
+    -- A disenchant names its source itself (the disenchanted item); where it
+    -- happened means nothing for its results.
+    local fixedSource = gather and gather.sourceType and gather or nil
+    local trackLocation = not (gather and gather.noLocation)
 
     for slot = 1, numSlots do
         local slotType = GetLootSlotType and GetLootSlotType(slot) or LOOT_SLOT_ITEM
@@ -272,7 +276,7 @@ local function scanLoot()
         local link = slotType == LOOT_SLOT_ITEM and GetLootSlotLink(slot) or nil
 
         local guids = getSlotSourceGUIDs(slot)
-        if #guids == 0 then
+        if #guids == 0 or fixedSource then
             guids[1] = false
         end
         for _, guid in ipairs(guids) do
@@ -281,7 +285,12 @@ local function scanLoot()
             if guid and seenLootGUIDs[guid] and not gather then
                 -- already counted this container
             else
-                local sourceType, sourceID, sourceName, unit = describeSource(guid or nil, gather)
+                local sourceType, sourceID, sourceName, unit
+                if fixedSource then
+                    sourceType, sourceID = fixedSource.sourceType, fixedSource.sourceID
+                else
+                    sourceType, sourceID, sourceName, unit = describeSource(guid or nil, gather)
+                end
                 if gather and not sourceName then
                     sourceName = gather.nodeName
                 elseif sourceType == "GameObject" and not sourceName then
@@ -296,7 +305,9 @@ local function scanLoot()
                 if not countedSources[sourceKey] then
                     countedSources[sourceKey] = true
                     source.lootCount = source.lootCount + 1
-                    if gather then
+                    if not trackLocation then
+                        -- no location for disenchants
+                    elseif gather then
                         countLocation(source.locations, location, GATHER_SOURCE_LOCATION_CAP, now, GATHER_LOCATION_TIMES_CAP)
                     else
                         addUniqueLocation(source.locations, location, SOURCE_LOCATION_CAP)
@@ -334,7 +345,9 @@ local function scanLoot()
                         item.timesSeen = item.timesSeen + 1
                         item.quantityTotal = item.quantityTotal + (quantity or 1)
                         item.lastSeenAt = now
-                        if gather then
+                        if not trackLocation then
+                            -- no location for disenchants
+                        elseif gather then
                             countLocation(item.locations, location, GATHER_ITEM_LOCATION_CAP, now, GATHER_LOCATION_TIMES_CAP)
                         else
                             addUniqueLocation(item.locations, location, ITEM_LOCATION_CAP)
@@ -349,7 +362,7 @@ local function scanLoot()
                             sourceID = sourceID,
                             profession = gather and gather.profession or nil,
                             name = source.name,
-                            location = location,
+                            location = trackLocation and location or nil,
                         })
                     end
                 end
@@ -389,7 +402,14 @@ local function scanLoot()
 
     if #summary.sources > 0 then
         local moneyText = summary.money > 0 and (", " .. formatMoney(summary.money)) or ""
-        if gather then
+        if fixedSource then
+            local items = #summary.itemNames > 0 and table.concat(summary.itemNames, ", ") or "nothing"
+            announce(string.format("Disenchanted %s: %s.", table.concat(summary.sourceNames, ", "), items), {
+                kind = "gathering",
+                title = table.concat(summary.sourceNames, ", "),
+                detail = addon.JoinDetail(gather.profession, items),
+            })
+        elseif gather then
             local where = location.zone or location.mapName or "unknown zone"
             if location.subZone and location.subZone ~= "" then
                 where = where .. " - " .. location.subZone

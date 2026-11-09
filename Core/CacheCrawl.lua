@@ -4,7 +4,7 @@ local _, addon = ...
 -- client stores each answer in one of its cache files, which the importer reads. Nothing is
 -- saved here except the crawl position per build and list, so a /reload or logout continues where
 -- it stopped and a new list starts over. Modules/QuestCache.lua and Modules/ItemCache.lua are the
--- two crawls.
+-- cache crawls; Modules/SpellTooltips.lua reads each answer itself (config.onResult).
 
 local printMessage = addon.PrintMessage
 
@@ -14,8 +14,11 @@ local REPORT_EVERY = 500
 
 -- config: command (/fc <command>), label ("Quest cache"), unit ("quest"), cacheFile,
 -- settingsKey (in ForeverCollectSettings), ids() (the list, nil when missing), request(id),
--- resultEvent (an event whose second argument is the success flag), isSupported(), unsupported
--- (message), help (for /fc help). Returns the status function for the settings page.
+-- resultEvent (an event whose arguments are the ID and the success flag), isSupported(),
+-- unsupported (message), help (for /fc help). Optional: onResult(id, success), called for every
+-- result event, also one that arrives after the last request; doneHint, the next step after the
+-- crawl (default: log out so the client writes cacheFile). Returns the status function for the
+-- settings page.
 function addon.NewCacheCrawl(config)
     local label, units = config.label, config.unit .. "s"
     local ticker
@@ -79,9 +82,11 @@ function addon.NewCacheCrawl(config)
             local id = ids[state.nextIndex]
             if not id then
                 stop(string.format(
-                    "%s: all %d %s requested (%d answered, %d unknown to the server). "
-                        .. "Log out or exit so the client writes %s, then run the importer.",
-                    label, #ids, units, loaded, failed, config.cacheFile
+                    "%s: all %d %s requested (%d answered, %d unknown to the server). %s",
+                    label, #ids, units, loaded, failed,
+                    config.doneHint or string.format(
+                        "Log out or exit so the client writes %s, then run the importer.", config.cacheFile
+                    )
                 ))
                 return
             end
@@ -94,7 +99,10 @@ function addon.NewCacheCrawl(config)
     end
 
     local valid = not (C_EventUtils and C_EventUtils.IsEventValid) or C_EventUtils.IsEventValid(config.resultEvent)
-    eventKnown = valid and pcall(addon.RegisterEvent, addon, config.resultEvent, function(_, success)
+    eventKnown = valid and pcall(addon.RegisterEvent, addon, config.resultEvent, function(id, success)
+        if config.onResult then
+            config.onResult(id, success)
+        end
         if not ticker then
             return
         end
