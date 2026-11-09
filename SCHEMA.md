@@ -495,7 +495,7 @@ Map `encounterID → Encounter`. Between `ENCOUNTER_START` and `ENCOUNTER_END`, 
 
 | Field | Type | Opt. | Description |
 |---|---|---|---|
-| `encounterID` | number | – | `DungeonEncounter.db2` ID. |
+| `encounterID` | number | – | `DungeonEncounter.db2` ID. Always > 0; the client's ID 0 (loot without an encounter) is ignored. |
 | `name` | string | ✓ | Name from `ENCOUNTER_START`. |
 | `difficultyID` | number | ✓ | Difficulty. |
 | `instanceID` | number | ✓ | Instance ID (`GetInstanceInfo()`, = map ID). |

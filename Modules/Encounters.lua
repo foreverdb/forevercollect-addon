@@ -54,9 +54,15 @@ local function scanBossUnits()
     current.probe.maxBossUnits = math.max(current.probe.maxBossUnits, current.probe.bossUnits)
 end
 
+-- The client also reports encounter ID 0 (loot or events without a boss
+-- encounter); it has no DungeonEncounter row and is not recorded.
+local function isEncounterID(value)
+    return type(value) == "number" and value > 0
+end
+
 addon:RegisterEvent("ENCOUNTER_START", function(encounterID, encounterName, difficultyID, groupSize)
     encounterID = readable(encounterID)
-    if type(encounterID) ~= "number" then
+    if not isEncounterID(encounterID) then
         current = nil
         return
     end
@@ -174,7 +180,7 @@ end
 pcall(addon.RegisterEvent, addon, "ENCOUNTER_LOOT_RECEIVED", function(encounterID, itemID)
     encounterID = readable(encounterID)
     itemID = readable(itemID)
-    if type(encounterID) ~= "number" or type(itemID) ~= "number" or not addon.IsCapturing("encounters") then
+    if not isEncounterID(encounterID) or type(itemID) ~= "number" or not addon.IsCapturing("encounters") then
         return
     end
     local catalog = getOrCreateCatalog(getClientInfo())

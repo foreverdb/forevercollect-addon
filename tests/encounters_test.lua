@@ -124,6 +124,13 @@ clock = 1210
 addon.NoteCreatureLooted(3674, clock)
 check("loot after a wipe goes to the last kill", kresh.lootedAfterKill and kresh.lootedAfterKill[1].npcID == 3674)
 
+-- Encounter ID 0 (loot without a boss encounter) is never recorded.
+fire("ENCOUNTER_LOOT_RECEIVED", 0, 285345, "|Hitem:285345|h", 1, "Player", "WARRIOR")
+check("loot of encounter 0 ignored", catalog.encounters[0] == nil)
+fire("ENCOUNTER_START", 0, "", 1, 5)
+fire("ENCOUNTER_END", 0, "", 1, 5, 1)
+check("encounter 0 not recorded", catalog.encounters[0] == nil)
+
 -- Paused encounters capture nothing.
 ForeverCollectCharacterSettings.paused = { encounters = true }
 fire("ENCOUNTER_LOOT_RECEIVED", 588, 1, "", 1, "Player", "WARRIOR")
