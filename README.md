@@ -24,6 +24,7 @@ The version is set in `ForeverCollect.toc` (`## Version:`). When it is bumped on
 /fc quests    Show number of captured quests and observations
 /fc questcache Query all quests from the server (stop, status, reset; approved crawlers only)
 /fc itemcache Query all items without client data from the server (stop, status, reset; approved crawlers only)
+/fc spelltooltips Scan the tooltips of the spells whose values the website lacks (stop, status, reset; approved crawlers only)
 /fc status    Show catalog context and scan status
 /fc verbose   Toggle notices for every capture (default: on)
 /fc save      Save collected data now (reloads the UI)
@@ -50,6 +51,8 @@ Every capture (quest dialog, turn-in, loot, merchant, trainer, banker, flight ma
 
 **Item catalog:** Item data (name, stats, levels) comes from `ItemSparse.db2`. Many items sit there in encrypted sections whose key the client does not have; the server sends such an item's rows when the client shows or asks for it, and the client keeps them in `Cache/ADB/<locale>/DBCache.bin`, which the importer's `db2` step merges like hotfixes. `/fc itemcache` asks for every item ID in `ForeverCollect_CacheIDs` (items without client data, written by `foreverdb-import item-ids`) at the same rate as the quest cache; afterwards, log out and run `foreverdb-import all`.
 
+**Spell values:** The website computes spell texts from the client data. Some effects sit in encrypted sections whose keys the client only holds in memory, so no cache upload carries them and the text keeps an "X"; the in-game tooltip shows the values on a character of any class. For approved crawlers the uploader writes these spells into `ForeverCollect_CacheIDs` (`SpellIDs.lua`, once per build); `/fc spelltooltips` loads each spell and stores its tooltip in `spellTooltips` (SCHEMA.md section 14), which the next upload carries. The website uses a scan only where its own computation leaves an "X".
+
 **Combat log:** Addons get no combat data: inside dungeons and raids the game hides the GUIDs of hostile units, so the addon cannot see which creature an encounter's boss is, and casts of creatures are hidden everywhere. The game's own combat log file still has both: the addon turns combat logging on when entering a dungeon or raid and off again when leaving (only logging it started itself; logging started with `/combatlog` or by another addon stays on). With `/fc combatlog everywhere` (or "Also in the open world" in the window) it logs everywhere, for the abilities of creatures in the open world; `/fc combatlog instances` goes back to dungeons and raids. The uploader reads `Logs/WoWCombatLog*.txt` and sends the creatures that died during each successful encounter and which spells creatures used (creature and spell IDs only); nothing else from the log (no player names, no raw lines) leaves the computer. Per character, on by default in dungeons and raids, `/fc combatlog off` or the window turns it off. The log files stay in `Logs/`; WoW starts a new one per session and never deletes old ones.
 
 **Armory (opt-in):** With `/fc armory on`, the addon keeps a snapshot of the own character per catalog in `characters`: name, realm, guild, equipped items (with enchant and random suffix), spent talents (Classic) or purchased trait nodes (Forever), skill lines and the character sheet values. The upload gives the character a profile on ForeverDB; a new character starts hidden unless the setup's "Show on the public Armory" was on, and its owner shows or hides it on foreverdb.app/profile. It is set per character and off by default because name and realm otherwise never leave the computer; `/fc armory off` removes that character's stored snapshots (written with the next `/reload` or logout), other characters keep theirs. Before addon 0.6.4 Armory was account-wide: that opt-in carries over to each character on its first login (with a chat notice) until Armory is switched on or off explicitly for any character; characters logging in for the first time after that start with Armory off. Details: `SCHEMA.md` section 16.
@@ -64,7 +67,7 @@ After `/reload`, logout or exit, WoW writes the data to:
 WTF/Account/<ACCOUNT>/SavedVariables/ForeverCollect.lua
 ```
 
-The file holds two globals: `ForeverCollectDB` (the collected data) and `ForeverCollectSettings` (`/fc verbose`, the `/fc questcache` and `/fc itemcache` positions). After an upload the uploader removes only `ForeverCollectDB`, so the next session starts with empty catalogs and the settings stay. Per-character settings (`/fc armory`, `/fc combatlog`, the `/fc pause` flags) are in `ForeverCollectCharacterSettings`, which the game writes to each character's own file (`WTF/Account/<ACCOUNT>/<Realm>/<Character>/SavedVariables/ForeverCollect.lua`); the uploader never reads it.
+The file holds two globals: `ForeverCollectDB` (the collected data) and `ForeverCollectSettings` (`/fc verbose`, the `/fc questcache`, `/fc itemcache` and `/fc spelltooltips` positions). After an upload the uploader removes only `ForeverCollectDB`, so the next session starts with empty catalogs and the settings stay. Per-character settings (`/fc armory`, `/fc combatlog`, the `/fc pause` flags) are in `ForeverCollectCharacterSettings`, which the game writes to each character's own file (`WTF/Account/<ACCOUNT>/<Realm>/<Character>/SavedVariables/ForeverCollect.lua`); the uploader never reads it.
 
 ## Uploading
 
@@ -98,6 +101,7 @@ Modules/Trainers.lua    Trainer services (/fc trainer)
 Modules/Quests.lua      Quest dialogs and turn-ins (/fc quests)
 Modules/QuestCache.lua  Queries all quests of ForeverCollect_CacheIDs from the server (/fc questcache)
 Modules/ItemCache.lua   Queries all items of ForeverCollect_CacheIDs from the server (/fc itemcache)
+Modules/SpellTooltips.lua Scans the tooltips of the spells of ForeverCollect_CacheIDs (/fc spelltooltips)
 Core/CacheCrawl.lua     Throttled, resumable server queries shared by the quest and item cache
 ForeverCollect.lua      Entry point: loading, login scan, /fc help, /fc scan, /fc status
 ```
