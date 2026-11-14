@@ -125,6 +125,20 @@ local function getNPCSubtitle(unitToken)
     return (string.gsub(text, "^<(.*)>$", "%1"))
 end
 
+-- UnitFactionGroup of the NPC: "Alliance" or "Horde"; nothing for a neutral NPC
+-- both factions use, stored as "Neutral" so that a missing field always means
+-- "not captured" (older versions).
+local function getFactionGroup(unitToken)
+    if not UnitFactionGroup then
+        return nil
+    end
+    local factionGroup = UnitFactionGroup(unitToken)
+    if factionGroup == "Alliance" or factionGroup == "Horde" then
+        return factionGroup
+    end
+    return "Neutral"
+end
+
 local function getNPC(unitToken, interactionType, role)
     local guid = UnitGUID and UnitGUID(unitToken) or nil
     local name = UnitName and UnitName(unitToken) or nil
@@ -141,6 +155,7 @@ local function getNPC(unitToken, interactionType, role)
         name = name,
         subtitle = getNPCSubtitle(unitToken),
         reaction = UnitReaction and UnitReaction(unitToken, "player") or nil,
+        factionGroup = getFactionGroup(unitToken),
         interactionTypes = { interactionType },
         creatureType = UnitCreatureType and UnitCreatureType(unitToken) or nil,
         classification = UnitClassification and UnitClassification(unitToken) or nil,
