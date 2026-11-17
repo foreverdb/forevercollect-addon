@@ -148,6 +148,30 @@ check("level range spans the looted targets", trogg.minLevel == 6 and trogg.maxL
 lootTarget("Creature-0-1-0-1-1132-0000000014", -1)
 check("an unreadable level records no range", catalog.lootSources["Creature:1132"].minLevel == nil)
 UnitGUID = function() return nil end
+
+-- A trash quest item with a secret source, looted with the dead boss (readable
+-- target), is not the boss's; without any reported source the target still counts.
+local SECRET = {}
+issecretvalue = function(value) return value == SECRET end
+local boss = "Creature-0-1-0-1-260325-0000000020"
+UnitIsDead = function(unit) return unit == "target" end
+UnitGUID = function(unit) return unit == "target" and boss or nil end
+slots = { item(273027, boss), item(271100, SECRET) }
+fire("LOOT_READY", true)
+fire("LOOT_CLOSED")
+check("a secret slot source does not fall back to the dead boss",
+    catalog.lootSources["Creature:260325"].items[271100] == nil
+        and catalog.lootSources["Creature:260325"].items[273027] ~= nil)
+check("the secret slot is filed without a source", catalog.lootSources["Unknown"].items[271100] ~= nil)
+local boar2 = "Creature-0-1-0-1-113-0000000021"
+UnitGUID = function(unit) return unit == "target" and boar2 or nil end
+slots = { item(2589) }
+fire("LOOT_READY", true)
+fire("LOOT_CLOSED")
+check("a window without sources falls back to the dead target", catalog.lootSources["Creature:113"].items[2589] ~= nil)
+issecretvalue = nil
+UnitIsDead = function() return false end
+UnitGUID = function() return nil end
 local killsBeforePause = #catalog.killTimes
 
 -- Paused kinds record nothing; a paused gather is not recorded as loot either.

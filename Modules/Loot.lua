@@ -124,11 +124,28 @@ local function parseMoneyText(text)
     return total
 end
 
--- Returns the GUIDs the loot in `slot` came from. Falls back to the dead
--- target when the client does not report loot sources. Secret GUIDs (hostile
--- units in instanced content on the mainline engine) are left out: they can
--- neither be parsed nor used as table keys.
-local function getSlotSourceGUIDs(slot)
+-- Whether the client reports a source for `slot`, readable or secret.
+local function slotReportsSource(slot)
+    return GetLootSourceInfo ~= nil and GetLootSourceInfo(slot) ~= nil
+end
+
+-- Whether any slot of the open window reports a source.
+local function windowReportsSources(numSlots)
+    for slot = 1, numSlots do
+        if slotReportsSource(slot) then
+            return true
+        end
+    end
+    return false
+end
+
+-- Returns the GUIDs the loot in `slot` came from. Secret GUIDs (hostile units
+-- in instanced content on the mainline engine) are left out: they can neither
+-- be parsed nor used as table keys. Falls back to the dead target only when
+-- the client reports no source in the whole window (`allowTarget`): a secret
+-- or missing source in a window with other sources is not the target's, as
+-- a trash quest item looted together with a boss whose GUID is readable.
+local function getSlotSourceGUIDs(slot, allowTarget)
     local guids = {}
     if GetLootSourceInfo then
         local sources = { GetLootSourceInfo(slot) }
@@ -139,7 +156,7 @@ local function getSlotSourceGUIDs(slot)
             end
         end
     end
-    if #guids == 0 and UnitIsDead and UnitIsDead("target") then
+    if #guids == 0 and allowTarget and UnitIsDead and UnitIsDead("target") then
         guids[1] = readable(UnitGUID("target"))
     end
     return guids
@@ -269,13 +286,14 @@ local function scanLoot()
     -- happened means nothing for its results.
     local fixedSource = gather and gather.sourceType and gather or nil
     local trackLocation = not (gather and gather.noLocation)
+    local allowTarget = not windowReportsSources(numSlots)
 
     for slot = 1, numSlots do
         local slotType = GetLootSlotType and GetLootSlotType(slot) or LOOT_SLOT_ITEM
         local name, quantity, quality, isQuestItem, questID = getLootSlotInfo(slot)
         local link = slotType == LOOT_SLOT_ITEM and GetLootSlotLink(slot) or nil
 
-        local guids = getSlotSourceGUIDs(slot)
+        local guids = getSlotSourceGUIDs(slot, allowTarget)
         if #guids == 0 or fixedSource then
             guids[1] = false
         end
@@ -372,7 +390,7 @@ local function scanLoot()
 
     local newGUIDs = {}
     for slot = 1, numSlots do
-        for _, guid in ipairs(getSlotSourceGUIDs(slot)) do
+        for _, guid in ipairs(getSlotSourceGUIDs(slot, allowTarget)) do
             if not seenLootGUIDs[guid] then
                 seenLootGUIDs[guid] = true
                 newGUIDs[#newGUIDs + 1] = guid
